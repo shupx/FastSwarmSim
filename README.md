@@ -4,13 +4,13 @@ FastSwarmSim 是 `sim_px4_drone` 的 ROS 2 版本原型，用于轻量级多无�
 
 当前版本已经包含：
 
-- `fastswarm_time`: 分布式保守时间同步核心、`/clock` bridge、倍速/暂停控制接口。
-- `fastswarm_px4_sim`: ROS 2 版理想 MAVROS 无人机节点，保留 `mavros/...` 话题和服务命名。
-- `fastswarm_sensing`: ROS 2 版局部点云渲染节点。
+- `fss_time`: 分布式保守时间同步核心、`/clock` bridge、倍速/暂停控制接口。
+- `fss_px4_sim`: ROS 2 版理想 MAVROS 无人机节点，保留 `mavros/...` 话题和服务命名。
+- `fss_sensing`: ROS 2 版局部点云渲染节点。
 - `marsim_render`: 点云渲染库和示例地图资源。
-- `fastswarm_bringup`: 常用 launch 文件。
+- `fss_bringup`: 常用 launch 文件。
 
-完整 trimmed PX4 控制器和动力学栈仍在迁移中；当前 `fastswarm_px4_sim` 先提供 perfect MAVROS drone 作为上层算法和时间同步的验证基线。
+完整 trimmed PX4 控制器和动力学栈仍在迁移中；当前 `fss_px4_sim` 先提供 perfect MAVROS drone 作为上层算法和时间同步的验证基线。
 
 ## 安装
 
@@ -42,7 +42,7 @@ source install/setup.bash
 启动分布式仿真时钟：
 
 ```bash
-ros2 launch fastswarm_bringup distributed_clock.launch.py max_speed_ratio:=1.0
+ros2 launch fss_bringup distributed_clock.launch.py max_speed_ratio:=1.0
 ```
 
 `max_speed_ratio` 含义：
@@ -54,19 +54,19 @@ ros2 launch fastswarm_bringup distributed_clock.launch.py max_speed_ratio:=1.0
 启动单架理想 MAVROS 无人机：
 
 ```bash
-ros2 launch fastswarm_bringup perfect_drone.launch.py namespace:=uav1 init_z:=1.0
+ros2 launch fss_bringup perfect_drone.launch.py namespace:=uav1 init_z:=1.0
 ```
 
 启动多架理想无人机：
 
 ```bash
-ros2 launch fastswarm_bringup perfect_swarm.launch.py num_drones:=5
+ros2 launch fss_bringup perfect_swarm.launch.py num_drones:=5
 ```
 
 启动局部点云感知节点：
 
 ```bash
-ros2 launch fastswarm_bringup sensing.launch.py
+ros2 launch fss_bringup sensing.launch.py
 ```
 
 常用话题示例：
@@ -92,8 +92,8 @@ ros2 topic pub /uav1/mavros/setpoint_raw/local mavros_msgs/msg/PositionTarget "{
 暂停或恢复仿真时钟：
 
 ```bash
-ros2 service call /fastswarm/clock_control fastswarm_time_interfaces/srv/SimClockControl "{proceed: false, max_sim_speed: 0.0}"
-ros2 service call /fastswarm/clock_control fastswarm_time_interfaces/srv/SimClockControl "{proceed: true, max_sim_speed: 10.0}"
+ros2 service call /fss/clock_control fss_time_interfaces/srv/SimClockControl "{proceed: false, max_sim_speed: 0.0}"
+ros2 service call /fss/clock_control fss_time_interfaces/srv/SimClockControl "{proceed: true, max_sim_speed: 10.0}"
 ```
 
 ## 开发备注
@@ -108,5 +108,5 @@ colcon test-result --verbose
 完整 PX4/MAVROS dynamics 栈的迁移边界见：
 
 ```bash
-src/fastswarm_px4_sim/MIGRATION.md
+src/fss_px4_sim/MIGRATION.md
 ```
