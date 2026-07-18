@@ -1,0 +1,5 @@
+bool proceed
+float32 max_sim_speed
+float32 ORIGINAL_SPEED=0
+---
+bool success

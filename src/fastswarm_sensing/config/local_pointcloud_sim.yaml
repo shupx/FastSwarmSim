@@ -1,0 +1,58 @@
+# Local Pointcloud Simulator Configuration File
+# This file defines both ROS topic names and LiDAR rendering parameters
+
+# ============================================================================
+# ROS Topic Configuration
+# ============================================================================
+
+# If true, subscribe to odom_topic; if false, subscribe to pose_topic
+use_odom: false  
+
+# Alternative input topic: Odometry message with drone pose
+# Set use_odom to true to use this instead of pose_topic
+odom_topic: "mavros/local_position/odom"
+
+# Input topic: PoseStamped message with drone pose
+pose_topic: "mavros/local_position/pose"
+
+# Output topics
+local_pc_topic: "cloud_registered"    # Local point cloud (as seen by the drone)
+global_pc_topic: "global_pc"          # Global point cloud (entire map)
+
+# Frame ID for point cloud messages
+frame_id: "map"
+
+# ============================================================================
+# LiDAR Sensor Parameters (from marsim_render)
+# ============================================================================
+
+# Point cloud file path (relative to pcd/ directory)
+pcd_name: "random_map_150.pcd"
+
+# LiDAR Type
+# UNDEFINED = 0, AVIA = 1, GENERAL_360 = 2, MID_360 = 3
+lidar_type: 2
+
+# Sensing parameters
+sensing_blind: 0.1        # Blind zone distance (m)
+sensing_horizon: 70.0     # Maximum sensing distance (m)
+sensing_rate: 10          # Publishing rate (Hz)
+
+# Field of View
+is_360lidar: true         # 360-degree LiDAR
+yaw_fov: 360.0            # Horizontal field of view (degrees), only used if not 360lidar
+vertical_fov: 77.4        # Vertical field of view (degrees)
+polar_resolution: 0.1     # Angular resolution (degrees)
+
+# Camera intrinsics (for perspective projection)
+fx: 250.0                 # Focal length x
+fy: 250.0                 # Focal length y
+
+# Point cloud processing
+# line_number: 64           # Number of scan lines
+downsample_res: 0.1       # Downsampling resolution (m)
+
+# Additional features
+depth_image_en: false     # Enable depth image output
+inf_point_en: false       # Enable infinite point handling
+print_time_consumption: false  # Print timing information

@@ -1,0 +1,11 @@
+<package format="2">
+    <version>0.0.0</version>
+    <name>marsim_render</name>
+    <description>marsim_render</description>
+    <maintainer email="renyf@connect.hku.hk">Yunfan Ren</maintainer>
+    <license>BSD</license>
+    <buildtool_depend>ament_cmake</buildtool_depend>
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
+</package>

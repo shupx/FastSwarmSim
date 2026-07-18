@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>fastswarm_bringup</name>
+  <version>0.1.0</version>
+  <description>Launch and configuration package for FastSwarmSim.</description>
+  <maintainer email="shupeixuan@qq.com">Peixuan Shu</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>fastswarm_px4_sim</exec_depend>
+  <exec_depend>fastswarm_sensing</exec_depend>
+  <exec_depend>fastswarm_time</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -1,0 +1,16 @@
+pcd_name: "/home/yunfan/Documents/ROG-Map/examples/MARSIM/test_interface/pcd/random_map_8_1278.pcd"
+is_360lidar: true
+polar_resolution: 0.1
+downsample_res: 0.1
+vertical_fov: 77.4
+sensing_blind: 0.1
+sensing_horizon: 10
+sensing_rate: 10
+#  enum LiDARType{
+#  UNDEFINED = 0,
+#  AVIA = 1,
+#  GENERAL_360 = 2,
+#  MID_360 = 3
+#  };
+lidar_type: 2
+depth_image_en: true

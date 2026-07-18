@@ -1,0 +1,2 @@
+uint32 time_client_id
+builtin_interfaces/Time request_time

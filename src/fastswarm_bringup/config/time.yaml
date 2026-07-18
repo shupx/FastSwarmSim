@@ -1,0 +1,5 @@
+fastswarm_clock_bridge:
+  ros__parameters:
+    participant_id: clock_bridge
+    max_speed_ratio: 1.0
+    lease_timeout_ms: 1000

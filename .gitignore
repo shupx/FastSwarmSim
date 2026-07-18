@@ -1,0 +1,30 @@
+# ROS 2 / colcon build products
+build/
+install/
+log/
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# CMake/editor noise
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+.cache/
+.vscode/
+.idea/
+
+# Runtime logs and bags
+*.log
+*.bag
+*.db3
+*.mcap
+
+# Binary build outputs
+*.o
+*.so
+*.a
+*.d
+*.tmp
