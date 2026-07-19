@@ -24,8 +24,6 @@ public:
       std::chrono::milliseconds(lease_timeout_ms),
       true);
     participant_->start();
-    control_pub_ = create_publisher<fss_time_interfaces::msg::TimeControl>(
-      "/fss/time_control", rclcpp::QoS(rclcpp::KeepLast(20)).reliable().transient_local());
     clock_control_srv_ = create_service<fss_time_interfaces::srv::SimClockControl>(
       "/fss/clock_control",
       [this](
@@ -36,19 +34,19 @@ public:
         if (request->max_sim_speed != 0.0f) {
           control.command = fss_time_interfaces::msg::TimeControl::COMMAND_SET_SPEED;
           control.max_speed_ratio = request->max_sim_speed;
-          control_pub_->publish(control);
+          participant_->publish_control(control);
           control.epoch = ++control_epoch_;
         }
         control.command = request->proceed ?
           fss_time_interfaces::msg::TimeControl::COMMAND_RESUME :
           fss_time_interfaces::msg::TimeControl::COMMAND_PAUSE;
-        control_pub_->publish(control);
+        participant_->publish_control(control);
         response->success = true;
       });
 
     RCLCPP_INFO(
       get_logger(),
-      "FastSwarm distributed clock bridge started as '%s' with max_speed_ratio %.3f",
+      "FastSwarm distributed clock bridge started as '%s' with max_speed_ratio %.3f using eCAL transport",
       participant_id.c_str(),
       max_speed_ratio);
   }
@@ -62,7 +60,6 @@ public:
 
 private:
   std::unique_ptr<fss_time::TimeParticipant> participant_;
-  rclcpp::Publisher<fss_time_interfaces::msg::TimeControl>::SharedPtr control_pub_;
   rclcpp::Service<fss_time_interfaces::srv::SimClockControl>::SharedPtr clock_control_srv_;
   uint64_t control_epoch_{0};
 };
