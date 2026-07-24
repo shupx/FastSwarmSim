@@ -6,10 +6,8 @@
 #include <mutex>
 #include <string>
 
-#include "fss_time/distributed_time_core.hpp"
-#include "fss_time/time_transport.hpp"
+#include "fss_time/helics_time_coordinator.hpp"
 #include "fss_time_interfaces/msg/time_control.hpp"
-#include "fss_time_interfaces/msg/time_intent.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rosgraph_msgs/msg/clock.hpp"
 
@@ -35,25 +33,19 @@ public:
 
 private:
   int64_t steady_now_ns() const;
-  void publish_intent(uint8_t state, int64_t next_safe_time_ns);
+  HelicsTimeOptions make_helics_options(double max_speed_ratio) const;
   void tick();
-  void on_intent(const fss_time_interfaces::msg::TimeIntent & msg);
-  void on_control(const fss_time_interfaces::msg::TimeControl & msg);
 
   rclcpp::Node & node_;
   std::string participant_id_;
-  uint64_t epoch_{0};
-  int64_t next_safe_time_ns_{0};
-  uint8_t intent_state_{fss_time_interfaces::msg::TimeIntent::STATE_IDLE};
   std::chrono::milliseconds lease_timeout_;
   bool publish_clock_{false};
   std::chrono::steady_clock::time_point steady_start_;
 
   mutable std::mutex mutex_;
-  DistributedTimeCore core_;
+  std::unique_ptr<HelicsTimeCoordinator> coordinator_;
   rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr clock_pub_;
   rclcpp::TimerBase::SharedPtr tick_timer_;
-  std::unique_ptr<TimeTransport> transport_;
 };
 
 }  // namespace fss_time

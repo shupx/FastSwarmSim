@@ -13,6 +13,10 @@ def generate_launch_description():
         DeclareLaunchArgument("init_y", default_value="0.0"),
         DeclareLaunchArgument("init_z", default_value="1.0"),
         DeclareLaunchArgument("init_yaw", default_value="0.0"),
+        DeclareLaunchArgument("helics_core_type", default_value="zmq"),
+        DeclareLaunchArgument("helics_broker_address", default_value="127.0.0.1"),
+        DeclareLaunchArgument("helics_broker_port", default_value="23404"),
+        DeclareLaunchArgument("helics_time_delta_ns", default_value="1000000"),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_sim_time")),
         PushRosNamespace(namespace),
         Node(
@@ -25,6 +29,10 @@ def generate_launch_description():
                 "init_y": LaunchConfiguration("init_y"),
                 "init_z": LaunchConfiguration("init_z"),
                 "init_yaw": LaunchConfiguration("init_yaw"),
+                "helics_core_type": LaunchConfiguration("helics_core_type"),
+                "helics_broker_address": LaunchConfiguration("helics_broker_address"),
+                "helics_broker_port": LaunchConfiguration("helics_broker_port"),
+                "helics_time_delta_ns": LaunchConfiguration("helics_time_delta_ns"),
             }],
         ),
     ])

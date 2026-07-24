@@ -14,14 +14,31 @@ find_package(builtin_interfaces REQUIRED)
 find_package(fss_time_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rosgraph_msgs REQUIRED)
-find_package(eCAL REQUIRED CONFIG)
 
-add_library(${PROJECT_NAME}
-  src/distributed_time_core.cpp
-  src/ecal_time_transport.cpp
+set(HELICS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(HELICS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(HELICS_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+set(HELICS_ENABLE_PACKAGE_BUILD OFF CACHE BOOL "" FORCE)
+set(HELICS_BUILD_APP_LIBRARY OFF CACHE BOOL "" FORCE)
+set(HELICS_BINARY_ONLY_INSTALL ON CACHE BOOL "" FORCE)
+set(HELICS_DISABLE_ASIO ON CACHE BOOL "" FORCE)
+set(HELICS_DISABLE_BOOST ON CACHE BOOL "" FORCE)
+set(HELICS_DISABLE_GIT_OPERATIONS ON CACHE BOOL "" FORCE)
+set(HELICS_DISABLE_VCPKG ON CACHE BOOL "" FORCE)
+set(HELICS_USE_EXTERNAL_FMT OFF CACHE BOOL "" FORCE)
+set(HELICS_USE_EXTERNAL_SPDLOG OFF CACHE BOOL "" FORCE)
+set(HELICS_USE_SYSTEM_ZEROMQ_ONLY OFF CACHE BOOL "" FORCE)
+set(HELICS_ZMQ_FORCE_SUBPROJECT ON CACHE BOOL "" FORCE)
+set(HELICS_ZMQ_SUBPROJECT ON CACHE BOOL "" FORCE)
+set(GMLC_NETWORKING_TEST OFF CACHE BOOL "" FORCE)
+set(FSS_TIME_PREVIOUS_SKIP_INSTALL_RULES ${CMAKE_SKIP_INSTALL_RULES})
+set(CMAKE_SKIP_INSTALL_RULES TRUE)
+add_subdirectory(third_party/HELICS EXCLUDE_FROM_ALL)
+set(CMAKE_SKIP_INSTALL_RULES ${FSS_TIME_PREVIOUS_SKIP_INSTALL_RULES})
+
+add_library(${PROJECT_NAME} SHARED
+  src/helics_time_coordinator.cpp
   src/time_participant.cpp
-  src/time_transport.cpp
-  src/time_transport_serialization.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -33,49 +50,42 @@ ament_target_dependencies(${PROJECT_NAME}
   rclcpp
   rosgraph_msgs
 )
-if(TARGET eCAL::core)
-  target_link_libraries(${PROJECT_NAME} eCAL::core)
-elseif(TARGET eCAL::ecal_core)
-  target_link_libraries(${PROJECT_NAME} eCAL::ecal_core)
-elseif(TARGET eCAL::ecal)
-  target_link_libraries(${PROJECT_NAME} eCAL::ecal)
+if(TARGET HELICS::helics)
+  set(FSS_TIME_HELICS_TARGET HELICS::helics)
+elseif(TARGET HELICS::helicscpp)
+  set(FSS_TIME_HELICS_TARGET HELICS::helicscpp)
 else()
-  target_link_libraries(${PROJECT_NAME} ecal_core)
+  set(FSS_TIME_HELICS_TARGET helics)
 endif()
+target_link_libraries(${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
+set_target_properties(${PROJECT_NAME} PROPERTIES INTERFACE_LINK_LIBRARIES "")
 
 add_executable(clock_bridge_node src/clock_bridge_node.cpp)
 target_link_libraries(clock_bridge_node ${PROJECT_NAME})
 ament_target_dependencies(clock_bridge_node rclcpp rosgraph_msgs fss_time_interfaces)
 
-ament_add_gtest(test_distributed_time_core test/test_distributed_time_core.cpp)
-if(TARGET test_distributed_time_core)
-  target_link_libraries(test_distributed_time_core ${PROJECT_NAME})
+add_executable(helics_broker_node src/helics_broker_node.cpp)
+target_link_libraries(helics_broker_node ${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
+ament_target_dependencies(helics_broker_node rclcpp)
+
+ament_add_gtest(test_helics_time_coordinator test/test_helics_time_coordinator.cpp)
+if(TARGET test_helics_time_coordinator)
+  target_link_libraries(test_helics_time_coordinator ${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
 endif()
 
-ament_add_gtest(test_time_transport_serialization test/test_time_transport_serialization.cpp)
-if(TARGET test_time_transport_serialization)
-  target_link_libraries(test_time_transport_serialization ${PROJECT_NAME})
-endif()
-
-ament_add_gtest(test_ecal_time_transport test/test_ecal_time_transport.cpp)
-if(TARGET test_ecal_time_transport)
-  target_link_libraries(test_ecal_time_transport ${PROJECT_NAME})
-endif()
-
-install(TARGETS ${PROJECT_NAME} clock_bridge_node
-  EXPORT export_${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME} clock_bridge_node helics_broker_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY include/ DESTINATION include)
 
-ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_include_directories(include)
+ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(
   builtin_interfaces
   fss_time_interfaces
   rclcpp
   rosgraph_msgs
 )
-ament_export_dependencies(eCAL)
 ament_package()

@@ -17,6 +17,10 @@ public:
     const auto participant_id = declare_parameter<std::string>("participant_id", "clock_bridge");
     const auto max_speed_ratio = declare_parameter<double>("max_speed_ratio", 1.0);
     const auto lease_timeout_ms = declare_parameter<int>("lease_timeout_ms", 1000);
+    declare_parameter<std::string>("helics_core_type", "zmq");
+    declare_parameter<std::string>("helics_broker_address", "127.0.0.1");
+    declare_parameter<int>("helics_broker_port", 23404);
+    declare_parameter<int64_t>("helics_time_delta_ns", 1000000);
     participant_ = std::make_unique<fss_time::TimeParticipant>(
       *this,
       participant_id,
@@ -46,7 +50,7 @@ public:
 
     RCLCPP_INFO(
       get_logger(),
-      "FastSwarm distributed clock bridge started as '%s' with max_speed_ratio %.3f using eCAL transport",
+      "FastSwarm distributed clock bridge started as '%s' with max_speed_ratio %.3f using HELICS time coordination",
       participant_id.c_str(),
       max_speed_ratio);
   }

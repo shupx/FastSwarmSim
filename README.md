@@ -16,7 +16,7 @@ FastSwarmSim 是 `sim_px4_drone` 的 ROS 2 版本原型，用于轻量级多无�
 
 推荐环境：Ubuntu 22.04 + ROS 2 Humble。
 
-[安装 ROS 2](https://gitee.com/shu-peixuan/install_ros2) 后，安装构建工具和常用依赖。`colcon` 是必需工具：
+[安装 ROS 2, colcon, rosdep](https://gitee.com/shu-peixuan/install_ros2) （网络问题解决方法见链接）
 
 ```bash
 sudo apt update
@@ -25,29 +25,17 @@ sudo rosdep init
 rosdep update
 ```
 
-如果 `sudo rosdep init` 因为无法访问 `raw.githubusercontent.com` 失败，可以改用国内 rosdistro 镜像。以下命令会手动创建 rosdep 源列表，并把 `rosdep update` 的索引切到中科大镜像：
+`fss_time` 使用 HELICS 作为分布式仿真时间协调层。每个仿真参与者作为 HELICS federate 请求下一次安全仿真时间，只有在 HELICS grant 后才推进本地仿真时间。HELICS 源码已经 vendored 在 `src/fss_time/third_party/HELICS`，默认会随 `fss_time` 一起编译。
+
+`fss_time` 只使用仓库内的 HELICS 源码，不查找系统安装的 HELICS。HELICS 构建中已改用系统 apt 包提供的 `fmt`、`spdlog` 和 ZeroMQ：
 
 ```bash
-sudo mkdir -p /etc/ros/rosdep/sources.list.d/
-sudo curl -o /etc/ros/rosdep/sources.list.d/20-default.list \
-  https://mirrors.ustc.edu.cn/rosdistro/rosdep/sources.list.d/20-default.list
-sudo sed -i \
-  's#raw.githubusercontent.com/ros/rosdistro/master#mirrors.ustc.edu.cn/rosdistro#g' \
-  /etc/ros/rosdep/sources.list.d/20-default.list
-echo 'export ROSDISTRO_INDEX_URL=https://mirrors.ustc.edu.cn/rosdistro/index-v4.yaml' >> ~/.bashrc
-export ROSDISTRO_INDEX_URL=https://mirrors.ustc.edu.cn/rosdistro/index-v4.yaml
-rosdep update
-```
-
-`fss_time` 使用 eCAL 作为唯一分布式时间通信层。eCAL 在本机多进程场景使用共享内存，在局域网场景可使用 UDP multicast；没有 eCAL SDK 时 `fss_time` 不会构建。
-
-安装 eCAL：
-
-```bash
-sudo add-apt-repository ppa:ecal/ecal-latest
 sudo apt update
-sudo apt install -y ecal libprotobuf-dev protobuf-compiler
+sudo apt install -y cmake libfmt-dev libspdlog-dev libzmq3-dev
+cmake --version  # 需要 3.22 或更新版本
 ```
+
+说明：Ubuntu 22.04 apt 中虽然有 `libtoml11-dev` 和 `nlohmann-json3-dev`，但版本/API 与 HELICS 3.6.1 不兼容；`toml11`、`nlohmann_json` 以及 HELICS/GMLC 自有的 `networking`、`concurrency`、`containers`、`utilities`、`units` 仍保留在 `src/fss_time/third_party/HELICS/ThirdParty`。已禁用或由系统包替代的较大子依赖只保留 license 文件。
 
 拉取并构建：
 
@@ -59,7 +47,7 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
-如果使用的是 Ubuntu 22.04 + ROS 2 Humble，整体结构相同，但部分依赖包名可能需要按本机 ROS 发行版调整。
+如果使用的是 Ubuntu 24.04 + ROS 2 Jazzy，整体结构相同，但部分依赖包名可能需要按本机 ROS 发行版调整。
 
 ## 启动
 
@@ -67,6 +55,16 @@ source install/setup.bash
 
 ```bash
 ros2 launch fss_bringup distributed_clock.launch.py max_speed_ratio:=1.0
+```
+
+`distributed_clock.launch.py` 默认启动本机 HELICS broker：
+
+```bash
+ros2 launch fss_bringup distributed_clock.launch.py \
+  helics_core_type:=zmq \
+  helics_broker_address:=127.0.0.1 \
+  helics_broker_port:=23404 \
+  start_helics_broker:=true
 ```
 
 `max_speed_ratio` 含义：
@@ -87,13 +85,18 @@ ros2 launch fss_bringup perfect_drone.launch.py namespace:=uav1 init_z:=1.0
 ros2 launch fss_bringup perfect_swarm.launch.py num_drones:=5
 ```
 
-跨机器运行 eCAL transport 时，需要在每台机器的 eCAL 配置中打开 network mode，例如 `/etc/ecal/ecal.yaml`：
+跨机器运行时，可以手动启动一个外部 HELICS broker，并让每台机器上的 clock bridge 和仿真参与者连接同一个 broker：
 
-```yaml
-communication_mode: "network"
+```bash
+helics_broker -t zmq --port 23404 --terminate_on_disconnect
+ros2 launch fss_bringup distributed_clock.launch.py \
+  start_helics_broker:=false \
+  helics_broker_address:=<broker-host> \
+  helics_broker_port:=23404
+ros2 launch fss_bringup perfect_drone.launch.py \
+  helics_broker_address:=<broker-host> \
+  helics_broker_port:=23404
 ```
-
-本机多进程不需要打开 network mode，eCAL 默认使用本机通信并按 `shm, udp, tcp` 优先级选择传输层。局域网多机启用 network mode 后，eCAL 默认按 `udp, tcp` 优先级通信，UDP multicast 默认组为 `239.0.0.1`、端口为 `14002`。请确认所有机器位于同一 multicast 可达网络，防火墙允许 eCAL 的 UDP multicast/registration 流量。
 
 启动局部点云感知节点：
 
@@ -137,16 +140,16 @@ colcon test
 colcon test-result --verbose
 ```
 
-只验证 `fss_time` 和 eCAL transport：
+只验证 `fss_time` 和 HELICS time coordination：
 
 ```bash
-scripts/verify_fss_time_ecal.sh
+scripts/verify_fss_time_helics.sh
 ```
 
-`fss_time` 的 eCAL transport 细节见：
+`fss_time` 的 HELICS time coordination 细节见：
 
 ```bash
-docs/fss_time_ecal.md
+docs/fss_time_helics.md
 ```
 
 完整 PX4/MAVROS dynamics 栈的迁移边界见：
@@ -155,7 +158,7 @@ docs/fss_time_ecal.md
 src/fss_px4_sim/MIGRATION.md
 ```
 
-eCAL 参考文档：
+HELICS 参考文档：
 
-- 安装：<https://eclipse-ecal.github.io/ecal/stable/getting_started/setup.html>
-- Transport layers：<https://eclipse-ecal.github.io/ecal/stable/advanced/transport_layers.html>
+- Timing configuration：<https://docs.helics.org/en/latest/user-guide/fundamental_topics/timing_configuration.html>
+- Linking：<https://docs.helics.org/en/latest/user-guide/installation/linking.html>

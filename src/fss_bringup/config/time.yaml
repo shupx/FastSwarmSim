@@ -3,3 +3,8 @@ fss_clock_bridge:
     participant_id: clock_bridge
     max_speed_ratio: 1.0
     lease_timeout_ms: 1000
+    helics_core_type: zmq
+    helics_broker_address: 127.0.0.1
+    helics_broker_port: 23404
+    helics_broker_federates: 0
+    helics_time_delta_ns: 1000000
