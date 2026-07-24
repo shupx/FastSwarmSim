@@ -1,5 +1,5 @@
-bool proceed
-float32 max_sim_speed
-float32 ORIGINAL_SPEED=0
+bool running
+float64 max_real_time_factor
 ---
 bool success
+string message

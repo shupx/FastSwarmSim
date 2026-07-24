@@ -4,7 +4,7 @@ FastSwarmSim 是 `sim_px4_drone` 的 ROS 2 版本原型，用于轻量级多无�
 
 当前版本已经包含：
 
-- `fss_time`: 分布式保守时间同步核心、`/clock` bridge、倍速/暂停控制接口。
+- `fss_time`: HELICS 封装、仿真时间 broker、`/clock` 发布和倍速/暂停控制接口。
 - `fss_px4_sim`: ROS 2 版理想 MAVROS 无人机节点，保留 `mavros/...` 话题和服务命名。
 - `fss_sensing`: ROS 2 版局部点云渲染节点。
 - `marsim_render`: 点云渲染库和示例地图资源。
@@ -25,7 +25,7 @@ sudo rosdep init
 rosdep update
 ```
 
-`fss_time` 使用 HELICS 作为分布式仿真时间协调层。每个仿真参与者作为 HELICS federate 请求下一次安全仿真时间，只有在 HELICS grant 后才推进本地仿真时间。HELICS 源码已经 vendored 在 `src/fss_time/third_party/HELICS`，默认会随 `fss_time` 一起编译。
+`fss_time` 使用 HELICS 作为分布式仿真时间协调层。线程参与者通过非阻塞 async request 声明下一安全时间；`sim_time_broker` 通过内部 regulator federate 维护全局仿真时间并发布状态。HELICS 源码已经 vendored 在 `src/fss_time/third_party/HELICS`，默认会随 `fss_time` 一起编译。
 
 `fss_time` 只使用仓库内的 HELICS 源码，不查找系统安装的 HELICS。HELICS 构建会优先使用系统 apt 包提供的 `fmt`、`spdlog` 和 ZeroMQ，以减少 vendored third-party 的编译时间：
 
@@ -57,7 +57,7 @@ source install/setup.bash
 ros2 launch fss_bringup distributed_clock.launch.py max_speed_ratio:=1.0
 ```
 
-`distributed_clock.launch.py` 默认启动本机 HELICS broker：
+`distributed_clock.launch.py` 默认启动 `sim_time_broker_node` 和 `ros_clock_publisher_node`，并在本机创建 HELICS broker：
 
 ```bash
 ros2 launch fss_bringup distributed_clock.launch.py \
@@ -67,7 +67,7 @@ ros2 launch fss_bringup distributed_clock.launch.py \
   start_helics_broker:=true
 ```
 
-`max_speed_ratio` 含义：
+`max_real_time_factor` 含义：
 
 - `1.0`: 按真实时间 1x 运行。
 - `10.0`: 最高 10x 倍速运行。
@@ -127,8 +127,8 @@ ros2 topic pub /uav1/mavros/setpoint_raw/local mavros_msgs/msg/PositionTarget "{
 暂停或恢复仿真时钟：
 
 ```bash
-ros2 service call /fss/clock_control fss_time_interfaces/srv/SimClockControl "{proceed: false, max_sim_speed: 0.0}"
-ros2 service call /fss/clock_control fss_time_interfaces/srv/SimClockControl "{proceed: true, max_sim_speed: 10.0}"
+ros2 service call /fss/clock_control fss_time_interfaces/srv/SimClockControl "{running: false, max_real_time_factor: 0.0}"
+ros2 service call /fss/clock_control fss_time_interfaces/srv/SimClockControl "{running: true, max_real_time_factor: 10.0}"
 ```
 
 ## 开发备注
@@ -149,7 +149,7 @@ scripts/verify_fss_time_helics.sh
 `fss_time` 的 HELICS time coordination 细节见：
 
 ```bash
-docs/fss_time_helics.md
+src/fss_time/README.md
 ```
 
 完整 PX4/MAVROS dynamics 栈的迁移边界见：

@@ -1,15 +1,15 @@
 # fss_time HELICS Time Coordination
 
 `fss_time` uses HELICS as the distributed simulation-time authority. Each
-`TimeParticipant` joins the same HELICS federation, requests its next safe
-simulation time, and advances only when HELICS grants that time.
+`thread_time_participant` joins the same HELICS federation, asynchronously
+requests its next safe simulation time, and updates local granted time when
+HELICS completes the request.
 
-The public ROS-facing API stays the same:
+The public ROS-facing surface is now:
 
-- `/clock` is published by `clock_bridge_node`.
-- `/fss/clock_control` keeps the existing pause/resume/speed service.
-- `fss_time::TimeParticipant`, `SimRate`, and `SimSleep` remain available to
-  simulation code.
+- `/clock` is published by `ros_clock_publisher_node`.
+- `/fss/clock_control` is served by `sim_time_broker_node`.
+- `/fss/sim_clock_status` publishes broker state.
 
 ## Dependencies
 
@@ -29,7 +29,7 @@ with HELICS 3.6.1, so those remain vendored with the HELICS source.
 
 ## Local Host
 
-The distributed clock launch starts the `fss_time` broker node by default:
+The distributed clock launch starts the broker and clock publisher by default:
 
 ```bash
 ros2 launch fss_bringup distributed_clock.launch.py
@@ -46,7 +46,7 @@ helics_time_delta_ns:=1000000
 start_helics_broker:=true
 ```
 
-`max_speed_ratio` keeps the same meaning:
+`max_real_time_factor` keeps the same meaning:
 
 - `1.0`: run at real-time speed.
 - `10.0`: cap simulation time at 10x wall time.

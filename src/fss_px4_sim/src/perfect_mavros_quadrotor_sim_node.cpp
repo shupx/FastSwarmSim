@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "fss_time/time_participant.hpp"
+#include "fss_time/thread_time_participant.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "mavros_msgs/msg/position_target.hpp"
@@ -67,9 +67,7 @@ public:
       if (participant_id.empty() || participant_id == "/") {
         participant_id = get_name();
       }
-      time_participant_ = std::make_unique<fss_time::TimeParticipant>(
-        *this, participant_id, 0.0, std::chrono::milliseconds(1000), false);
-      time_participant_->start();
+      time_participant_ = &fss_time::thread_time_participant::for_current_thread(*this, participant_id);
       time_participant_->announce_next_safe_time(now() + rclcpp::Duration::from_seconds(0.01));
     }
     pose_timer_ = create_publish_timer(pose_publish_rate_, [this]() { publish_pose(); });
@@ -224,7 +222,7 @@ private:
   rclcpp::TimerBase::SharedPtr velocity_timer_;
   rclcpp::TimerBase::SharedPtr odom_timer_;
   rclcpp::TimerBase::SharedPtr state_timer_;
-  std::unique_ptr<fss_time::TimeParticipant> time_participant_;
+  fss_time::thread_time_participant * time_participant_{nullptr};
 
   geometry_msgs::msg::PoseStamped current_pose_;
   geometry_msgs::msg::TwistStamped current_velocity_;

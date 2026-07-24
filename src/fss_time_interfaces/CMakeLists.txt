@@ -6,11 +6,7 @@ find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/TimeIntent.msg"
-  "msg/TimeControl.msg"
-  "msg/TimeRequest.msg"
-  "srv/ClientRegister.srv"
-  "srv/ClientUnregister.srv"
+  "msg/SimClockStatus.msg"
   "srv/SimClockControl.srv"
   DEPENDENCIES builtin_interfaces
 )

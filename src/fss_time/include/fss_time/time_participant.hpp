@@ -3,13 +3,9 @@
 
 #include <chrono>
 #include <memory>
-#include <mutex>
 #include <string>
 
-#include "fss_time/helics_time_coordinator.hpp"
-#include "fss_time_interfaces/msg/time_control.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "rosgraph_msgs/msg/clock.hpp"
+#include "fss_time/thread_time_participant.hpp"
 
 namespace fss_time
 {
@@ -20,32 +16,42 @@ public:
   TimeParticipant(
     rclcpp::Node & node,
     std::string participant_id,
-    double max_speed_ratio,
-    std::chrono::milliseconds lease_timeout,
-    bool publish_clock);
+    double,
+    std::chrono::milliseconds,
+    bool)
+  : node_(node), participant_id_(std::move(participant_id))
+  {
+  }
 
-  void start();
-  void announce_next_safe_time(const rclcpp::Time & next_safe_time);
-  void announce_idle();
-  void announce_leaving();
-  void publish_control(const fss_time_interfaces::msg::TimeControl & control);
-  rclcpp::Time now() const;
+  void start()
+  {
+    participant_ = &thread_time_participant::for_current_thread(node_, participant_id_);
+  }
+
+  void announce_next_safe_time(const rclcpp::Time & next_safe_time)
+  {
+    ensure_started();
+    participant_->announce_next_safe_time(next_safe_time);
+  }
+
+  rclcpp::Time now() const
+  {
+    ensure_started();
+    return participant_->get_sim_time();
+  }
 
 private:
-  int64_t steady_now_ns() const;
-  HelicsTimeOptions make_helics_options(double max_speed_ratio) const;
-  void tick();
+  void ensure_started() const
+  {
+    if (participant_ == nullptr) {
+      const_cast<TimeParticipant *>(this)->participant_ =
+        &thread_time_participant::for_current_thread(node_, participant_id_);
+    }
+  }
 
   rclcpp::Node & node_;
   std::string participant_id_;
-  std::chrono::milliseconds lease_timeout_;
-  bool publish_clock_{false};
-  std::chrono::steady_clock::time_point steady_start_;
-
-  mutable std::mutex mutex_;
-  std::unique_ptr<HelicsTimeCoordinator> coordinator_;
-  rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr clock_pub_;
-  rclcpp::TimerBase::SharedPtr tick_timer_;
+  thread_time_participant * participant_{nullptr};
 };
 
 }  // namespace fss_time

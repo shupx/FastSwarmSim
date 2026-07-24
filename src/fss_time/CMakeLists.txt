@@ -37,8 +37,10 @@ add_subdirectory(third_party/HELICS EXCLUDE_FROM_ALL)
 set(CMAKE_SKIP_INSTALL_RULES ${FSS_TIME_PREVIOUS_SKIP_INSTALL_RULES})
 
 add_library(${PROJECT_NAME} SHARED
-  src/helics_time_coordinator.cpp
-  src/time_participant.cpp
+  src/helics_broker_backend.cpp
+  src/helics_thread_participant_backend.cpp
+  src/sim_time_broker.cpp
+  src/thread_time_participant.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -60,20 +62,21 @@ endif()
 target_link_libraries(${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
 set_target_properties(${PROJECT_NAME} PROPERTIES INTERFACE_LINK_LIBRARIES "")
 
-add_executable(clock_bridge_node src/clock_bridge_node.cpp)
-target_link_libraries(clock_bridge_node ${PROJECT_NAME})
-ament_target_dependencies(clock_bridge_node rclcpp rosgraph_msgs fss_time_interfaces)
+add_executable(ros_clock_publisher_node src/ros_clock_publisher_node.cpp)
+target_link_libraries(ros_clock_publisher_node ${PROJECT_NAME})
+ament_target_dependencies(ros_clock_publisher_node rclcpp rosgraph_msgs fss_time_interfaces)
 
-add_executable(helics_broker_node src/helics_broker_node.cpp)
-target_link_libraries(helics_broker_node ${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
-ament_target_dependencies(helics_broker_node rclcpp)
+add_executable(sim_time_broker_node src/sim_time_broker_node.cpp)
+target_link_libraries(sim_time_broker_node ${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
+ament_target_dependencies(sim_time_broker_node rclcpp fss_time_interfaces)
 
-ament_add_gtest(test_helics_time_coordinator test/test_helics_time_coordinator.cpp)
-if(TARGET test_helics_time_coordinator)
-  target_link_libraries(test_helics_time_coordinator ${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
+ament_add_gtest(test_fss_time test/test_fss_time.cpp)
+if(TARGET test_fss_time)
+  target_link_libraries(test_fss_time ${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
+  ament_target_dependencies(test_fss_time rclcpp fss_time_interfaces)
 endif()
 
-install(TARGETS ${PROJECT_NAME} clock_bridge_node helics_broker_node
+install(TARGETS ${PROJECT_NAME} ros_clock_publisher_node sim_time_broker_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
