@@ -1,0 +1,3 @@
+[submodule "src/fss_time/third_party/HELICS"]
+	path = src/fss_time/third_party/HELICS
+	url = https://gitee.com/shu-peixuan/HELICS.git
