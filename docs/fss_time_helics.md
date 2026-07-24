@@ -14,8 +14,9 @@ The public ROS-facing API stays the same:
 ## Dependencies
 
 `fss_time` vendors HELICS source at `src/fss_time/third_party/HELICS` and builds
-it by default. It does not use a system HELICS install. Install the system
-packages used by the vendored HELICS build before building:
+it by default. It does not use a system HELICS install, but it does use system
+packages for `fmt`, `spdlog`, and ZeroMQ to reduce build time. Install those
+packages before building:
 
 ```bash
 sudo apt update

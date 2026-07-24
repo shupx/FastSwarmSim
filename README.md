@@ -27,7 +27,7 @@ rosdep update
 
 `fss_time` 使用 HELICS 作为分布式仿真时间协调层。每个仿真参与者作为 HELICS federate 请求下一次安全仿真时间，只有在 HELICS grant 后才推进本地仿真时间。HELICS 源码已经 vendored 在 `src/fss_time/third_party/HELICS`，默认会随 `fss_time` 一起编译。
 
-`fss_time` 只使用仓库内的 HELICS 源码，不查找系统安装的 HELICS。HELICS 构建中已改用系统 apt 包提供的 `fmt`、`spdlog` 和 ZeroMQ：
+`fss_time` 只使用仓库内的 HELICS 源码，不查找系统安装的 HELICS。HELICS 构建会优先使用系统 apt 包提供的 `fmt`、`spdlog` 和 ZeroMQ，以减少 vendored third-party 的编译时间：
 
 ```bash
 sudo apt update
