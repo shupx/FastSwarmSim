@@ -32,18 +32,14 @@ SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
 : node_(node)
 {
   const auto core_type = declare_or_get_parameter<std::string>(node_, "helics_core_type", "zmq");
-  const auto broker_address = declare_or_get_parameter<std::string>(node_, "helics_broker_address", "127.0.0.1");
-  const auto broker_port = declare_or_get_parameter<int>(node_, "helics_broker_port", 23404);
-  const auto start_helics_broker = declare_or_get_parameter<bool>(node_, "start_helics_broker", true);
+  const auto broker_address = declare_or_get_parameter<std::string>(node_, "broker_address", "127.0.0.1");
+  const auto broker_port = declare_or_get_parameter<int>(node_, "broker_port", 23404);
+  const auto start_broker = declare_or_get_parameter<bool>(node_, "start_broker", true);
   const auto broker_federates = declare_or_get_parameter<int>(node_, "helics_broker_federates", 0);
-  time_delta_ns_ = declare_or_get_parameter<int64_t>(node_, "helics_time_delta_ns", 1000000);
+  helics_time_delta_ns_ = declare_or_get_parameter<int64_t>(node_, "helics_time_delta_ns", 1000000);
+  speed_regulator_tick_ns_ = declare_or_get_parameter<int64_t>(node_, "speed_regulator_tick_ns", 1000000);
 
-  const auto max_rtf = node_.has_parameter("max_real_time_factor") ?
-    declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0) :
-    declare_or_get_parameter<double>(
-    node_,
-    "max_speed_ratio",
-    declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0));
+  const auto max_rtf = declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0);
   running_ = declare_or_get_parameter<bool>(node_, "running", true);
   max_real_time_factor_ = max_rtf;
 
@@ -51,7 +47,7 @@ SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
   broker_options.core_type = core_type;
   broker_options.broker_address = broker_address;
   broker_options.broker_port = broker_port;
-  broker_options.start_broker = start_helics_broker;
+  broker_options.start_broker = start_broker;
   broker_options.federates = broker_federates;
   broker_backend_ = std::make_unique<HelicsBrokerBackend>(broker_options);
 
@@ -60,7 +56,7 @@ SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
   regulator_options.core_type = core_type;
   regulator_options.broker_address = broker_address;
   regulator_options.broker_port = broker_port;
-  regulator_options.time_delta_ns = time_delta_ns_;
+  regulator_options.time_delta_ns = helics_time_delta_ns_;
   regulator_options.count_for_participant_metrics = false;
   regulator_backend_ = std::make_shared<HelicsThreadParticipantBackend>(regulator_options);
 
@@ -97,8 +93,9 @@ void SimTimeBroker::start()
     std::lock_guard<std::mutex> lock(mutex_);
     reset_wall_anchor_locked(regulator_backend_->current_time_ns());
   }
-  regulator_timer_ = node_.create_wall_timer(
-    std::chrono::milliseconds(5), [this]() { on_regulator_tick(); });
+  regulator_timer_ = node_.create_wall_timer(std::chrono::nanoseconds(speed_regulator_tick_ns_), [this]() {
+    on_regulator_tick();
+  });
   publish_status();
 }
 

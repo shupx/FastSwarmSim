@@ -45,7 +45,8 @@ private:
   mutable std::mutex mutex_;
   std::chrono::steady_clock::time_point wall_anchor_steady_;
   int64_t sim_anchor_ns_{0};
-  int64_t time_delta_ns_{1000000};
+  int64_t helics_time_delta_ns_{1000000};
+  int64_t speed_regulator_tick_ns_{1000000};
   double max_real_time_factor_{1.0};
   bool running_{true};
 };

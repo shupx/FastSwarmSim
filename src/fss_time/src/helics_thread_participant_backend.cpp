@@ -35,6 +35,18 @@ int64_t helics_time_to_ns(double time)
   return static_cast<int64_t>(std::llround(time * kNsPerSecond));
 }
 
+int64_t ceil_to_step(int64_t value, int64_t step)
+{
+  if (step <= 1 || value <= 0) {
+    return value;
+  }
+  const auto remainder = value % step;
+  if (remainder == 0) {
+    return value;
+  }
+  return value + (step - remainder);
+}
+
 void throw_on_helics_error(const HelicsError & error, const std::string & context)
 {
   if (error.error_code == 0) {
@@ -141,7 +153,7 @@ void HelicsThreadParticipantBackend::announce_next_safe_time(int64_t next_safe_t
     return;
   }
 
-  const auto effective_request_ns = std::max({next_safe_time_ns, current_time_ns_, last_requested_time_ns_});
+  const auto effective_request_ns = normalize_request_time_locked(next_safe_time_ns);
   pending_request_time_ns_ = std::max(pending_request_time_ns_, effective_request_ns);
   if (!request_in_flight_) {
     start_async_request_locked(pending_request_time_ns_);
@@ -202,6 +214,19 @@ const std::string & HelicsThreadParticipantBackend::participant_id() const
 bool HelicsThreadParticipantBackend::count_for_participant_metrics() const
 {
   return options_.count_for_participant_metrics;
+}
+
+int64_t HelicsThreadParticipantBackend::normalize_request_time_locked(int64_t requested_time_ns) const
+{
+  if (requested_time_ns >= kInfiniteTimeNs / 2) {
+    return kInfiniteTimeNs;
+  }
+
+  const auto base_request_ns = std::max({requested_time_ns, current_time_ns_, last_requested_time_ns_});
+  const auto step_ns = std::max<int64_t>(1, options_.time_delta_ns);
+  const auto minimum_forward_ns =
+    current_time_ns_ >= kInfiniteTimeNs / 2 ? current_time_ns_ : current_time_ns_ + step_ns;
+  return ceil_to_step(std::max(base_request_ns, minimum_forward_ns), step_ns);
 }
 
 void HelicsThreadParticipantBackend::start_async_request_locked(int64_t request_time_ns)

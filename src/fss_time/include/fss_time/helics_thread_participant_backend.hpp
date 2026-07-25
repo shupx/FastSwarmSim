@@ -40,6 +40,7 @@ public:
   bool count_for_participant_metrics() const;
 
 private:
+  int64_t normalize_request_time_locked(int64_t requested_time_ns) const;
   struct Impl;
 
   void start_async_request_locked(int64_t request_time_ns);

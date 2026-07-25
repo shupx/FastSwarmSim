@@ -113,12 +113,35 @@ TEST(HelicsThreadParticipantBackend, ReportsInitialState)
   EXPECT_FALSE(participant->count_for_participant_metrics());
 }
 
+TEST(HelicsThreadParticipantBackend, RequestsAreRoundedUpToTimeDelta)
+{
+  const int port = reserve_test_port();
+  auto broker = std::make_unique<fss_time::HelicsBrokerBackend>(
+    fss_time::HelicsBrokerOptions{"zmq", "127.0.0.1", port, true, 0});
+  broker->start();
+
+  auto participant = std::make_shared<fss_time::HelicsThreadParticipantBackend>(
+    make_participant_options("rounded_" + std::to_string(port), port, false));
+  participant->announce_next_safe_time(1500000);
+
+  wait_until([&participant]() {
+    return participant->last_requested_time_ns() > 0;
+  }, std::chrono::seconds(1));
+
+  EXPECT_EQ(participant->last_requested_time_ns(), 2000000);
+
+  participant->finalize();
+  broker->finalize();
+}
+
 TEST(SimTimeBroker, PauseAndResumeAffectPublishedStatus)
 {
   const int port = reserve_test_port();
   auto node = std::make_shared<rclcpp::Node>("sim_time_broker_status_test");
-  node->declare_parameter("helics_broker_port", port);
-  node->declare_parameter("start_helics_broker", true);
+  node->declare_parameter("broker_port", port);
+  node->declare_parameter("start_broker", true);
+  node->declare_parameter("helics_time_delta_ns", 1000000);
+  node->declare_parameter("speed_regulator_tick_ns", 1000000);
   node->declare_parameter("max_real_time_factor", 1.0);
   node->declare_parameter("running", false);
   fss_time::SimTimeBroker broker(*node);

@@ -10,6 +10,7 @@ The public ROS-facing surface is now:
 - `/clock` is published by `ros_clock_publisher_node`.
 - `/fss/clock_control` is served by `sim_time_broker_node`.
 - `/fss/sim_clock_status` publishes broker state.
+- `sim_time_broker_ui.py` shows broker state and drives `/fss/clock_control`.
 
 ## Dependencies
 
@@ -40,10 +41,11 @@ Default HELICS settings:
 
 ```bash
 helics_core_type:=zmq
-helics_broker_address:=127.0.0.1
-helics_broker_port:=23404
+broker_address:=127.0.0.1
+broker_port:=23404
 helics_time_delta_ns:=1000000
-start_helics_broker:=true
+speed_regulator_tick_ns:=1000000
+start_broker:=true
 ```
 
 `max_real_time_factor` keeps the same meaning:
@@ -51,6 +53,18 @@ start_helics_broker:=true
 - `1.0`: run at real-time speed.
 - `10.0`: cap simulation time at 10x wall time.
 - `0.0`: request time as fast as HELICS can safely grant it.
+
+## Broker UI
+
+Launch the desktop UI after sourcing the workspace:
+
+```bash
+ros2 run fss_time sim_time_broker_ui.py
+```
+
+The UI subscribes to `/fss/sim_clock_status` and `/clock`, shows current broker
+state, participant count, regulator activity, and measured runtime speed, and
+uses `/fss/clock_control` for start, pause, and RTF updates.
 
 ## External or Multi-Host Broker
 
@@ -60,12 +74,12 @@ all participants at the same broker:
 ```bash
 helics_broker -t zmq --port 23404 --terminate_on_disconnect
 ros2 launch fss_bringup distributed_clock.launch.py \
-  start_helics_broker:=false \
-  helics_broker_address:=<broker-host> \
-  helics_broker_port:=23404
+  start_broker:=false \
+  broker_address:=<broker-host> \
+  broker_port:=23404
 ros2 launch fss_bringup perfect_drone.launch.py \
-  helics_broker_address:=<broker-host> \
-  helics_broker_port:=23404
+  broker_address:=<broker-host> \
+  broker_port:=23404
 ```
 
 ## Verification

@@ -54,7 +54,7 @@ source install/setup.bash
 启动分布式仿真时钟：
 
 ```bash
-ros2 launch fss_bringup distributed_clock.launch.py max_speed_ratio:=1.0
+ros2 launch fss_bringup distributed_clock.launch.py max_real_time_factor:=1.0
 ```
 
 `distributed_clock.launch.py` 默认启动 `sim_time_broker_node` 和 `ros_clock_publisher_node`，并在本机创建 HELICS broker：
@@ -62,9 +62,11 @@ ros2 launch fss_bringup distributed_clock.launch.py max_speed_ratio:=1.0
 ```bash
 ros2 launch fss_bringup distributed_clock.launch.py \
   helics_core_type:=zmq \
-  helics_broker_address:=127.0.0.1 \
-  helics_broker_port:=23404 \
-  start_helics_broker:=true
+  broker_address:=127.0.0.1 \
+  broker_port:=23404 \
+  helics_time_delta_ns:=1000000 \
+  speed_regulator_tick_ns:=1000000 \
+  start_broker:=true
 ```
 
 `max_real_time_factor` 含义：
@@ -90,12 +92,12 @@ ros2 launch fss_bringup perfect_swarm.launch.py num_drones:=5
 ```bash
 helics_broker -t zmq --port 23404 --terminate_on_disconnect
 ros2 launch fss_bringup distributed_clock.launch.py \
-  start_helics_broker:=false \
-  helics_broker_address:=<broker-host> \
-  helics_broker_port:=23404
+  start_broker:=false \
+  broker_address:=<broker-host> \
+  broker_port:=23404
 ros2 launch fss_bringup perfect_drone.launch.py \
-  helics_broker_address:=<broker-host> \
-  helics_broker_port:=23404
+  broker_address:=<broker-host> \
+  broker_port:=23404
 ```
 
 启动局部点云感知节点：

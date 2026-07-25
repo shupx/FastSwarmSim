@@ -57,8 +57,8 @@ HelicsThreadParticipantOptions make_options(rclcpp::Node & node, const std::stri
   }
   options.participant_id = sanitize_helics_name(base_name + "_" + std::to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())));
   options.core_type = declare_or_get_parameter<std::string>(node, "helics_core_type", options.core_type);
-  options.broker_address = declare_or_get_parameter<std::string>(node, "helics_broker_address", options.broker_address);
-  options.broker_port = declare_or_get_parameter<int>(node, "helics_broker_port", options.broker_port);
+  options.broker_address = declare_or_get_parameter<std::string>(node, "broker_address", options.broker_address);
+  options.broker_port = declare_or_get_parameter<int>(node, "broker_port", options.broker_port);
   options.time_delta_ns = declare_or_get_parameter<int64_t>(node, "helics_time_delta_ns", options.time_delta_ns);
   return options;
 }

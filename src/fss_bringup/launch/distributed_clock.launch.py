@@ -6,14 +6,14 @@ from launch_ros.actions import Node, SetParameter
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument("max_speed_ratio", default_value="1.0"),
         DeclareLaunchArgument("max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("helics_core_type", default_value="zmq"),
-        DeclareLaunchArgument("helics_broker_address", default_value="127.0.0.1"),
-        DeclareLaunchArgument("helics_broker_port", default_value="23404"),
+        DeclareLaunchArgument("broker_address", default_value="127.0.0.1"),
+        DeclareLaunchArgument("broker_port", default_value="23404"),
         DeclareLaunchArgument("helics_broker_federates", default_value="0"),
         DeclareLaunchArgument("helics_time_delta_ns", default_value="1000000"),
-        DeclareLaunchArgument("start_helics_broker", default_value="true"),
+        DeclareLaunchArgument("speed_regulator_tick_ns", default_value="1000000"),
+        DeclareLaunchArgument("start_broker", default_value="true"),
         SetParameter(name="use_sim_time", value=True),
         Node(
             package="fss_time",
@@ -22,12 +22,12 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "helics_core_type": LaunchConfiguration("helics_core_type"),
-                "helics_broker_address": LaunchConfiguration("helics_broker_address"),
-                "helics_broker_port": LaunchConfiguration("helics_broker_port"),
+                "broker_address": LaunchConfiguration("broker_address"),
+                "broker_port": LaunchConfiguration("broker_port"),
                 "helics_broker_federates": LaunchConfiguration("helics_broker_federates"),
                 "helics_time_delta_ns": LaunchConfiguration("helics_time_delta_ns"),
-                "start_helics_broker": LaunchConfiguration("start_helics_broker"),
-                "max_speed_ratio": LaunchConfiguration("max_speed_ratio"),
+                "speed_regulator_tick_ns": LaunchConfiguration("speed_regulator_tick_ns"),
+                "start_broker": LaunchConfiguration("start_broker"),
                 "max_real_time_factor": LaunchConfiguration("max_real_time_factor"),
             }],
         ),

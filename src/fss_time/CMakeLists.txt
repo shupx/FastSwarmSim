@@ -81,6 +81,10 @@ install(TARGETS ${PROJECT_NAME} ros_clock_publisher_node sim_time_broker_node
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
+install(PROGRAMS
+  scripts/sim_time_broker_ui.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 if(TARGET helics)
   install(TARGETS helics
     LIBRARY DESTINATION lib
