@@ -31,5 +31,6 @@ ament_target_dependencies(perfect_mavros_quadrotor_sim_node
 install(TARGETS perfect_mavros_quadrotor_sim_node
   DESTINATION lib/${PROJECT_NAME}
 )
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 
 ament_package()

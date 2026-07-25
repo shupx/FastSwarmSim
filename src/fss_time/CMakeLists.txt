@@ -85,6 +85,11 @@ install(PROGRAMS
   scripts/sim_time_broker_ui.py
   DESTINATION lib/${PROJECT_NAME}
 )
+install(DIRECTORY
+  launch
+  config
+  DESTINATION share/${PROJECT_NAME}
+)
 if(TARGET helics)
   install(TARGETS helics
     LIBRARY DESTINATION lib

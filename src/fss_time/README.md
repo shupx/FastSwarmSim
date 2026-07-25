@@ -33,8 +33,8 @@ with HELICS 3.6.1, so those remain vendored with the HELICS source.
 The distributed clock launch starts the broker and clock publisher by default:
 
 ```bash
-ros2 launch fss_bringup distributed_clock.launch.py
-ros2 launch fss_bringup perfect_swarm.launch.py num_drones:=5
+ros2 launch fss_time distributed_clock.launch.py
+ros2 launch fss_px4_sim perfect_swarm.launch.py num_drones:=5
 ```
 
 Default HELICS settings:
@@ -73,11 +73,11 @@ all participants at the same broker:
 
 ```bash
 helics_broker -t zmq --port 23404 --terminate_on_disconnect
-ros2 launch fss_bringup distributed_clock.launch.py \
+ros2 launch fss_time distributed_clock.launch.py \
   start_broker:=false \
   broker_address:=<broker-host> \
   broker_port:=23404
-ros2 launch fss_bringup perfect_drone.launch.py \
+ros2 launch fss_px4_sim perfect_drone.launch.py \
   broker_address:=<broker-host> \
   broker_port:=23404
 ```

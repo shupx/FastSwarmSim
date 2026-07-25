@@ -1,6 +1,8 @@
 #include <memory>
 #include <algorithm>
+#include <filesystem>
 #include <string>
+#include <utility>
 
 #include <Eigen/Dense>
 #include <pcl/point_cloud.h>
@@ -36,7 +38,14 @@ public:
     config_ = LocalPointCloudSimConfig(config_path);
 
     RCLCPP_INFO(get_logger(), "Loading local point cloud config: %s", config_path.c_str());
-    render_ptr_ = std::make_shared<marsim::MarsimRender>(config_path);
+    const auto resource_root = std::filesystem::path(
+      ament_index_cpp::get_package_share_directory("fss_sensing")) /
+      "third_party" / "marsim_render";
+    marsim::ResourcePaths resources{
+      resource_root / "pcd",
+      resource_root / "config" / "pattern",
+    };
+    render_ptr_ = std::make_shared<marsim::MarsimRender>(config_path, std::move(resources));
 
     if (config_.use_odom) {
       odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
