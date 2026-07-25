@@ -14,6 +14,7 @@ find_package(builtin_interfaces REQUIRED)
 find_package(fss_time_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rosgraph_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 set(HELICS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(HELICS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -70,13 +71,22 @@ add_executable(sim_time_broker_node src/sim_time_broker_node.cpp)
 target_link_libraries(sim_time_broker_node ${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
 ament_target_dependencies(sim_time_broker_node rclcpp fss_time_interfaces)
 
+add_executable(sim_time_test_load_node test_cases/src/sim_time_test_load_node.cpp)
+target_link_libraries(sim_time_test_load_node ${PROJECT_NAME})
+ament_target_dependencies(
+  sim_time_test_load_node
+  builtin_interfaces
+  rclcpp
+  std_msgs
+)
+
 ament_add_gtest(test_fss_time test/test_fss_time.cpp)
 if(TARGET test_fss_time)
   target_link_libraries(test_fss_time ${PROJECT_NAME} ${FSS_TIME_HELICS_TARGET})
   ament_target_dependencies(test_fss_time rclcpp fss_time_interfaces)
 endif()
 
-install(TARGETS ${PROJECT_NAME} ros_clock_publisher_node sim_time_broker_node
+install(TARGETS ${PROJECT_NAME} ros_clock_publisher_node sim_time_broker_node sim_time_test_load_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -88,6 +98,7 @@ install(PROGRAMS
 install(DIRECTORY
   launch
   config
+  test_cases
   DESTINATION share/${PROJECT_NAME}
 )
 if(TARGET helics)
@@ -105,5 +116,6 @@ ament_export_dependencies(
   fss_time_interfaces
   rclcpp
   rosgraph_msgs
+  std_msgs
 )
 ament_package()

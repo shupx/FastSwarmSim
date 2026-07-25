@@ -1,5 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
 
@@ -14,6 +15,7 @@ def generate_launch_description():
         DeclareLaunchArgument("helics_time_delta_ns", default_value="1000000"),
         DeclareLaunchArgument("speed_regulator_tick_ns", default_value="1000000"),
         DeclareLaunchArgument("start_broker", default_value="true"),
+        DeclareLaunchArgument("start_broker_ui", default_value="true"),
         SetParameter(name="use_sim_time", value=True),
         Node(
             package="fss_time",
@@ -36,5 +38,12 @@ def generate_launch_description():
             executable="ros_clock_publisher_node",
             name="fss_ros_clock_publisher",
             output="screen",
+        ),
+        Node(
+            package="fss_time",
+            executable="sim_time_broker_ui.py",
+            name="fss_sim_time_broker_ui",
+            output="screen",
+            condition=IfCondition(LaunchConfiguration("start_broker_ui")),
         ),
     ])
