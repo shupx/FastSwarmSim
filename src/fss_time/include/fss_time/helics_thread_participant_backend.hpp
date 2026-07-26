@@ -32,6 +32,7 @@ public:
   void finalize();
   void announce_next_safe_time(int64_t next_safe_time_ns);
   bool poll();
+  std::string query(const std::string & target, const std::string & query);
 
   int64_t current_time_ns() const;
   int64_t last_requested_time_ns() const;

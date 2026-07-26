@@ -7,4 +7,5 @@ fss_sim_time_broker:
     helics_broker_federates: 0
     helics_time_delta_ns: 1000000
     speed_regulator_tick_ns: 1000000
+    participant_query_period_ns: 500000000
     start_broker: true

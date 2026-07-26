@@ -27,6 +27,8 @@
 3. 当前发布时刻的仿真时间，单位 ns
 4. 当前线程周期，单位 ns
 
+主要参数直接由 launch argument 控制，不再额外依赖测试 YAML 配置文件。
+
 ## 启动
 
 ```bash
@@ -37,11 +39,11 @@ ros2 launch fss_time multi_node_sim_time_test_case.launch.py
 
 ```bash
 ros2 launch fss_time multi_node_sim_time_test_case.launch.py \
-  node_count:=5 \
-  thread_count:=6 \
-  base_period_ms:=10 \
-  period_step_ms:=10 \
-  max_real_time_factor:=1.0
+  test.node_count:=5 \
+  node.thread_count:=6 \
+  node.base_period_ms:=10 \
+  node.period_step_ms:=10 \
+  broker.max_real_time_factor:=1.0
 ```
 
 ## 判断仿真时间是否生效

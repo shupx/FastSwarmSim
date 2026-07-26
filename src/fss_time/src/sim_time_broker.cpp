@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <regex>
 #include <string>
 
 #include "fss_time/thread_time_participant.hpp"
@@ -26,6 +27,23 @@ T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const 
   return value;
 }
 
+uint32_t count_federates_in_query_result(
+  const std::string & query_result,
+  const std::string & excluded_federate_name)
+{
+  uint32_t count = 0;
+  static const std::regex quoted_entry_regex("\"([^\"]+)\"");
+  for (std::sregex_iterator it(query_result.begin(), query_result.end(), quoted_entry_regex), end;
+    it != end; ++it)
+  {
+    const auto federate_name = (*it)[1].str();
+    if (federate_name != excluded_federate_name) {
+      ++count;
+    }
+  }
+  return count;
+}
+
 }  // namespace
 
 SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
@@ -38,6 +56,8 @@ SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
   const auto broker_federates = declare_or_get_parameter<int>(node_, "helics_broker_federates", 0);
   helics_time_delta_ns_ = declare_or_get_parameter<int64_t>(node_, "helics_time_delta_ns", 1000000);
   speed_regulator_tick_ns_ = declare_or_get_parameter<int64_t>(node_, "speed_regulator_tick_ns", 1000000);
+  participant_query_period_ns_ =
+    declare_or_get_parameter<int64_t>(node_, "participant_query_period_ns", 500000000);
 
   const auto max_rtf = declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0);
   running_ = declare_or_get_parameter<bool>(node_, "running", true);
@@ -92,7 +112,9 @@ void SimTimeBroker::start()
   {
     std::lock_guard<std::mutex> lock(mutex_);
     reset_wall_anchor_locked(regulator_backend_->current_time_ns());
+    last_participant_query_steady_ = std::chrono::steady_clock::time_point{};
   }
+  refresh_participant_count();
   regulator_timer_ = node_.create_wall_timer(std::chrono::nanoseconds(speed_regulator_tick_ns_), [this]() {
     on_regulator_tick();
   });
@@ -124,14 +146,16 @@ fss_time_interfaces::msg::SimClockStatus SimTimeBroker::status_message() const
     std::lock_guard<std::mutex> lock(mutex_);
     status.running = running_;
     status.max_real_time_factor = max_real_time_factor_;
+    status.participant_count = cached_participant_count_;
   }
-  status.participant_count = thread_time_participant::participant_count();
   status.regulator_active = regulator_backend_->is_request_in_flight();
   return status;
 }
 
 void SimTimeBroker::on_regulator_tick()
 {
+  refresh_participant_count();
+
   if (regulator_backend_->poll()) {
     publish_status();
   }
@@ -146,6 +170,35 @@ void SimTimeBroker::on_regulator_tick()
 void SimTimeBroker::publish_status()
 {
   status_pub_->publish(status_message());
+}
+
+void SimTimeBroker::refresh_participant_count()
+{
+  const auto now = std::chrono::steady_clock::now();
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (participant_query_period_ns_ > 0 &&
+      last_participant_query_steady_ != std::chrono::steady_clock::time_point{} &&
+      now - last_participant_query_steady_ < std::chrono::nanoseconds(participant_query_period_ns_))
+    {
+      return;
+    }
+  }
+
+  try {
+    const auto participant_count = count_federates_in_query_result(
+      regulator_backend_->query("root", "federates"),
+      "sim_time_regulator");
+    std::lock_guard<std::mutex> lock(mutex_);
+    cached_participant_count_ = participant_count;
+    last_participant_query_steady_ = now;
+  } catch (const std::exception &) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (last_participant_query_steady_ == std::chrono::steady_clock::time_point{}) {
+      cached_participant_count_ = thread_time_participant::participant_count();
+      last_participant_query_steady_ = now;
+    }
+  }
 }
 
 int64_t SimTimeBroker::compute_regulator_target_ns() const

@@ -32,6 +32,7 @@ public:
 private:
   void on_regulator_tick();
   void publish_status();
+  void refresh_participant_count();
   int64_t compute_regulator_target_ns() const;
   void reset_wall_anchor_locked(int64_t sim_time_ns);
 
@@ -44,9 +45,12 @@ private:
 
   mutable std::mutex mutex_;
   std::chrono::steady_clock::time_point wall_anchor_steady_;
+  std::chrono::steady_clock::time_point last_participant_query_steady_;
   int64_t sim_anchor_ns_{0};
   int64_t helics_time_delta_ns_{1000000};
   int64_t speed_regulator_tick_ns_{1000000};
+  int64_t participant_query_period_ns_{500000000};
+  uint32_t cached_participant_count_{0};
   double max_real_time_factor_{1.0};
   bool running_{true};
 };

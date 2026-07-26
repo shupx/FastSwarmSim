@@ -188,6 +188,31 @@ bool HelicsThreadParticipantBackend::poll()
   return current_time_ns_ > previous_time_ns;
 }
 
+std::string HelicsThreadParticipantBackend::query(const std::string & target, const std::string & query)
+{
+  start();
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!started_ || finalized_ || impl_ == nullptr || impl_->federate == nullptr) {
+    return {};
+  }
+
+  HelicsError error = helicsErrorInitialize();
+  auto core = helicsFederateGetCore(impl_->federate, &error);
+  throw_on_helics_error(error, "failed to get HELICS core for query");
+
+  auto query_handle = helicsCreateQuery(target.c_str(), query.c_str());
+  if (query_handle == nullptr) {
+    throw std::runtime_error("failed to create HELICS query");
+  }
+
+  error = helicsErrorInitialize();
+  const char * result = helicsQueryCoreExecute(query_handle, core, &error);
+  helicsQueryFree(query_handle);
+  throw_on_helics_error(error, "failed to execute HELICS query");
+  return (result != nullptr) ? std::string(result) : std::string{};
+}
+
 int64_t HelicsThreadParticipantBackend::current_time_ns() const
 {
   std::lock_guard<std::mutex> lock(mutex_);

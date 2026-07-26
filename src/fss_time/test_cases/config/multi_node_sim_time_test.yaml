@@ -1,7 +1,0 @@
-/**:
-  ros__parameters:
-    thread_count: 4
-    base_period_ms: 10
-    period_step_ms: 5
-    wait_poll_ms: 1
-    enable_fss_time: true

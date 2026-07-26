@@ -31,6 +31,33 @@ from fss_time_interfaces.srv import SimClockControl
 from rosgraph_msgs.msg import Clock
 
 
+def parse_initial_rtf(argv):
+    ros_arg_prefixes = ("--ros-args", "-r", "--remap", "-p", "--param", "--params-file", "__node", "__ns")
+    index = 1
+    while index < len(argv):
+        arg = argv[index]
+        if arg == "--":
+            index += 1
+            continue
+        if arg == "--ros-args":
+            index += 1
+            while index < len(argv) and argv[index] != "--":
+                current = argv[index]
+                if current in ("-r", "--remap", "-p", "--param", "--params-file"):
+                    index += 2
+                else:
+                    index += 1
+            continue
+        if arg.startswith(ros_arg_prefixes):
+            index += 1
+            continue
+        try:
+            return float(arg)
+        except ValueError:
+            index += 1
+    return 1.0
+
+
 class BrokerBridge(QObject):
     status_signal = pyqtSignal(dict)
     clock_signal = pyqtSignal(float)
@@ -188,8 +215,10 @@ class MainWindow(QMainWindow):
         button_layout = QHBoxLayout()
         self.start_button = QPushButton("Start", control_group)
         self.pause_button = QPushButton("Pause", control_group)
+        self.unbounded_button = QPushButton("Unbounded", control_group)
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.pause_button)
+        button_layout.addWidget(self.unbounded_button)
         control_layout.addLayout(button_layout)
 
         target_layout = QHBoxLayout()
@@ -201,14 +230,14 @@ class MainWindow(QMainWindow):
 
         self.speed_dial = QDial(control_group)
         self.speed_dial.setMinimum(0)
-        self.speed_dial.setMaximum(50)
+        self.speed_dial.setMaximum(49)
         self.speed_dial.setSingleStep(1)
         self.speed_dial.setPageStep(5)
         self.speed_dial.setNotchesVisible(True)
         control_layout.addWidget(self.speed_dial)
 
         scale_layout = QHBoxLayout()
-        for text in ["unbounded", "1x", "10x", "100x"]:
+        for text in ["0.1x", "1x", "10x", "100x"]:
             label = QLabel(text, control_group)
             label.setAlignment(Qt.AlignCenter)
             scale_layout.addWidget(label)
@@ -278,8 +307,6 @@ def format_rtf(speed: float) -> str:
 
 
 def dial_to_rtf(dial_value: int) -> float:
-    if dial_value <= 0:
-        return 0.0
     if dial_value < 10:
         return 0.1 + dial_value / 10.0 * (1.0 - 0.1)
     if dial_value < 20:
@@ -288,16 +315,14 @@ def dial_to_rtf(dial_value: int) -> float:
         return 2.0 + (dial_value - 20) / 10.0 * 8.0
     if dial_value < 40:
         return 10.0 + (dial_value - 30)
-    if dial_value < 50:
-        return 20.0 + (dial_value - 40) / 10.0 * 80.0
-    return 0.0
+    return 20.0 + (dial_value - 40) / 9.0 * 80.0
 
 
 def rtf_to_dial(speed: float) -> int:
     if speed <= 0.0:
-        return 50
+        return 0
     if speed < 1.0:
-        return int((speed - 0.1) / 0.9 * 10.0)
+        return max(0, min(9, int((speed - 0.1) / 0.9 * 10.0)))
     if speed < 2.0:
         return int(10 + (speed - 1.0) * 10.0)
     if speed < 10.0:
@@ -305,7 +330,7 @@ def rtf_to_dial(speed: float) -> int:
     if speed < 20.0:
         return int(30 + (speed - 10.0))
     if speed < 100.0:
-        return int(40 + (speed - 20.0) / 80.0 * 10.0)
+        return int(40 + (speed - 20.0) / 80.0 * 9.0)
     return 49
 
 
@@ -320,6 +345,7 @@ class SimTimeBrokerUi(QObject):
 
         self.window.start_button.clicked.connect(self._start)
         self.window.pause_button.clicked.connect(self._pause)
+        self.window.unbounded_button.clicked.connect(self._set_unbounded)
         self.window.speed_dial.valueChanged.connect(self._dial_changed)
 
         self.bridge.status_signal.connect(self._status_updated)
@@ -349,6 +375,10 @@ class SimTimeBrokerUi(QObject):
     def _pause(self):
         self.bridge.request_control(False, dial_to_rtf(self.window.speed_dial.value()))
 
+    def _set_unbounded(self):
+        self.window.set_target_rtf("unbounded")
+        self.bridge.request_control(self.bridge.running, 0.0)
+
     def _dial_changed(self, dial_value: int):
         target_rtf = dial_to_rtf(dial_value)
         self.window.set_target_rtf(format_rtf(target_rtf))
@@ -356,5 +386,5 @@ class SimTimeBrokerUi(QObject):
 
 
 if __name__ == "__main__":
-    initial_rtf = float(sys.argv[1]) if len(sys.argv) > 1 else 1.0
+    initial_rtf = parse_initial_rtf(sys.argv)
     SimTimeBrokerUi(initial_rtf).run()
