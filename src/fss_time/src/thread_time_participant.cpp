@@ -1,5 +1,7 @@
 #include "fss_time/thread_time_participant.hpp"
 
+#include "fss_time/time_types.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -110,8 +112,13 @@ void thread_time_participant::announce_next_safe_time(const rclcpp::Time & next_
   bool clamped = false;
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    clamped = requested_safe_time_ns < last_safe_time_ns_;
-    last_safe_time_ns_ = std::max(last_safe_time_ns_, requested_safe_time_ns);
+    const bool last_safe_time_is_infinite = last_safe_time_ns_ >= kInfiniteTimeNs / 2;
+    clamped = requested_safe_time_ns < last_safe_time_ns_ && !last_safe_time_is_infinite;
+    if (last_safe_time_is_infinite) {
+      last_safe_time_ns_ = requested_safe_time_ns;
+    } else {
+      last_safe_time_ns_ = std::max(last_safe_time_ns_, requested_safe_time_ns);
+    }
     effective_safe_time_ns = last_safe_time_ns_;
   }
   if (clamped) {

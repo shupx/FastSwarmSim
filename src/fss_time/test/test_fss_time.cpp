@@ -1,5 +1,6 @@
 #include "fss_time/sim_time_broker.hpp"
 #include "fss_time/thread_time_participant.hpp"
+#include "fss_time/time_types.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -163,6 +164,10 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), 10000000LL);
   participant.announce_next_safe_time(rclcpp::Time(5000000LL, RCL_ROS_TIME));
   EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), 10000000LL);
+  participant.announce_next_safe_time(rclcpp::Time(fss_time::kInfiniteTimeNs, RCL_ROS_TIME));
+  EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), fss_time::kInfiniteTimeNs);
+  participant.announce_next_safe_time(rclcpp::Time(20000000LL, RCL_ROS_TIME));
+  EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), 20000000LL);
 
   wait_until([&broker]() {
     return broker.status_message().participant_count == 1 &&
