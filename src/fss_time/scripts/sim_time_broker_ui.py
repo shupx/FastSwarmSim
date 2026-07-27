@@ -279,7 +279,7 @@ class MainWindow(QMainWindow):
         return value_label
 
     def set_sim_time(self, sim_time: float):
-        self.label_time_value.setText("{:.4f}".format(sim_time).rstrip("0").rstrip(".") + " s")
+        self.label_time_value.setText("{:.4f} s".format(sim_time))
 
     def set_status(self, status: dict):
         self.set_sim_time(status["sim_time"])
@@ -370,10 +370,10 @@ class SimTimeBrokerUi(QObject):
         self.window.set_target_rtf(format_rtf(status["max_real_time_factor"]))
 
     def _start(self):
-        self.bridge.request_control(True, dial_to_rtf(self.window.speed_dial.value()))
+        self.bridge.request_control(True, self.bridge.expected_rtf)
 
     def _pause(self):
-        self.bridge.request_control(False, dial_to_rtf(self.window.speed_dial.value()))
+        self.bridge.request_control(False, self.bridge.expected_rtf)
 
     def _set_unbounded(self):
         self.window.set_target_rtf("unbounded")

@@ -80,13 +80,11 @@ private:
   {
     const auto wait_period = std::chrono::milliseconds(wait_poll_ms_);
     const auto period_ns = worker_period_ns_[static_cast<size_t>(worker_index)];
-    const auto participant_id =
-      std::string(get_fully_qualified_name()) + "_thread_" + std::to_string(worker_index);
 
     fss_time::thread_time_participant * participant = nullptr;
     if (enable_fss_time_) {
       std::lock_guard<std::mutex> lock(participant_init_mutex_);
-      participant = &fss_time::thread_time_participant::for_current_thread(*this, participant_id);
+      participant = &fss_time::thread_time_participant::for_current_thread(*this);
     }
 
     uint64_t sequence = 0;
