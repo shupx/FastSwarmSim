@@ -1,5 +1,3 @@
-#include "fss_time/helics_broker_backend.hpp"
-#include "fss_time/helics_thread_participant_backend.hpp"
 #include "fss_time/sim_time_broker.hpp"
 #include "fss_time/thread_time_participant.hpp"
 
@@ -8,6 +6,7 @@
 #include <future>
 #include <functional>
 #include <memory>
+#include <string>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -16,25 +15,11 @@
 namespace
 {
 
-constexpr int64_t kMs = 1000000;
-std::atomic<int> g_next_test_port{24500};
+std::atomic<int> g_next_test_endpoint{0};
 
-int reserve_test_port()
+std::string reserve_test_endpoint()
 {
-  return g_next_test_port.fetch_add(1);
-}
-
-fss_time::HelicsThreadParticipantOptions make_participant_options(
-  const std::string & id,
-  int port,
-  bool count_for_metrics = true)
-{
-  fss_time::HelicsThreadParticipantOptions options;
-  options.participant_id = id;
-  options.broker_port = port;
-  options.time_delta_ns = kMs;
-  options.count_for_participant_metrics = count_for_metrics;
-  return options;
+  return "ipc:///tmp/fss_time_test_" + std::to_string(g_next_test_endpoint.fetch_add(1)) + ".ipc";
 }
 
 void wait_until(const std::function<bool()> & predicate, std::chrono::milliseconds timeout)
@@ -74,7 +59,14 @@ public:
 
 TEST(ThreadTimeParticipant, SameThreadReturnsSameParticipant)
 {
+  const auto endpoint = reserve_test_endpoint();
+  auto broker_node = std::make_shared<rclcpp::Node>("thread_time_same_thread_broker_test");
+  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  fss_time::SimTimeBroker broker(*broker_node);
+  broker.start();
+
   rclcpp::Node node("thread_time_same_thread_test");
+  node.declare_parameter("sim_time_broker_endpoint", endpoint);
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & first = fss_time::thread_time_participant::for_current_thread(node, "same_thread");
   auto & second = fss_time::thread_time_participant::for_current_thread(node, "same_thread");
@@ -84,7 +76,14 @@ TEST(ThreadTimeParticipant, SameThreadReturnsSameParticipant)
 
 TEST(ThreadTimeParticipant, DifferentThreadsReturnDifferentParticipants)
 {
+  const auto endpoint = reserve_test_endpoint();
+  auto broker_node = std::make_shared<rclcpp::Node>("thread_time_different_thread_broker_test");
+  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  fss_time::SimTimeBroker broker(*broker_node);
+  broker.start();
+
   rclcpp::Node node("thread_time_different_thread_test");
+  node.declare_parameter("sim_time_broker_endpoint", endpoint);
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & first = fss_time::thread_time_participant::for_current_thread(node, "thread_one");
 
@@ -102,52 +101,49 @@ TEST(ThreadTimeParticipant, DifferentThreadsReturnDifferentParticipants)
   fss_time::thread_time_participant::reset_current_thread_for_testing();
 }
 
-TEST(HelicsThreadParticipantBackend, ReportsInitialState)
+TEST(ThreadTimeParticipant, WaitsForBrokerBeforeReturning)
 {
-  const int port = reserve_test_port();
-  auto participant = std::make_shared<fss_time::HelicsThreadParticipantBackend>(
-    make_participant_options("first_" + std::to_string(port), port, false));
-  EXPECT_EQ(participant->current_time_ns(), 0);
-  EXPECT_EQ(participant->last_requested_time_ns(), 0);
-  EXPECT_FALSE(participant->is_request_in_flight());
-  EXPECT_FALSE(participant->count_for_participant_metrics());
+  const auto endpoint = reserve_test_endpoint();
+  std::promise<void> participant_entered_promise;
+  auto participant_entered = participant_entered_promise.get_future();
+  std::promise<void> participant_registered_promise;
+  auto participant_registered = participant_registered_promise.get_future();
+
+  std::thread participant_thread([endpoint, &participant_entered_promise, &participant_registered_promise]() {
+    rclcpp::Node node("thread_time_waits_for_broker_test");
+    node.declare_parameter("sim_time_broker_endpoint", endpoint);
+    fss_time::thread_time_participant::reset_current_thread_for_testing();
+    participant_entered_promise.set_value();
+    auto & participant = fss_time::thread_time_participant::for_current_thread(node, "wait_for_broker");
+    participant_registered_promise.set_value();
+    participant.unregister_participant();
+    fss_time::thread_time_participant::reset_current_thread_for_testing();
+  });
+
+  ASSERT_EQ(participant_entered.wait_for(std::chrono::seconds(1)), std::future_status::ready);
+  EXPECT_EQ(participant_registered.wait_for(std::chrono::milliseconds(150)), std::future_status::timeout);
+
+  auto broker_node = std::make_shared<rclcpp::Node>("thread_time_delayed_broker_test");
+  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  fss_time::SimTimeBroker broker(*broker_node);
+  broker.start();
+
+  EXPECT_EQ(participant_registered.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+  participant_thread.join();
 }
 
-TEST(HelicsThreadParticipantBackend, RequestsAreRoundedUpToTimeDelta)
+TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
 {
-  const int port = reserve_test_port();
-  auto broker = std::make_unique<fss_time::HelicsBrokerBackend>(
-    fss_time::HelicsBrokerOptions{"zmq", "127.0.0.1", port, true, 0});
-  broker->start();
-
-  auto participant = std::make_shared<fss_time::HelicsThreadParticipantBackend>(
-    make_participant_options("rounded_" + std::to_string(port), port, false));
-  participant->announce_next_safe_time(1500000);
-
-  wait_until([&participant]() {
-    return participant->last_requested_time_ns() > 0;
-  }, std::chrono::seconds(1));
-
-  EXPECT_EQ(participant->last_requested_time_ns(), 2000000);
-
-  participant->finalize();
-  broker->finalize();
-}
-
-TEST(SimTimeBroker, PauseAndResumeAffectPublishedStatus)
-{
-  const int port = reserve_test_port();
-  auto node = std::make_shared<rclcpp::Node>("sim_time_broker_status_test");
-  node->declare_parameter("broker_port", port);
-  node->declare_parameter("start_broker", true);
-  node->declare_parameter("helics_time_delta_ns", 1000000);
-  node->declare_parameter("speed_regulator_tick_ns", 1000000);
-  node->declare_parameter("max_real_time_factor", 1.0);
-  node->declare_parameter("running", false);
-  fss_time::SimTimeBroker broker(*node);
+  const auto endpoint = reserve_test_endpoint();
+  auto broker_node = std::make_shared<rclcpp::Node>("sim_time_broker_status_test");
+  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  broker_node->declare_parameter("speed_regulator_tick_ns", 1000000);
+  broker_node->declare_parameter("max_real_time_factor", 1.0);
+  broker_node->declare_parameter("auto_start", true);
+  fss_time::SimTimeBroker broker(*broker_node);
   broker.start();
   rclcpp::executors::SingleThreadedExecutor executor;
-  executor.add_node(node);
+  executor.add_node(broker_node);
   std::atomic<bool> stop_executor{false};
   std::thread spin_thread([&executor, &stop_executor]() {
     while (!stop_executor.load()) {
@@ -156,20 +152,32 @@ TEST(SimTimeBroker, PauseAndResumeAffectPublishedStatus)
     }
   });
 
-  auto paused_status = broker.status_message();
-  EXPECT_FALSE(paused_status.running);
+  rclcpp::Node participant_node("sim_time_participant_test");
+  participant_node.declare_parameter("sim_time_broker_endpoint", endpoint);
 
-  broker.set_running(true);
-  broker.set_max_real_time_factor(2.0);
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+  auto & participant =
+    fss_time::thread_time_participant::for_current_thread(participant_node, "broker_test");
+  participant.announce_next_safe_time(rclcpp::Time(10000000LL, RCL_ROS_TIME));
+
   wait_until([&broker]() {
-    return broker.status_message().sim_time.sec > 0 || broker.status_message().sim_time.nanosec > 0;
-  }, std::chrono::seconds(2));
+    return broker.status_message().participant_count == 1 &&
+           broker.status_message().sim_time.nanosec > 0;
+  }, std::chrono::seconds(1));
 
-  const auto running_status = broker.status_message();
-  EXPECT_TRUE(running_status.running);
-  EXPECT_DOUBLE_EQ(running_status.max_real_time_factor, 2.0);
+  const auto status = broker.status_message();
+  EXPECT_TRUE(status.running);
+  EXPECT_EQ(status.participant_count, 1u);
+  EXPECT_GT(status.sim_time.nanosec, 0u);
+
+  participant.unregister_participant();
+  wait_until([&broker]() {
+    return broker.status_message().participant_count == 0;
+  }, std::chrono::seconds(1));
+  EXPECT_EQ(broker.status_message().participant_count, 0u);
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
 
   stop_executor = true;
   spin_thread.join();
-  executor.remove_node(node);
+  executor.remove_node(broker_node);
 }

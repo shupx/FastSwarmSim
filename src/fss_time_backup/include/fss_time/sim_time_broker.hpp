@@ -3,17 +3,14 @@
 
 #include <atomic>
 #include <chrono>
-#include <cstdint>
 #include <memory>
 #include <mutex>
-#include <string>
-#include <thread>
-#include <unordered_map>
 
+#include "fss_time/helics_broker_backend.hpp"
+#include "fss_time/helics_thread_participant_backend.hpp"
 #include "fss_time_interfaces/msg/sim_clock_status.hpp"
 #include "fss_time_interfaces/srv/sim_clock_control.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "rosgraph_msgs/msg/clock.hpp"
 
 namespace fss_time
 {
@@ -33,43 +30,29 @@ public:
   fss_time_interfaces::msg::SimClockStatus status_message() const;
 
 private:
-  struct ParticipantState
-  {
-    int64_t request_time_ns{0};
-    bool has_new_request{false};
-  };
-
-  void receive_loop();
-  std::string handle_message(const std::string & identity, const std::string & message);
   void on_regulator_tick();
-  void try_update_clock_locked();
-  void publish_clock_locked();
   void publish_status();
-  int64_t compute_regulator_target_ns_locked() const;
+  void refresh_participant_count();
+  int64_t compute_regulator_target_ns() const;
   void reset_wall_anchor_locked(int64_t sim_time_ns);
-  std::string normalize_ipc_endpoint(const std::string & endpoint) const;
-
-  struct Impl;
 
   rclcpp::Node & node_;
-  std::unique_ptr<Impl> impl_;
-  rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr clock_pub_;
+  std::unique_ptr<HelicsBrokerBackend> broker_backend_;
+  std::shared_ptr<HelicsThreadParticipantBackend> regulator_backend_;
   rclcpp::Publisher<fss_time_interfaces::msg::SimClockStatus>::SharedPtr status_pub_;
   rclcpp::Service<fss_time_interfaces::srv::SimClockControl>::SharedPtr control_srv_;
   rclcpp::TimerBase::SharedPtr regulator_timer_;
 
   mutable std::mutex mutex_;
-  std::unordered_map<std::string, ParticipantState> participants_;
   std::chrono::steady_clock::time_point wall_anchor_steady_;
-  int64_t sim_time_ns_{0};
+  std::chrono::steady_clock::time_point last_participant_query_steady_;
   int64_t sim_anchor_ns_{0};
-  int64_t regulator_request_ns_{0};
+  int64_t helics_time_delta_ns_{1000000};
   int64_t speed_regulator_tick_ns_{1000000};
+  int64_t participant_query_period_ns_{500000000};
+  uint32_t cached_participant_count_{0};
   double max_real_time_factor_{1.0};
   bool running_{true};
-  std::string ipc_endpoint_;
-  std::thread receive_thread_;
-  std::atomic<bool> stop_receive_{false};
 };
 
 }  // namespace fss_time

@@ -42,6 +42,10 @@ public:
     period_step_ms_ = std::max<int64_t>(0, declare_or_get_parameter<int64_t>(*this, "period_step_ms", 5));
     wait_poll_ms_ = std::max<int64_t>(1, declare_or_get_parameter<int64_t>(*this, "wait_poll_ms", 1));
     enable_fss_time_ = declare_or_get_parameter<bool>(*this, "enable_fss_time", true);
+    (void)declare_or_get_parameter<std::string>(*this, "helics_core_type", "zmq");
+    (void)declare_or_get_parameter<std::string>(*this, "broker_address", "127.0.0.1");
+    (void)declare_or_get_parameter<int>(*this, "broker_port", 23404);
+    (void)declare_or_get_parameter<int64_t>(*this, "helics_time_delta_ns", 1000000);
 
     published_counts_.assign(static_cast<size_t>(thread_count_), 0);
     publishers_.reserve(static_cast<size_t>(thread_count_));

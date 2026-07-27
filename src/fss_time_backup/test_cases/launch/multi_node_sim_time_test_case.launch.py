@@ -13,6 +13,10 @@ def _create_load_nodes(context):
     period_step_ms = LaunchConfiguration("node.period_step_ms")
     wait_poll_ms = LaunchConfiguration("node.wait_poll_ms")
     enable_fss_time = LaunchConfiguration("node.enable_fss_time")
+    broker_address = LaunchConfiguration("broker.address")
+    broker_port = LaunchConfiguration("broker.port")
+    helics_core_type = LaunchConfiguration("helics.core_type")
+    helics_time_delta_ns = LaunchConfiguration("helics.time_delta_ns")
     topic_prefix = LaunchConfiguration("node.topic_prefix")
 
     actions = []
@@ -30,6 +34,10 @@ def _create_load_nodes(context):
                   "period_step_ms": period_step_ms,
                   "wait_poll_ms": wait_poll_ms,
                   "enable_fss_time": enable_fss_time,
+                  "broker_address": broker_address,
+                  "broker_port": broker_port,
+                  "helics_core_type": helics_core_type,
+                  "helics_time_delta_ns": helics_time_delta_ns,
                   "topic_prefix": topic_prefix,
               }],
           )
@@ -38,8 +46,8 @@ def _create_load_nodes(context):
 
 
 def generate_launch_description():
-    sim_time_broker_launch = PathJoinSubstitution(
-        [FindPackageShare("fss_time"), "launch", "sim_time_broker.launch.py"]
+    distributed_clock_launch = PathJoinSubstitution(
+        [FindPackageShare("fss_time"), "launch", "distributed_clock.launch.py"]
     )
 
     return LaunchDescription([
@@ -51,13 +59,27 @@ def generate_launch_description():
         DeclareLaunchArgument("node.topic_prefix", default_value="load"),
         DeclareLaunchArgument("node.enable_fss_time", default_value="true"),
         DeclareLaunchArgument("broker.max_real_time_factor", default_value="1.0"),
-        DeclareLaunchArgument("broker.auto_start", default_value="true"),
+        DeclareLaunchArgument("helics.core_type", default_value="zmq"),
+        DeclareLaunchArgument("broker.address", default_value="127.0.0.1"),
+        DeclareLaunchArgument("broker.port", default_value="23404"),
+        DeclareLaunchArgument("helics.broker_federates", default_value="0"),
+        DeclareLaunchArgument("helics.time_delta_ns", default_value="1000000"),
+        DeclareLaunchArgument("helics.speed_regulator_tick_ns", default_value="1000000"),
+        DeclareLaunchArgument("broker.participant_query_period_ns", default_value="500000000"),
+        DeclareLaunchArgument("broker.start", default_value="true"),
         SetParameter(name="use_sim_time", value=True),
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(sim_time_broker_launch),
+            PythonLaunchDescriptionSource(distributed_clock_launch),
             launch_arguments={
                 "max_real_time_factor": LaunchConfiguration("broker.max_real_time_factor"),
-                "auto_start": LaunchConfiguration("broker.auto_start"),
+                "helics_core_type": LaunchConfiguration("helics.core_type"),
+                "broker_address": LaunchConfiguration("broker.address"),
+                "broker_port": LaunchConfiguration("broker.port"),
+                "helics_broker_federates": LaunchConfiguration("helics.broker_federates"),
+                "helics_time_delta_ns": LaunchConfiguration("helics.time_delta_ns"),
+                "speed_regulator_tick_ns": LaunchConfiguration("helics.speed_regulator_tick_ns"),
+                "participant_query_period_ns": LaunchConfiguration("broker.participant_query_period_ns"),
+                "start_broker": LaunchConfiguration("broker.start"),
             }.items(),
         ),
         OpaqueFunction(function=_create_load_nodes),

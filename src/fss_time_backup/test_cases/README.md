@@ -9,12 +9,13 @@
 
 `launch/multi_node_sim_time_test_case.launch.py` 会启动：
 
-- `sim_time_broker`
+- `sim_time_broker_node`
+- `ros_clock_publisher_node`
 - 多个 `sim_time_test_load_node`
 
 每个 `sim_time_test_load_node` 会启动多个线程。每个线程都会：
 
-- 连接到同一个 ZeroMQ IPC broker
+- 连接到同一个 HELICS broker
 - 使用 `thread_time_participant` 申请下一个安全仿真时间
 - 在自己的 while 循环里按不同周期推进
 - 周期性发布 `std_msgs/msg/UInt64MultiArray`

@@ -2,11 +2,15 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdint>
-#include <regex>
+#include <cstdio>
+#include <sstream>
+#include <stdexcept>
 #include <string>
+#include <thread>
+#include <utility>
 
-#include "fss_time/thread_time_participant.hpp"
+#include <zmq.hpp>
+
 #include "fss_time/time_types.hpp"
 
 namespace fss_time
@@ -27,59 +31,37 @@ T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const 
   return value;
 }
 
-uint32_t count_federates_in_query_result(
-  const std::string & query_result,
-  const std::string & excluded_federate_name)
+bool ipc_endpoint_path(const std::string & endpoint, std::string & path)
 {
-  uint32_t count = 0;
-  static const std::regex quoted_entry_regex("\"([^\"]+)\"");
-  for (std::sregex_iterator it(query_result.begin(), query_result.end(), quoted_entry_regex), end;
-    it != end; ++it)
-  {
-    const auto federate_name = (*it)[1].str();
-    if (federate_name != excluded_federate_name) {
-      ++count;
-    }
+  constexpr char prefix[] = "ipc://";
+  if (endpoint.rfind(prefix, 0) != 0) {
+    return false;
   }
-  return count;
+  path = endpoint.substr(sizeof(prefix) - 1);
+  return !path.empty() && path.front() == '/';
 }
 
 }  // namespace
 
-SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
-: node_(node)
+struct SimTimeBroker::Impl
 {
-  const auto core_type = declare_or_get_parameter<std::string>(node_, "helics_core_type", "zmq");
-  const auto broker_address = declare_or_get_parameter<std::string>(node_, "broker_address", "127.0.0.1");
-  const auto broker_port = declare_or_get_parameter<int>(node_, "broker_port", 23404);
-  const auto start_broker = declare_or_get_parameter<bool>(node_, "start_broker", true);
-  const auto broker_federates = declare_or_get_parameter<int>(node_, "helics_broker_federates", 0);
-  helics_time_delta_ns_ = declare_or_get_parameter<int64_t>(node_, "helics_time_delta_ns", 1000000);
-  speed_regulator_tick_ns_ = declare_or_get_parameter<int64_t>(node_, "speed_regulator_tick_ns", 1000000);
-  participant_query_period_ns_ =
-    declare_or_get_parameter<int64_t>(node_, "participant_query_period_ns", 500000000);
+  zmq::context_t context{1};
+  zmq::socket_t socket{context, zmq::socket_type::router};
+};
 
+SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
+: node_(node), impl_(std::make_unique<Impl>())
+{
+  ipc_endpoint_ = normalize_ipc_endpoint(
+    declare_or_get_parameter<std::string>(node_, "sim_time_broker_endpoint", "ipc:///tmp/fss_time_broker.ipc"));
+  speed_regulator_tick_ns_ =
+    declare_or_get_parameter<int64_t>(node_, "speed_regulator_tick_ns", 1000000);
   const auto max_rtf = declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0);
-  running_ = declare_or_get_parameter<bool>(node_, "running", true);
+  running_ = declare_or_get_parameter<bool>(node_, "auto_start", true);
   max_real_time_factor_ = max_rtf;
 
-  HelicsBrokerOptions broker_options;
-  broker_options.core_type = core_type;
-  broker_options.broker_address = broker_address;
-  broker_options.broker_port = broker_port;
-  broker_options.start_broker = start_broker;
-  broker_options.federates = broker_federates;
-  broker_backend_ = std::make_unique<HelicsBrokerBackend>(broker_options);
-
-  HelicsThreadParticipantOptions regulator_options;
-  regulator_options.participant_id = "sim_time_regulator";
-  regulator_options.core_type = core_type;
-  regulator_options.broker_address = broker_address;
-  regulator_options.broker_port = broker_port;
-  regulator_options.time_delta_ns = helics_time_delta_ns_;
-  regulator_options.count_for_participant_metrics = false;
-  regulator_backend_ = std::make_shared<HelicsThreadParticipantBackend>(regulator_options);
-
+  clock_pub_ = node_.create_publisher<rosgraph_msgs::msg::Clock>(
+    "/clock", rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local());
   status_pub_ = node_.create_publisher<fss_time_interfaces::msg::SimClockStatus>(
     "/fss/sim_clock_status", rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local());
   control_srv_ = node_.create_service<fss_time_interfaces::srv::SimClockControl>(
@@ -97,24 +79,44 @@ SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
 SimTimeBroker::~SimTimeBroker()
 {
   regulator_timer_.reset();
-  if (regulator_backend_) {
-    regulator_backend_->finalize();
+  stop_receive_.store(true);
+  if (receive_thread_.joinable()) {
+    receive_thread_.join();
   }
-  if (broker_backend_) {
-    broker_backend_->finalize();
+  if (impl_) {
+    try {
+      impl_->socket.close();
+      impl_->context.close();
+    } catch (const zmq::error_t &) {
+    }
+  }
+
+  std::string ipc_path;
+  if (ipc_endpoint_path(ipc_endpoint_, ipc_path)) {
+    std::remove(ipc_path.c_str());
   }
 }
 
 void SimTimeBroker::start()
 {
-  broker_backend_->start();
-  regulator_backend_->start();
+  std::string ipc_path;
+  if (ipc_endpoint_path(ipc_endpoint_, ipc_path)) {
+    std::remove(ipc_path.c_str());
+  }
+
+  impl_->socket.set(zmq::sockopt::linger, 0);
+  impl_->socket.set(zmq::sockopt::rcvhwm, 100000);
+  impl_->socket.set(zmq::sockopt::rcvtimeo, 100);
+  impl_->socket.bind(ipc_endpoint_);
+
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    reset_wall_anchor_locked(regulator_backend_->current_time_ns());
-    last_participant_query_steady_ = std::chrono::steady_clock::time_point{};
+    regulator_request_ns_ = 0;
+    reset_wall_anchor_locked(sim_time_ns_);
+    publish_clock_locked();
   }
-  refresh_participant_count();
+
+  receive_thread_ = std::thread([this]() { receive_loop(); });
   regulator_timer_ = node_.create_wall_timer(std::chrono::nanoseconds(speed_regulator_tick_ns_), [this]() {
     on_regulator_tick();
   });
@@ -123,48 +125,151 @@ void SimTimeBroker::start()
 
 void SimTimeBroker::set_running(bool running)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (running_ == running) {
-    return;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (running_ == running) {
+      return;
+    }
+    running_ = running;
+    reset_wall_anchor_locked(sim_time_ns_);
   }
-  running_ = running;
-  reset_wall_anchor_locked(regulator_backend_->current_time_ns());
+  publish_status();
 }
 
 void SimTimeBroker::set_max_real_time_factor(double max_real_time_factor)
 {
-  std::lock_guard<std::mutex> lock(mutex_);
-  max_real_time_factor_ = max_real_time_factor;
-  reset_wall_anchor_locked(regulator_backend_->current_time_ns());
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    max_real_time_factor_ = max_real_time_factor;
+    reset_wall_anchor_locked(sim_time_ns_);
+  }
+  publish_status();
 }
 
 fss_time_interfaces::msg::SimClockStatus SimTimeBroker::status_message() const
 {
   fss_time_interfaces::msg::SimClockStatus status;
-  status.sim_time = from_ns(regulator_backend_->current_time_ns());
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    status.running = running_;
-    status.max_real_time_factor = max_real_time_factor_;
-    status.participant_count = cached_participant_count_;
-  }
-  status.regulator_active = regulator_backend_->is_request_in_flight();
+  std::lock_guard<std::mutex> lock(mutex_);
+  status.sim_time = from_ns(sim_time_ns_);
+  status.running = running_;
+  status.max_real_time_factor = max_real_time_factor_;
+  status.participant_count = static_cast<uint32_t>(participants_.size());
+  status.regulator_active = running_;
   return status;
+}
+
+void SimTimeBroker::receive_loop()
+{
+  while (!stop_receive_.load()) {
+    zmq::message_t identity_frame;
+    zmq::message_t message_frame;
+    try {
+      const auto received = impl_->socket.recv(identity_frame, zmq::recv_flags::none);
+      if (!received) {
+        continue;
+      }
+      const auto received_message = impl_->socket.recv(message_frame, zmq::recv_flags::none);
+      if (!received_message) {
+        continue;
+      }
+
+      const auto reply_text = handle_message(identity_frame.to_string(), message_frame.to_string());
+      zmq::message_t identity(identity_frame.data(), identity_frame.size());
+      zmq::message_t reply(reply_text.begin(), reply_text.end());
+      impl_->socket.send(identity, zmq::send_flags::sndmore);
+      impl_->socket.send(reply, zmq::send_flags::none);
+      publish_status();
+    } catch (const zmq::error_t &) {
+      if (!stop_receive_.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+      continue;
+    }
+  }
+}
+
+std::string SimTimeBroker::handle_message(const std::string & identity, const std::string & message)
+{
+  std::istringstream input(message);
+  std::string command;
+  input >> command;
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (command == "REGISTER") {
+    participants_.try_emplace(identity);
+    return "OK";
+  }
+
+  if (command == "ANNOUNCE") {
+    int64_t request_ns = 0;
+    input >> request_ns;
+    auto & participant = participants_[identity];
+    participant.request_time_ns = request_ns;
+    participant.has_new_request = true;
+    try_update_clock_locked();
+    return "OK";
+  }
+
+  if (command == "UNREGISTER") {
+    participants_.erase(identity);
+    try_update_clock_locked();
+    return "OK";
+  }
+
+  return "ERROR unknown command";
 }
 
 void SimTimeBroker::on_regulator_tick()
 {
-  refresh_participant_count();
-
-  if (regulator_backend_->poll()) {
-    publish_status();
-  }
-
-  const auto target_ns = compute_regulator_target_ns();
-  if (target_ns > regulator_backend_->current_time_ns()) {
-    regulator_backend_->announce_next_safe_time(target_ns);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    regulator_request_ns_ = compute_regulator_target_ns_locked();
+    try_update_clock_locked();
   }
   publish_status();
+}
+
+void SimTimeBroker::try_update_clock_locked()
+{
+  if (participants_.empty()) {
+    return;
+  }
+
+  bool all_have_new_request = true;
+  bool all_have_infinite_request = true;
+  int64_t min_request_ns = regulator_request_ns_;
+  for (const auto & entry : participants_) {
+    const auto & participant = entry.second;
+    if (!participant.has_new_request) {
+      all_have_new_request = false;
+      break;
+    }
+    if (participant.request_time_ns < kInfiniteTimeNs / 2) {
+      all_have_infinite_request = false;
+    }
+    min_request_ns = std::min(min_request_ns, participant.request_time_ns);
+  }
+
+  if (!all_have_new_request || all_have_infinite_request || min_request_ns <= sim_time_ns_) {
+    return;
+  }
+
+  sim_time_ns_ = min_request_ns;
+  publish_clock_locked();
+
+  for (auto & entry : participants_) {
+    auto & participant = entry.second;
+    if (participant.request_time_ns <= sim_time_ns_) {
+      participant.has_new_request = false;
+    }
+  }
+}
+
+void SimTimeBroker::publish_clock_locked()
+{
+  rosgraph_msgs::msg::Clock clock;
+  clock.clock = from_ns(sim_time_ns_);
+  clock_pub_->publish(clock);
 }
 
 void SimTimeBroker::publish_status()
@@ -172,40 +277,10 @@ void SimTimeBroker::publish_status()
   status_pub_->publish(status_message());
 }
 
-void SimTimeBroker::refresh_participant_count()
+int64_t SimTimeBroker::compute_regulator_target_ns_locked() const
 {
-  const auto now = std::chrono::steady_clock::now();
-  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (participant_query_period_ns_ > 0 &&
-      last_participant_query_steady_ != std::chrono::steady_clock::time_point{} &&
-      now - last_participant_query_steady_ < std::chrono::nanoseconds(participant_query_period_ns_))
-    {
-      return;
-    }
-  }
-
-  try {
-    const auto participant_count = count_federates_in_query_result(
-      regulator_backend_->query("root", "federates"),
-      "sim_time_regulator");
-    std::lock_guard<std::mutex> lock(mutex_);
-    cached_participant_count_ = participant_count;
-    last_participant_query_steady_ = now;
-  } catch (const std::exception &) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (last_participant_query_steady_ == std::chrono::steady_clock::time_point{}) {
-      cached_participant_count_ = thread_time_participant::participant_count();
-      last_participant_query_steady_ = now;
-    }
-  }
-}
-
-int64_t SimTimeBroker::compute_regulator_target_ns() const
-{
-  std::lock_guard<std::mutex> lock(mutex_);
   if (!running_) {
-    return regulator_backend_->current_time_ns();
+    return sim_time_ns_;
   }
 
   if (max_real_time_factor_ <= 0.0) {
@@ -215,13 +290,21 @@ int64_t SimTimeBroker::compute_regulator_target_ns() const
   const auto elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
     std::chrono::steady_clock::now() - wall_anchor_steady_).count();
   const auto capped_sim_ns = sim_anchor_ns_ + static_cast<int64_t>(elapsed_ns * max_real_time_factor_);
-  return std::max(capped_sim_ns, regulator_backend_->current_time_ns());
+  return std::max(capped_sim_ns, sim_time_ns_ + std::max<int64_t>(1, speed_regulator_tick_ns_));
 }
 
 void SimTimeBroker::reset_wall_anchor_locked(int64_t sim_time_ns)
 {
   sim_anchor_ns_ = sim_time_ns;
   wall_anchor_steady_ = std::chrono::steady_clock::now();
+}
+
+std::string SimTimeBroker::normalize_ipc_endpoint(const std::string & endpoint) const
+{
+  if (!endpoint.empty()) {
+    return endpoint;
+  }
+  return "ipc:///tmp/fss_time_broker.ipc";
 }
 
 }  // namespace fss_time

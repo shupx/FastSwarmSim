@@ -18,10 +18,7 @@ def make_drones(context):
                 "init_y": 0.0,
                 "init_z": 1.0,
                 "init_yaw": 0.0,
-                "helics_core_type": LaunchConfiguration("helics_core_type"),
-                "broker_address": LaunchConfiguration("broker_address"),
-                "broker_port": LaunchConfiguration("broker_port"),
-                "helics_time_delta_ns": LaunchConfiguration("helics_time_delta_ns"),
+                "sim_time_broker_endpoint": LaunchConfiguration("sim_time_broker_endpoint"),
             }],
         )
         for index in range(1, num_drones + 1)
@@ -32,10 +29,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("num_drones", default_value="3"),
         DeclareLaunchArgument("use_sim_time", default_value="true"),
-        DeclareLaunchArgument("helics_core_type", default_value="zmq"),
-        DeclareLaunchArgument("broker_address", default_value="127.0.0.1"),
-        DeclareLaunchArgument("broker_port", default_value="23404"),
-        DeclareLaunchArgument("helics_time_delta_ns", default_value="1000000"),
+        DeclareLaunchArgument("sim_time_broker_endpoint", default_value="ipc:///tmp/fss_time_broker.ipc"),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_sim_time")),
         OpaqueFunction(function=make_drones),
     ])
