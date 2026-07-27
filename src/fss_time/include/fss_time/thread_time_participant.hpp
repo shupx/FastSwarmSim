@@ -16,7 +16,9 @@ public:
   static thread_time_participant & for_current_thread(
     rclcpp::Node & node,
     const std::string & participant_id_hint = "");
+#ifdef BUILD_TESTING
   static void reset_current_thread_for_testing();
+#endif
 
   ~thread_time_participant();
 

@@ -31,6 +31,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 target_link_libraries(${PROJECT_NAME} ${ZMQ_LIBRARIES})
 target_compile_options(${PROJECT_NAME} PRIVATE ${ZMQ_CFLAGS_OTHER})
+if(BUILD_TESTING)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC BUILD_TESTING)
+endif()
 ament_target_dependencies(${PROJECT_NAME}
   builtin_interfaces
   fss_time_interfaces

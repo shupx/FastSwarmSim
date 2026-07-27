@@ -94,10 +94,12 @@ thread_time_participant & thread_time_participant::for_current_thread(
   return *tls_participant;
 }
 
+#ifdef BUILD_TESTING
 void thread_time_participant::reset_current_thread_for_testing()
 {
   tls_participant.reset();
 }
+#endif
 
 void thread_time_participant::announce_next_safe_time(const rclcpp::Time & next_safe_time)
 {
