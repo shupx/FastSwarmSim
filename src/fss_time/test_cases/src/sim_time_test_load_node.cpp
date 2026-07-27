@@ -40,7 +40,6 @@ public:
     thread_count_ = std::max<int>(1, declare_or_get_parameter<int>(*this, "thread_count", 4));
     base_period_ms_ = std::max<int64_t>(1, declare_or_get_parameter<int64_t>(*this, "base_period_ms", 10));
     period_step_ms_ = std::max<int64_t>(0, declare_or_get_parameter<int64_t>(*this, "period_step_ms", 5));
-    wait_poll_ms_ = std::max<int64_t>(1, declare_or_get_parameter<int64_t>(*this, "wait_poll_ms", 1));
     enable_fss_time_ = declare_or_get_parameter<bool>(*this, "enable_fss_time", true);
 
     published_counts_.assign(static_cast<size_t>(thread_count_), 0);
@@ -78,7 +77,6 @@ private:
 
   void worker_loop(int worker_index)
   {
-    const auto wait_period = std::chrono::milliseconds(wait_poll_ms_);
     const auto period_ns = worker_period_ns_[static_cast<size_t>(worker_index)];
 
     fss_time::thread_time_participant * participant = nullptr;
@@ -94,8 +92,7 @@ private:
         const auto current_time_ns = participant->get_sim_time().nanoseconds();
         const auto target_time_ns = std::max(current_time_ns, publish_time_ns) + period_ns;
         participant->announce_next_safe_time(rclcpp::Time(target_time_ns, RCL_ROS_TIME));
-        wait_for_grant(*participant, target_time_ns, wait_period);
-        if (stop_.load() || !rclcpp::ok()) {
+        if (!wait_for_grant(target_time_ns) || stop_.load() || !rclcpp::ok()) {
           break;
         }
         publish_time_ns = participant->get_sim_time().nanoseconds();
@@ -120,17 +117,9 @@ private:
     }
   }
 
-  void wait_for_grant(
-    fss_time::thread_time_participant & participant,
-    int64_t target_time_ns,
-    const std::chrono::milliseconds & wait_period) const
+  bool wait_for_grant(int64_t target_time_ns)
   {
-    while (rclcpp::ok() && !stop_.load()) {
-      if (participant.get_sim_time().nanoseconds() >= target_time_ns) {
-        return;
-      }
-      std::this_thread::sleep_for(wait_period);
-    }
+    return get_clock()->sleep_until(rclcpp::Time(target_time_ns, RCL_ROS_TIME));
   }
 
   void log_status()
@@ -159,7 +148,6 @@ private:
   int thread_count_{1};
   int64_t base_period_ms_{10};
   int64_t period_step_ms_{5};
-  int64_t wait_poll_ms_{1};
   bool enable_fss_time_{true};
   std::atomic<bool> stop_{false};
   std::vector<std::thread> workers_;

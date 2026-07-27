@@ -138,7 +138,7 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   const auto endpoint = reserve_test_endpoint();
   auto broker_node = std::make_shared<rclcpp::Node>("sim_time_broker_status_test");
   broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
-  broker_node->declare_parameter("speed_regulator_step_ns", 1000000);
+  broker_node->declare_parameter("speed_regulator_step_ns", 10000000);
   broker_node->declare_parameter("max_real_time_factor", 1.0);
   broker_node->declare_parameter("auto_start", true);
   fss_time::SimTimeBroker broker(*broker_node);
@@ -177,6 +177,7 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   const auto status = broker.status_message();
   EXPECT_TRUE(status.running);
   EXPECT_EQ(status.participant_count, 1u);
+  EXPECT_LE(status.new_request_participant_count, status.participant_count);
   EXPECT_GT(status.sim_time.nanosec, 0u);
 
   participant.unregister_participant();
@@ -184,6 +185,7 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
     return broker.status_message().participant_count == 0;
   }, std::chrono::seconds(1));
   EXPECT_EQ(broker.status_message().participant_count, 0u);
+  EXPECT_EQ(broker.status_message().new_request_participant_count, 0u);
   fss_time::thread_time_participant::reset_current_thread_for_testing();
 
   stop_executor = true;

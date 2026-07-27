@@ -11,7 +11,6 @@ def _create_load_nodes(context):
     thread_count = LaunchConfiguration("node.thread_count")
     base_period_ms = LaunchConfiguration("node.base_period_ms")
     period_step_ms = LaunchConfiguration("node.period_step_ms")
-    wait_poll_ms = LaunchConfiguration("node.wait_poll_ms")
     enable_fss_time = LaunchConfiguration("node.enable_fss_time")
     topic_prefix = LaunchConfiguration("node.topic_prefix")
 
@@ -28,7 +27,6 @@ def _create_load_nodes(context):
                   "thread_count": thread_count,
                   "base_period_ms": base_period_ms,
                   "period_step_ms": period_step_ms,
-                  "wait_poll_ms": wait_poll_ms,
                   "enable_fss_time": enable_fss_time,
                   "topic_prefix": topic_prefix,
               }],
@@ -47,14 +45,13 @@ def generate_launch_description():
         DeclareLaunchArgument("node.thread_count", default_value="4"),
         DeclareLaunchArgument("node.base_period_ms", default_value="10"),
         DeclareLaunchArgument("node.period_step_ms", default_value="5"),
-        DeclareLaunchArgument("node.wait_poll_ms", default_value="1"),
         DeclareLaunchArgument("node.topic_prefix", default_value="load"),
         DeclareLaunchArgument("node.enable_fss_time", default_value="true"),
         DeclareLaunchArgument("broker.max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("broker.auto_start", default_value="true"),
         SetParameter(name="use_sim_time", value=True),
         TimerAction(
-            period=3.0,
+            period=2.0,
             actions=[
                 IncludeLaunchDescription(
                     PythonLaunchDescriptionSource(sim_time_broker_launch),

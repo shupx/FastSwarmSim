@@ -63,7 +63,7 @@ private:
   std::unordered_map<std::string, ParticipantState> participants_;
   int64_t sim_time_ns_{0};
   int64_t regulator_request_ns_{0};
-  int64_t speed_regulator_step_ns_{1000000};
+  int64_t speed_regulator_step_ns_{10000000};
   double max_real_time_factor_{1.0};
   bool running_{true};
   std::string ipc_endpoint_;

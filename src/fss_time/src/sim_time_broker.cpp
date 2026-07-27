@@ -57,7 +57,7 @@ SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
   ipc_endpoint_ = normalize_ipc_endpoint(
     declare_or_get_parameter<std::string>(node_, "sim_time_broker_endpoint", "ipc:///tmp/fss_time_broker.ipc"));
   speed_regulator_step_ns_ = std::max<int64_t>(1,
-      declare_or_get_parameter<int64_t>(node_, "speed_regulator_step_ns", 1000000));
+      declare_or_get_parameter<int64_t>(node_, "speed_regulator_step_ns", 10000000));
   const auto max_rtf = declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0);
   running_ = declare_or_get_parameter<bool>(node_, "auto_start", true);
   max_real_time_factor_ = max_rtf;
@@ -166,6 +166,12 @@ fss_time_interfaces::msg::SimClockStatus SimTimeBroker::status_message() const
   status.running = running_;
   status.max_real_time_factor = max_real_time_factor_;
   status.participant_count = static_cast<uint32_t>(participants_.size());
+  status.new_request_participant_count = static_cast<uint32_t>(std::count_if(
+      participants_.begin(),
+      participants_.end(),
+      [](const auto & entry) {
+        return entry.second.has_new_request;
+      }));
   status.regulator_active = running_;
   return status;
 }

@@ -136,6 +136,7 @@ class BrokerBridge(QObject):
                 "running": self.running,
                 "max_real_time_factor": self.expected_rtf,
                 "participant_count": int(msg.participant_count),
+                "new_request_participant_count": int(msg.new_request_participant_count),
                 "regulator_active": bool(msg.regulator_active),
             }
         )
@@ -207,7 +208,8 @@ class MainWindow(QMainWindow):
         self.label_running_value = self._add_status_row(status_layout, 1, "State", "paused")
         self.label_rtf_value = self._add_status_row(status_layout, 2, "Max RTF", "1.00x")
         self.label_participants_value = self._add_status_row(status_layout, 3, "Participants", "0")
-        self.label_regulator_value = self._add_status_row(status_layout, 4, "Regulator", "idle")
+        self.label_new_requests_value = self._add_status_row(status_layout, 4, "New requests", "0")
+        self.label_regulator_value = self._add_status_row(status_layout, 5, "Regulator", "idle")
         root_layout.addWidget(status_group)
 
         control_group = QGroupBox("Control", central)
@@ -237,7 +239,7 @@ class MainWindow(QMainWindow):
         control_layout.addWidget(self.speed_dial)
 
         scale_layout = QHBoxLayout()
-        for text in ["0.1x", "1x", "10x", "100x"]:
+        for text in ["0.1x", "1x", "5x", "10x"]:
             label = QLabel(text, control_group)
             label.setAlignment(Qt.AlignCenter)
             scale_layout.addWidget(label)
@@ -286,6 +288,7 @@ class MainWindow(QMainWindow):
         self.label_running_value.setText("running" if status["running"] else "paused")
         self.label_rtf_value.setText(format_rtf(status["max_real_time_factor"]))
         self.label_participants_value.setText(str(status["participant_count"]))
+        self.label_new_requests_value.setText(str(status["new_request_participant_count"]))
         self.label_regulator_value.setText("active" if status["regulator_active"] else "idle")
 
     def set_target_rtf(self, text: str):
@@ -307,31 +310,13 @@ def format_rtf(speed: float) -> str:
 
 
 def dial_to_rtf(dial_value: int) -> float:
-    if dial_value < 10:
-        return 0.1 + dial_value / 10.0 * (1.0 - 0.1)
-    if dial_value < 20:
-        return 1.0 + (dial_value - 10) / 10.0
-    if dial_value < 30:
-        return 2.0 + (dial_value - 20) / 10.0 * 8.0
-    if dial_value < 40:
-        return 10.0 + (dial_value - 30)
-    return 20.0 + (dial_value - 40) / 9.0 * 80.0
+    return 0.1 + max(0, min(49, dial_value)) / 49.0 * 9.9
 
 
 def rtf_to_dial(speed: float) -> int:
     if speed <= 0.0:
         return 0
-    if speed < 1.0:
-        return max(0, min(9, int((speed - 0.1) / 0.9 * 10.0)))
-    if speed < 2.0:
-        return int(10 + (speed - 1.0) * 10.0)
-    if speed < 10.0:
-        return int(20 + (speed - 2.0) / 8.0 * 10.0)
-    if speed < 20.0:
-        return int(30 + (speed - 10.0))
-    if speed < 100.0:
-        return int(40 + (speed - 20.0) / 80.0 * 9.0)
-    return 49
+    return max(0, min(49, int(round((min(speed, 10.0) - 0.1) / 9.9 * 49.0))))
 
 
 class SimTimeBrokerUi(QObject):
