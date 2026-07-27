@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -54,8 +56,8 @@ SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
 {
   ipc_endpoint_ = normalize_ipc_endpoint(
     declare_or_get_parameter<std::string>(node_, "sim_time_broker_endpoint", "ipc:///tmp/fss_time_broker.ipc"));
-  speed_regulator_tick_ns_ =
-    declare_or_get_parameter<int64_t>(node_, "speed_regulator_tick_ns", 1000000);
+  speed_regulator_step_ns_ = std::max<int64_t>(1,
+      declare_or_get_parameter<int64_t>(node_, "speed_regulator_step_ns", 1000000));
   const auto max_rtf = declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0);
   running_ = declare_or_get_parameter<bool>(node_, "auto_start", true);
   max_real_time_factor_ = max_rtf;
@@ -112,14 +114,11 @@ void SimTimeBroker::start()
   {
     std::lock_guard<std::mutex> lock(mutex_);
     regulator_request_ns_ = 0;
-    reset_wall_anchor_locked(sim_time_ns_);
     publish_clock_locked();
   }
 
   receive_thread_ = std::thread([this]() { receive_loop(); });
-  regulator_timer_ = node_.create_wall_timer(std::chrono::nanoseconds(speed_regulator_tick_ns_), [this]() {
-    on_regulator_tick();
-  });
+  reset_regulator_timer();
   publish_status();
 }
 
@@ -131,7 +130,13 @@ void SimTimeBroker::set_running(bool running)
       return;
     }
     running_ = running;
-    reset_wall_anchor_locked(sim_time_ns_);
+    if (!running_) {
+      regulator_request_ns_ = sim_time_ns_;
+    } else if (max_real_time_factor_ <= 0.0) {
+      regulator_request_ns_ = kInfiniteTimeNs;
+    } else {
+      regulator_request_ns_ = sim_time_ns_;
+    }
   }
   publish_status();
 }
@@ -141,8 +146,15 @@ void SimTimeBroker::set_max_real_time_factor(double max_real_time_factor)
   {
     std::lock_guard<std::mutex> lock(mutex_);
     max_real_time_factor_ = max_real_time_factor;
-    reset_wall_anchor_locked(sim_time_ns_);
+    if (!running_) {
+      regulator_request_ns_ = sim_time_ns_;
+    } else if (max_real_time_factor_ <= 0.0) {
+      regulator_request_ns_ = kInfiniteTimeNs;
+    } else {
+      regulator_request_ns_ = sim_time_ns_;
+    }
   }
+  reset_regulator_timer();
   publish_status();
 }
 
@@ -287,16 +299,34 @@ int64_t SimTimeBroker::compute_regulator_target_ns_locked() const
     return kInfiniteTimeNs;
   }
 
-  const auto elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-    std::chrono::steady_clock::now() - wall_anchor_steady_).count();
-  const auto capped_sim_ns = sim_anchor_ns_ + static_cast<int64_t>(elapsed_ns * max_real_time_factor_);
-  return std::max(capped_sim_ns, sim_time_ns_ + std::max<int64_t>(1, speed_regulator_tick_ns_));
+  if (sim_time_ns_ < regulator_request_ns_) {
+    return regulator_request_ns_;
+  }
+
+  if (regulator_request_ns_ >= kInfiniteTimeNs - speed_regulator_step_ns_) {
+    return kInfiniteTimeNs;
+  }
+  return regulator_request_ns_ + speed_regulator_step_ns_;
 }
 
-void SimTimeBroker::reset_wall_anchor_locked(int64_t sim_time_ns)
+void SimTimeBroker::reset_regulator_timer()
 {
-  sim_anchor_ns_ = sim_time_ns;
-  wall_anchor_steady_ = std::chrono::steady_clock::now();
+  regulator_timer_.reset();
+  regulator_timer_ = node_.create_wall_timer(regulator_wall_period(), [this]() {
+    on_regulator_tick();
+  });
+}
+
+std::chrono::nanoseconds SimTimeBroker::regulator_wall_period() const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (max_real_time_factor_ <= 0.0) {
+    return std::chrono::nanoseconds(speed_regulator_step_ns_);
+  }
+
+  const auto period_ns = static_cast<int64_t>(std::ceil(
+      static_cast<double>(speed_regulator_step_ns_) / max_real_time_factor_));
+  return std::chrono::nanoseconds(std::max<int64_t>(1, period_ns));
 }
 
 std::string SimTimeBroker::normalize_ipc_endpoint(const std::string & endpoint) const

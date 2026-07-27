@@ -137,7 +137,7 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   const auto endpoint = reserve_test_endpoint();
   auto broker_node = std::make_shared<rclcpp::Node>("sim_time_broker_status_test");
   broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
-  broker_node->declare_parameter("speed_regulator_tick_ns", 1000000);
+  broker_node->declare_parameter("speed_regulator_step_ns", 1000000);
   broker_node->declare_parameter("max_real_time_factor", 1.0);
   broker_node->declare_parameter("auto_start", true);
   fss_time::SimTimeBroker broker(*broker_node);

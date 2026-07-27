@@ -46,7 +46,8 @@ private:
   void publish_clock_locked();
   void publish_status();
   int64_t compute_regulator_target_ns_locked() const;
-  void reset_wall_anchor_locked(int64_t sim_time_ns);
+  void reset_regulator_timer();
+  std::chrono::nanoseconds regulator_wall_period() const;
   std::string normalize_ipc_endpoint(const std::string & endpoint) const;
 
   struct Impl;
@@ -60,11 +61,9 @@ private:
 
   mutable std::mutex mutex_;
   std::unordered_map<std::string, ParticipantState> participants_;
-  std::chrono::steady_clock::time_point wall_anchor_steady_;
   int64_t sim_time_ns_{0};
-  int64_t sim_anchor_ns_{0};
   int64_t regulator_request_ns_{0};
-  int64_t speed_regulator_tick_ns_{1000000};
+  int64_t speed_regulator_step_ns_{1000000};
   double max_real_time_factor_{1.0};
   bool running_{true};
   std::string ipc_endpoint_;

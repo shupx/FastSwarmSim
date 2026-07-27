@@ -8,7 +8,8 @@
 - `announce_next_safe_time()` sends a time request and waits for broker acknowledgement.
 - `unregister_participant()` unregisters explicitly; thread-local destruction also unregisters.
 - `auto_start` controls whether the broker starts in running or paused state.
-- `speed_regulator_tick_ns` is the broker's regulator step, equivalent to the old time server regulator period.
+- `speed_regulator_step_ns` is the fixed simulation-time step emitted by the speed regulator.
+- For bounded RTF, regulator requests are emitted every `speed_regulator_step_ns / max_real_time_factor` wall-time nanoseconds.
 
 Default endpoint:
 
