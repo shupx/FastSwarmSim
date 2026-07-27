@@ -1,6 +1,8 @@
 #include "fss_time/thread_time_participant.hpp"
 
+#include <algorithm>
 #include <cctype>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -103,7 +105,22 @@ void thread_time_participant::reset_current_thread_for_testing()
 
 void thread_time_participant::announce_next_safe_time(const rclcpp::Time & next_safe_time)
 {
-  backend_->announce_next_safe_time(next_safe_time.nanoseconds());
+  const auto requested_safe_time_ns = next_safe_time.nanoseconds();
+  int64_t effective_safe_time_ns = 0;
+  bool clamped = false;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    clamped = requested_safe_time_ns < last_safe_time_ns_;
+    last_safe_time_ns_ = std::max(last_safe_time_ns_, requested_safe_time_ns);
+    effective_safe_time_ns = last_safe_time_ns_;
+  }
+  if (clamped) {
+    std::cerr
+      << "\033[33m[fss_time::thread_time_participant] next_safe_time decreased from "
+      << effective_safe_time_ns << " ns to " << requested_safe_time_ns
+      << " ns. Keeping " << effective_safe_time_ns << " ns.\033[0m" << std::endl;
+  }
+  backend_->announce_next_safe_time(effective_safe_time_ns);
 }
 
 void thread_time_participant::unregister_participant()
@@ -116,6 +133,12 @@ void thread_time_participant::unregister_participant()
 rclcpp::Time thread_time_participant::get_sim_time() const
 {
   return rclcpp::Time(backend_->current_time_ns(), RCL_ROS_TIME);
+}
+
+rclcpp::Time thread_time_participant::get_last_safe_time() const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return rclcpp::Time(last_safe_time_ns_, RCL_ROS_TIME);
 }
 
 }  // namespace fss_time

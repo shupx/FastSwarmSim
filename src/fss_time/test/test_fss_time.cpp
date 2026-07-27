@@ -158,7 +158,11 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & participant =
     fss_time::thread_time_participant::for_current_thread(participant_node, "broker_test");
+  EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), 0);
   participant.announce_next_safe_time(rclcpp::Time(10000000LL, RCL_ROS_TIME));
+  EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), 10000000LL);
+  participant.announce_next_safe_time(rclcpp::Time(5000000LL, RCL_ROS_TIME));
+  EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), 10000000LL);
 
   wait_until([&broker]() {
     return broker.status_message().participant_count == 1 &&

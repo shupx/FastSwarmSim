@@ -1,7 +1,9 @@
 #ifndef FSS_TIME_THREAD_TIME_PARTICIPANT_HPP_
 #define FSS_TIME_THREAD_TIME_PARTICIPANT_HPP_
 
+#include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "fss_time/zeromq_time_participant_backend.hpp"
@@ -25,11 +27,14 @@ public:
   void announce_next_safe_time(const rclcpp::Time & next_safe_time);
   void unregister_participant();
   rclcpp::Time get_sim_time() const;
+  rclcpp::Time get_last_safe_time() const;
 
 private:
   explicit thread_time_participant(std::shared_ptr<ZeroMqTimeParticipantBackend> backend);
 
   std::shared_ptr<ZeroMqTimeParticipantBackend> backend_;
+  mutable std::mutex mutex_;
+  int64_t last_safe_time_ns_{0};
 };
 
 }  // namespace fss_time
