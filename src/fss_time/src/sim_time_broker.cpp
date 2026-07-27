@@ -80,6 +80,7 @@ SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
 
 SimTimeBroker::~SimTimeBroker()
 {
+  clock_status_timer_.reset();
   regulator_timer_.reset();
   stop_receive_.store(true);
   if (receive_thread_.joinable()) {
@@ -119,6 +120,9 @@ void SimTimeBroker::start()
 
   receive_thread_ = std::thread([this]() { receive_loop(); });
   reset_regulator_timer();
+  clock_status_timer_ = node_.create_wall_timer(std::chrono::milliseconds(100), [this]() {
+    on_clock_status_tick();
+  });
   publish_status();
 }
 
@@ -196,7 +200,6 @@ void SimTimeBroker::receive_loop()
       zmq::message_t reply(reply_text.begin(), reply_text.end());
       impl_->socket.send(identity, zmq::send_flags::sndmore);
       impl_->socket.send(reply, zmq::send_flags::none);
-      publish_status();
     } catch (const zmq::error_t &) {
       if (!stop_receive_.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -243,6 +246,14 @@ void SimTimeBroker::on_regulator_tick()
     std::lock_guard<std::mutex> lock(mutex_);
     regulator_request_ns_ = compute_regulator_target_ns_locked();
     try_update_clock_locked();
+  }
+}
+
+void SimTimeBroker::on_clock_status_tick()
+{
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    publish_clock_locked();
   }
   publish_status();
 }

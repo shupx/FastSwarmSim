@@ -42,6 +42,7 @@ private:
   void receive_loop();
   std::string handle_message(const std::string & identity, const std::string & message);
   void on_regulator_tick();
+  void on_clock_status_tick();
   void try_update_clock_locked();
   void publish_clock_locked();
   void publish_status();
@@ -58,6 +59,7 @@ private:
   rclcpp::Publisher<fss_time_interfaces::msg::SimClockStatus>::SharedPtr status_pub_;
   rclcpp::Service<fss_time_interfaces::srv::SimClockControl>::SharedPtr control_srv_;
   rclcpp::TimerBase::SharedPtr regulator_timer_;
+  rclcpp::TimerBase::SharedPtr clock_status_timer_;
 
   mutable std::mutex mutex_;
   std::unordered_map<std::string, ParticipantState> participants_;
