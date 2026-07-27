@@ -70,6 +70,10 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY
+  scripts/ui
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(DIRECTORY
   launch
   test_cases
   DESTINATION share/${PROJECT_NAME}

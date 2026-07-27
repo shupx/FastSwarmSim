@@ -1,23 +1,18 @@
 #!/usr/bin/env python3
 
 import signal
+import os
 import sys
 import threading
 import time
 
+from PyQt5 import uic
 from PyQt5.QtCore import QObject, Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QApplication,
-    QDial,
-    QGridLayout,
-    QGroupBox,
-    QHBoxLayout,
-    QLabel,
+    QLayout,
     QMainWindow,
-    QPushButton,
-    QProgressBar,
-    QVBoxLayout,
-    QWidget,
+    QSizePolicy,
 )
 
 import rclpy
@@ -29,6 +24,11 @@ from rclpy.node import Node
 from fss_time_interfaces.msg import SimClockStatus
 from fss_time_interfaces.srv import SimClockControl
 from rosgraph_msgs.msg import Clock
+
+RTF_SLIDER_MIN = 0
+RTF_SLIDER_ONE_X = 100
+RTF_SLIDER_FIVE_X = 200
+RTF_SLIDER_MAX = 300
 
 
 def parse_initial_rtf(argv):
@@ -195,93 +195,118 @@ class BrokerBridge(QObject):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Sim Time Broker")
-        self._build_ui()
-
-    def _build_ui(self):
-        central = QWidget(self)
-        root_layout = QVBoxLayout(central)
-
-        status_group = QGroupBox("Broker Status", central)
-        status_layout = QGridLayout(status_group)
-        self.label_time_value = self._add_status_row(status_layout, 0, "Sim time", "0 s", True)
-        self.label_running_value = self._add_status_row(status_layout, 1, "State", "paused")
-        self.label_rtf_value = self._add_status_row(status_layout, 2, "Max RTF", "1.00x")
-        self.label_participants_value = self._add_status_row(status_layout, 3, "Participants", "0")
-        self.label_new_requests_value = self._add_status_row(status_layout, 4, "New requests", "0")
-        self.label_regulator_value = self._add_status_row(status_layout, 5, "Regulator", "idle")
-        root_layout.addWidget(status_group)
-
-        control_group = QGroupBox("Control", central)
-        control_layout = QVBoxLayout(control_group)
-        button_layout = QHBoxLayout()
-        self.start_button = QPushButton("Start", control_group)
-        self.pause_button = QPushButton("Pause", control_group)
-        self.unbounded_button = QPushButton("Unbounded", control_group)
-        button_layout.addWidget(self.start_button)
-        button_layout.addWidget(self.pause_button)
-        button_layout.addWidget(self.unbounded_button)
-        control_layout.addLayout(button_layout)
-
-        target_layout = QHBoxLayout()
-        target_layout.addWidget(QLabel("Target RTF", control_group))
-        self.label_target_rtf_value = QLabel("1.00x", control_group)
-        self.label_target_rtf_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        target_layout.addWidget(self.label_target_rtf_value)
-        control_layout.addLayout(target_layout)
-
-        self.speed_dial = QDial(control_group)
-        self.speed_dial.setMinimum(0)
-        self.speed_dial.setMaximum(49)
-        self.speed_dial.setSingleStep(1)
-        self.speed_dial.setPageStep(5)
-        self.speed_dial.setNotchesVisible(True)
-        control_layout.addWidget(self.speed_dial)
-
-        scale_layout = QHBoxLayout()
-        for text in ["0.1x", "1x", "5x", "10x"]:
-            label = QLabel(text, control_group)
-            label.setAlignment(Qt.AlignCenter)
-            scale_layout.addWidget(label)
-        control_layout.addLayout(scale_layout)
-        root_layout.addWidget(control_group)
-
-        observed_group = QGroupBox("Observed Clock", central)
-        observed_layout = QVBoxLayout(observed_group)
-        actual_layout = QHBoxLayout()
-        actual_layout.addWidget(QLabel("Measured RTF", observed_group))
-        self.label_actual_rtf_value = QLabel("0.00x", observed_group)
-        self.label_actual_rtf_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        actual_layout.addWidget(self.label_actual_rtf_value)
-        observed_layout.addLayout(actual_layout)
-
-        self.speed_bar = QProgressBar(observed_group)
-        self.speed_bar.setRange(0, 100)
-        self.speed_bar.setValue(0)
-        observed_layout.addWidget(self.speed_bar)
-        root_layout.addWidget(observed_group)
-
-        self.setCentralWidget(central)
+        self._time_display_seconds = False
+        self._last_sim_time = 0.0
+        ui_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "sim_time_broker.ui")
+        uic.loadUi(ui_path, self)
+        self._configure_compact_layout()
+        self.label_time_value.mousePressEvent = self._toggle_time_display
+        self.speed_dial.mousePressEvent = self._slider_mouse_press
+        self.speed_dial.mouseMoveEvent = self._slider_mouse_move
+        self._status_detail_widgets = [
+            self.label_running_title,
+            self.label_running_value,
+            self.label_rtf_title,
+            self.label_rtf_value,
+            self.label_participants_title,
+            self.label_participants_value,
+            self.label_new_requests_title,
+            self.label_new_requests_value,
+            self.label_regulator_title,
+            self.label_regulator_value,
+        ]
+        self.status_toggle_button.toggled.connect(self.set_status_details_visible)
+        self.set_status_details_visible(False)
         self.statusBar().showMessage("waiting for broker status")
-        self.resize(320, 380)
 
-    def _add_status_row(
-        self, layout: QGridLayout, row: int, title: str, value: str, emphasize: bool = False
-    ) -> QLabel:
-        title_label = QLabel(title, self)
-        value_label = QLabel(value, self)
-        value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        if emphasize:
-            font = value_label.font()
-            font.setPointSize(14)
-            font.setBold(True)
-            value_label.setFont(font)
-        layout.addWidget(title_label, row, 0, 1, 1)
-        layout.addWidget(value_label, row, 1, 1, 1)
-        return value_label
+    def _configure_compact_layout(self):
+        for layout in (
+            self.root_layout,
+            self.status_layout,
+            self.control_layout,
+            self.observed_layout,
+        ):
+            layout.setSizeConstraint(QLayout.SetMinimumSize)
+        for group in (self.status_group, self.control_group, self.observed_group):
+            group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.centralwidget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
 
     def set_sim_time(self, sim_time: float):
-        self.label_time_value.setText("{:.4f} s".format(sim_time))
+        self._last_sim_time = sim_time
+        if self._time_display_seconds:
+            self.label_time_value.setText("{:.4f} s".format(sim_time))
+        else:
+            self.label_time_value.setText(format_sim_time(sim_time))
+
+    def _toggle_time_display(self, _event):
+        self._time_display_seconds = not self._time_display_seconds
+        self.set_sim_time(self._last_sim_time)
+
+    def set_status_details_visible(self, visible: bool):
+        for widget in self._status_detail_widgets:
+            widget.setVisible(visible)
+        self.status_toggle_button.setArrowType(Qt.DownArrow if visible else Qt.RightArrow)
+        self.status_toggle_button.setText("Hide details" if visible else "Show details")
+        self.status_toggle_button.setToolTip(
+            "Hide broker status details" if visible else "Show broker status details")
+        self.status_group.adjustSize()
+        self.centralwidget.adjustSize()
+        self.adjustSize()
+
+    def _slider_mouse_press(self, event):
+        if event.button() == Qt.LeftButton:
+            self.speed_dial.setValue(self._slider_value_from_position(event.pos().x()))
+            event.accept()
+            return
+        event.ignore()
+
+    def _slider_mouse_move(self, event):
+        if event.buttons() & Qt.LeftButton:
+            self.speed_dial.setValue(self._slider_value_from_position(event.pos().x()))
+            event.accept()
+            return
+        event.ignore()
+
+    def _slider_value_from_position(self, x: int) -> int:
+        width = max(1, self.speed_dial.width())
+        ratio = max(0.0, min(1.0, float(x) / float(width)))
+        return int(round(
+            self.speed_dial.minimum() +
+            ratio * (self.speed_dial.maximum() - self.speed_dial.minimum())))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.position_scale_labels()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.position_scale_labels()
+
+    def position_scale_labels(self):
+        for label, slider_value in (
+            (self.label_scale_01, RTF_SLIDER_MIN),
+            (self.label_scale_1, RTF_SLIDER_ONE_X),
+            (self.label_scale_5, RTF_SLIDER_FIVE_X),
+            (self.label_scale_10, RTF_SLIDER_MAX),
+        ):
+            label.adjustSize()
+            center_x = self._slider_position_x(slider_value)
+            if slider_value == RTF_SLIDER_MIN:
+                x = 0
+            elif slider_value == RTF_SLIDER_MAX:
+                x = self.scale_widget.width() - label.width()
+            else:
+                x = int(round(center_x - label.width() / 2.0))
+                x = max(0, min(x, self.scale_widget.width() - label.width()))
+            label.move(x, 0)
+
+    def _slider_position_x(self, slider_value: int) -> float:
+        value_range = max(1, self.speed_dial.maximum() - self.speed_dial.minimum())
+        value_offset = max(
+            self.speed_dial.minimum(),
+            min(self.speed_dial.maximum(), slider_value),
+        ) - self.speed_dial.minimum()
+        return self.scale_widget.width() * value_offset / value_range
 
     def set_status(self, status: dict):
         self.set_sim_time(status["sim_time"])
@@ -309,20 +334,40 @@ def format_rtf(speed: float) -> str:
     return "unbounded" if speed <= 0.0 else "{:.2f}x".format(speed)
 
 
+def format_sim_time(sim_time: float) -> str:
+    total_seconds = max(0.0, float(sim_time))
+    hours = int(total_seconds // 3600)
+    minutes = int((total_seconds % 3600) // 60)
+    seconds = total_seconds - hours * 3600 - minutes * 60
+    return "{:02d}:{:02d}:{:07.4f}".format(hours, minutes, seconds)
+
+
 def dial_to_rtf(dial_value: int) -> float:
-    return 0.1 + max(0, min(49, dial_value)) / 49.0 * 9.9
+    value = max(RTF_SLIDER_MIN, min(RTF_SLIDER_MAX, int(dial_value)))
+    if value <= RTF_SLIDER_ONE_X:
+        return 0.1 + value / RTF_SLIDER_ONE_X * 0.9
+    if value <= RTF_SLIDER_FIVE_X:
+        return 1.0 + (value - RTF_SLIDER_ONE_X) / (RTF_SLIDER_FIVE_X - RTF_SLIDER_ONE_X) * 4.0
+    return 5.0 + (value - RTF_SLIDER_FIVE_X) / (RTF_SLIDER_MAX - RTF_SLIDER_FIVE_X) * 5.0
 
 
 def rtf_to_dial(speed: float) -> int:
     if speed <= 0.0:
-        return 0
-    return max(0, min(49, int(round((min(speed, 10.0) - 0.1) / 9.9 * 49.0))))
+        return RTF_SLIDER_MIN
+    bounded_speed = max(0.1, min(10.0, float(speed)))
+    if bounded_speed <= 1.0:
+        return int(round((bounded_speed - 0.1) / 0.9 * RTF_SLIDER_ONE_X))
+    if bounded_speed <= 5.0:
+        return RTF_SLIDER_ONE_X + int(round((bounded_speed - 1.0) / 4.0 * (
+            RTF_SLIDER_FIVE_X - RTF_SLIDER_ONE_X)))
+    return RTF_SLIDER_FIVE_X + int(round((bounded_speed - 5.0) / 5.0 * (
+        RTF_SLIDER_MAX - RTF_SLIDER_FIVE_X)))
 
 
 class SimTimeBrokerUi(QObject):
     def __init__(self, initial_rtf: float):
         super().__init__()
-        self.app = QApplication(sys.argv)
+        self.app = QApplication([sys.argv[0]])
         self.window = MainWindow()
         self.bridge = BrokerBridge(initial_rtf)
         self.window.set_dial_value(rtf_to_dial(initial_rtf))
@@ -332,6 +377,7 @@ class SimTimeBrokerUi(QObject):
         self.window.pause_button.clicked.connect(self._pause)
         self.window.unbounded_button.clicked.connect(self._set_unbounded)
         self.window.speed_dial.valueChanged.connect(self._dial_changed)
+        self._connect_scale_labels()
 
         self.bridge.status_signal.connect(self._status_updated)
         self.bridge.clock_signal.connect(self.window.set_sim_time)
@@ -366,6 +412,22 @@ class SimTimeBrokerUi(QObject):
 
     def _dial_changed(self, dial_value: int):
         target_rtf = dial_to_rtf(dial_value)
+        self.window.set_target_rtf(format_rtf(target_rtf))
+        self.bridge.request_control(self.bridge.running, target_rtf)
+
+    def _connect_scale_labels(self):
+        for label, target_rtf in (
+            (self.window.label_scale_01, 0.1),
+            (self.window.label_scale_1, 1.0),
+            (self.window.label_scale_5, 5.0),
+            (self.window.label_scale_10, 10.0),
+        ):
+            label.setCursor(Qt.PointingHandCursor)
+            label.setToolTip("Set target RTF to {}".format(format_rtf(target_rtf)))
+            label.mousePressEvent = lambda _event, value=target_rtf: self._set_rtf(value)
+
+    def _set_rtf(self, target_rtf: float):
+        self.window.set_dial_value(rtf_to_dial(target_rtf))
         self.window.set_target_rtf(format_rtf(target_rtf))
         self.bridge.request_control(self.bridge.running, target_rtf)
 
