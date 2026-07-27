@@ -3,6 +3,8 @@
 /install/
 /log/
 
+/src/fss_time_backup/
+
 # Python caches
 __pycache__/
 *.py[cod]
