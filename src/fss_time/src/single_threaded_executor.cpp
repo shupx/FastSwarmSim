@@ -74,4 +74,15 @@ SingleThreadedExecutor::spin()
 }
 
 }  // namespace executors
+
+void spin(const rclcpp::Node::SharedPtr & node_ptr)
+{
+  rclcpp::ExecutorOptions options;
+  options.context = node_ptr->get_node_base_interface()->get_context();
+  fss_time::executors::SingleThreadedExecutor exec(node_ptr, options);
+  exec.add_node(node_ptr);
+  exec.spin();
+  exec.remove_node(node_ptr);
+}
+
 }  // namespace fss_time

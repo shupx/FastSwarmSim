@@ -21,14 +21,16 @@ namespace executors
 namespace
 {
 
-// Compatibility shim: Humble stores interrupt_guard_condition_ as an object,
-// while Rolling/newer rclcpp stores it as a shared_ptr.
+/** @brief Compatibility shim: Humble stores interrupt_guard_condition_ as an object, while Rolling/newer rclcpp stores it as a shared_ptr.
+*/
 template<typename GuardConditionT>
 void trigger_guard_condition_compat(GuardConditionT & guard_condition)
 {
   guard_condition.trigger();
 }
 
+/** @brief Compatibility shim: Humble stores interrupt_guard_condition_ as an object, while Rolling/newer rclcpp stores it as a shared_ptr.
+*/
 template<typename GuardConditionT>
 void trigger_guard_condition_compat(const std::shared_ptr<GuardConditionT> & guard_condition)
 {
@@ -65,10 +67,10 @@ MultiThreadedExecutor::MultiThreadedExecutor(
 
 MultiThreadedExecutor::~MultiThreadedExecutor() {}
 
-/* The same as the rclcpp::executors::MultiThreadedExecutor::spin() method */
 void
 MultiThreadedExecutor::spin()
 {
+  /* The same as the rclcpp::executors::MultiThreadedExecutor::spin() method */
   if (spinning.exchange(true)) {
     throw std::runtime_error("spin() called while already spinning");
   }
@@ -89,7 +91,7 @@ MultiThreadedExecutor::spin()
   }
 }
 
-/* The same as the rclcpp::executors::MultiThreadedExecutor::get_number_of_threads() method */
+/** @brief The same as the rclcpp::executors::MultiThreadedExecutor::get_number_of_threads() method */
 size_t
 MultiThreadedExecutor::get_number_of_threads()
 {

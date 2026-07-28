@@ -226,6 +226,28 @@ TEST(Executors, SingleThreadedExecutorSpinsWithoutFssSimTime)
   EXPECT_GE(calls.load(), 1);
 }
 
+TEST(Executors, NamespaceSpinUsesFssSingleThreadedExecutor)
+{
+  auto context = std::make_shared<rclcpp::Context>();
+  int argc = 0;
+  context->init(argc, nullptr);
+  rclcpp::NodeOptions node_options;
+  node_options.context(context);
+  auto node = std::make_shared<rclcpp::Node>("fss_namespace_spin_node", node_options);
+  node->declare_parameter("use_fss_sim_time", false);
+
+  std::atomic<int> calls{0};
+  rclcpp::TimerBase::SharedPtr timer;
+  timer = node->create_wall_timer(std::chrono::milliseconds(1), [context, &calls]() {
+    calls.fetch_add(1);
+    rclcpp::shutdown(context);
+  });
+
+  fss_time::spin(node);
+
+  EXPECT_GE(calls.load(), 1);
+}
+
 TEST(Executors, MultiThreadedExecutorSpinsWithoutFssSimTime)
 {
   auto node = std::make_shared<rclcpp::Node>("fss_multi_executor_spin_node");

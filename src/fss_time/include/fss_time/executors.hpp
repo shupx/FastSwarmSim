@@ -17,20 +17,46 @@
 
 namespace fss_time
 {
+
+/// 
+/** 
+ * Create a default fss_time::executors::SingleThreadedExecutor and spin the specified node.
+ * \param[in] node_ptr Shared pointer to the node to spin. 
+ */
+void spin(const rclcpp::Node::SharedPtr & node_ptr);
+
+
 namespace executors
 {
 
+/// Single-threaded executor implementation with fss_time support.
+/**
+ * This is the default executor created by fss_time::spin.
+ */
 class SingleThreadedExecutor : public rclcpp::Executor
 {
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(SingleThreadedExecutor)
 
+  /** 
+   * Single-threaded executor implementation with fss_time support. This is the default executor created by fss_time::spin.
+   * \param[in] time_node Shared pointer to the node that will be used to announce safe time and pin to sim time.
+   * \param[in] options Options used to configure the executor. Default options will use the default memory strategy and the global default context.
+   */
   explicit SingleThreadedExecutor(
     const rclcpp::Node::SharedPtr & time_node,
     const rclcpp::ExecutorOptions & options = rclcpp::ExecutorOptions());
 
   ~SingleThreadedExecutor() override;
 
+  /// Single-threaded implementation of spin.
+  /**
+   * This function will block until work comes in, execute it, and then repeat
+   * the process until canceled. And fss_time::thread_time_participant will announce infinite safe time while waiting for work, and pin to the broker's current sim time while executing callbacks.
+   * It may be interrupt by a call to rclcpp::Executor::cancel() or by ctrl-c
+   * if the associated context is configured to shutdown on SIGINT.
+   * \throws std::runtime_error when spin() called while already spinning
+   */
   void spin() override;
 
 private:
@@ -46,6 +72,15 @@ class MultiThreadedExecutor : public rclcpp::Executor
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(MultiThreadedExecutor)
 
+  /**
+   * Multi-threaded executor implementation with fss_time support.
+   * \param[in] time_node Shared pointer to the node that will be used to announce safe time and pin to sim time.
+   * \param[in] options Options used to configure the executor. Default options will use the default memory strategy and the global default context.
+   * \param[in] number_of_threads number of threads to have in the thread pool,
+   *   the default 0 will use the number of cpu cores found (minimum of 2)
+   * \param[in] yield_before_execute if true std::this_thread::yield() is called after acquiring work (as an AnyExecutable) and releasing the spinning lock, but before executing the work. This is useful for reproducing some bugs related to taking work more than once. Default is false.
+   * \param[in] timeout maximum time to wait. Default is -1, which means wait indefinitely for work.
+   */
   explicit MultiThreadedExecutor(
     const rclcpp::Node::SharedPtr & time_node,
     const rclcpp::ExecutorOptions & options = rclcpp::ExecutorOptions(),
@@ -55,6 +90,11 @@ public:
 
   ~MultiThreadedExecutor() override;
 
+  /**
+   * \sa This inner multi-threaded run() will block until work comes in, execute it, and then repeat
+   * the process until canceled. And fss_time::thread_time_participant will announce infinite safe time while waiting for work, and pin to the broker's current sim time while executing callbacks.
+   * \throws std::runtime_error when spin() called while already spinning
+   */
   void spin() override;
 
   size_t get_number_of_threads();
@@ -72,9 +112,6 @@ private:
   bool yield_before_execute_;
   std::chrono::nanoseconds next_exec_timeout_;
 };
-
-
-
 
 
 namespace fss_time_tools
