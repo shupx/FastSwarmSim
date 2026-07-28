@@ -160,7 +160,7 @@ public:
 
   /** 
    * Single-threaded executor implementation with fss_time support. This is the default executor created by fss_time::spin. 
-   * If `use_fss_sim_time` is false, this executor acts like a normal rclcpp::SingleThreadedExecutor. 
+   * If the ROS paramter `use_fss_sim_time` of the last added node is false, this executor acts like a normal rclcpp::SingleThreadedExecutor. 
    * If `use_fss_sim_time` is true, this executor will add fss_time announcement using fss_time::thread_time_participant while getting and executing work. 
    * \param[in] options Options used to configure the executor. Default options will use the default memory strategy and the global default context.
    */
@@ -193,7 +193,7 @@ public:
 
   /**
    * Multi-threaded executor implementation with fss_time support.
-   * If `use_fss_sim_time` is false, this executor acts like a normal rclcpp::MultiThreadedExecutor. 
+   * If the ROS parameter `use_fss_sim_time` of the last added node is false, this executor acts like a normal rclcpp::MultiThreadedExecutor. 
    * If `use_fss_sim_time` is true, this executor will add fss_time announcement using fss_time::thread_time_participant while getting and executing work.
    * \param[in] options Options used to configure the executor. Default options will use the default memory strategy and the global default context.
    * \param[in] number_of_threads number of threads to have in the thread pool,

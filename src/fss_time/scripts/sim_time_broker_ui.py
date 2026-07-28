@@ -8,6 +8,7 @@ import time
 
 from PyQt5 import uic
 from PyQt5.QtCore import QObject, Qt, pyqtSignal
+from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import (
     QApplication,
     QLayout,
@@ -369,6 +370,14 @@ class SimTimeBrokerUi(QObject):
         super().__init__()
         self.app = QApplication([sys.argv[0]])
         self.window = MainWindow()
+        
+        ### Set logo icon
+        workspace = os.path.dirname(os.path.abspath(__file__)) # absolute path of this folder 
+        icon = QIcon() # 地面站logo
+        print(workspace)
+        icon.addPixmap(QPixmap(workspace+"/ui/clock.png"), QIcon.Normal, QIcon.Off)
+        self.window.setWindowIcon(icon)
+        
         self.bridge = BrokerBridge(initial_rtf)
         self.window.set_dial_value(rtf_to_dial(initial_rtf))
         self.window.set_target_rtf(format_rtf(initial_rtf))
