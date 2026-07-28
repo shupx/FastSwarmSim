@@ -20,7 +20,9 @@ find_package(std_msgs REQUIRED)
 pkg_check_modules(ZMQ REQUIRED libzmq)
 
 add_library(${PROJECT_NAME} SHARED
+  src/multi_threaded_executor.cpp
   src/sim_time_broker.cpp
+  src/single_threaded_executor.cpp
   src/thread_time_participant.cpp
   src/zeromq_time_participant_backend.cpp
 )

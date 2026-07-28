@@ -1,3 +1,4 @@
+#include "fss_time/executors.hpp"
 #include "fss_time/sim_time_broker.hpp"
 #include "fss_time/thread_time_participant.hpp"
 #include "fss_time/time_types.hpp"
@@ -191,4 +192,89 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   stop_executor = true;
   spin_thread.join();
   executor.remove_node(broker_node);
+}
+
+TEST(Executors, PublicIncludeConstructsBothExecutorTypes)
+{
+  auto time_node = std::make_shared<rclcpp::Node>("fss_executor_construct_time_node");
+  fss_time::executors::SingleThreadedExecutor single_executor(time_node);
+  fss_time::executors::MultiThreadedExecutor multi_executor(
+    time_node,
+    rclcpp::ExecutorOptions(),
+    2);
+
+  EXPECT_EQ(multi_executor.get_number_of_threads(), 2u);
+}
+
+TEST(Executors, SingleThreadedExecutorSpinsWithoutFssSimTime)
+{
+  auto node = std::make_shared<rclcpp::Node>("fss_single_executor_spin_node");
+  node->declare_parameter("use_fss_sim_time", false);
+
+  std::atomic<int> calls{0};
+  fss_time::executors::SingleThreadedExecutor executor(node);
+  rclcpp::TimerBase::SharedPtr timer;
+  timer = node->create_wall_timer(std::chrono::milliseconds(1), [&executor, &calls]() {
+    calls.fetch_add(1);
+    executor.cancel();
+  });
+
+  executor.add_node(node);
+  executor.spin();
+  executor.remove_node(node);
+
+  EXPECT_GE(calls.load(), 1);
+}
+
+TEST(Executors, MultiThreadedExecutorSpinsWithoutFssSimTime)
+{
+  auto node = std::make_shared<rclcpp::Node>("fss_multi_executor_spin_node");
+  node->declare_parameter("use_fss_sim_time", false);
+
+  std::atomic<int> calls{0};
+  fss_time::executors::MultiThreadedExecutor executor(
+    node,
+    rclcpp::ExecutorOptions(),
+    2);
+  rclcpp::TimerBase::SharedPtr timer;
+  timer = node->create_wall_timer(std::chrono::milliseconds(1), [&executor, &calls]() {
+    calls.fetch_add(1);
+    executor.cancel();
+  });
+
+  executor.add_node(node);
+  executor.spin();
+  executor.remove_node(node);
+
+  EXPECT_GE(calls.load(), 1);
+}
+
+TEST(Executors, SingleThreadedExecutorSpinsWithFssSimTime)
+{
+  const auto endpoint = reserve_test_endpoint();
+  auto broker_node = std::make_shared<rclcpp::Node>("fss_single_executor_broker_node");
+  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  broker_node->declare_parameter("auto_start", true);
+  fss_time::SimTimeBroker broker(*broker_node);
+  broker.start();
+
+  auto node = std::make_shared<rclcpp::Node>("fss_single_executor_sim_time_node");
+  node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  node->declare_parameter("use_fss_sim_time", true);
+
+  std::atomic<int> calls{0};
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+  fss_time::executors::SingleThreadedExecutor executor(node);
+  rclcpp::TimerBase::SharedPtr timer;
+  timer = node->create_wall_timer(std::chrono::milliseconds(1), [&executor, &calls]() {
+    calls.fetch_add(1);
+    executor.cancel();
+  });
+
+  executor.add_node(node);
+  executor.spin();
+  executor.remove_node(node);
+
+  EXPECT_GE(calls.load(), 1);
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
 }
