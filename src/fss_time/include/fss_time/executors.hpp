@@ -11,8 +11,6 @@
 #include "fss_time/thread_time_participant.hpp"
 #include "fss_time/time_types.hpp"
 
-#include "rclcpp/any_executable.hpp"
-#include "rclcpp/exceptions.hpp"
 #include "rclcpp/executor.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -79,7 +77,7 @@ private:
 
 
 
-namespace detail
+namespace fss_time_tools
 {
 
 template<typename T>
@@ -112,37 +110,7 @@ inline void announce_current_time(thread_time_participant & participant)
   participant.announce_next_safe_time(participant.get_sim_time());
 }
 
-template<typename GuardConditionT>
-void trigger_guard_condition(GuardConditionT & guard_condition)
-{
-  guard_condition.trigger();
-}
-
-template<typename GuardConditionT>
-void trigger_guard_condition(const std::shared_ptr<GuardConditionT> & guard_condition)
-{
-  guard_condition->trigger();
-}
-
-template<typename GuardConditionT>
-void trigger_callback_group_guard_condition_if_needed(
-  rclcpp::AnyExecutable & any_exec,
-  GuardConditionT & interrupt_guard_condition)
-{
-  if (any_exec.callback_group &&
-    any_exec.callback_group->type() == rclcpp::CallbackGroupType::MutuallyExclusive)
-  {
-    try {
-      trigger_guard_condition(interrupt_guard_condition);
-    } catch (const rclcpp::exceptions::RCLError & ex) {
-      throw std::runtime_error(
-              std::string(
-                "Failed to trigger guard condition on callback group change: ") + ex.what());
-    }
-  }
-}
-
-}  // namespace detail
+}  // namespace fss_time_tools
 
 }  // namespace executors
 }  // namespace fss_time
