@@ -265,7 +265,6 @@ void SimTimeBroker::try_update_clock_locked()
   }
 
   bool all_have_new_request = true;
-  bool all_have_infinite_request = true;
   int64_t min_request_ns = regulator_request_ns_;
   for (const auto & entry : participants_) {
     const auto & participant = entry.second;
@@ -273,13 +272,10 @@ void SimTimeBroker::try_update_clock_locked()
       all_have_new_request = false;
       break;
     }
-    if (participant.request_time_ns < kInfiniteTimeNs / 2) {
-      all_have_infinite_request = false;
-    }
     min_request_ns = std::min(min_request_ns, participant.request_time_ns);
   }
 
-  if (!all_have_new_request || all_have_infinite_request || min_request_ns <= sim_time_ns_) {
+  if (!all_have_new_request || min_request_ns >= kInfiniteTimeNs - speed_regulator_step_ns_ || min_request_ns <= sim_time_ns_) {
     return;
   }
 

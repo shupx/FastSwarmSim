@@ -61,15 +61,17 @@ def generate_launch_description():
         DeclareLaunchArgument("broker.max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("broker.auto_start", default_value="true"),
         SetParameter(name="use_sim_time", value=True),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(sim_time_broker_launch),
-            launch_arguments={
-                "max_real_time_factor": LaunchConfiguration("broker.max_real_time_factor"),
-                "auto_start": LaunchConfiguration("broker.auto_start"),
-            }.items(),
-        ),
         TimerAction(
-            period=2.0,
-            actions=[OpaqueFunction(function=_create_executor_nodes)],
+            period=0.2,
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(sim_time_broker_launch),
+                    launch_arguments={
+                        "max_real_time_factor": LaunchConfiguration("broker.max_real_time_factor"),
+                        "auto_start": LaunchConfiguration("broker.auto_start"),
+                    }.items(),
+                ),
+            ],
         ),
+        OpaqueFunction(function=_create_executor_nodes),
     ])
