@@ -44,7 +44,7 @@ MultiThreadedExecutor::MultiThreadedExecutor(
   size_t number_of_threads,
   bool yield_before_execute,
   std::chrono::nanoseconds next_exec_timeout)
-: rclcpp::Executor(options),
+: fss_time::Executor(options),
   yield_before_execute_(yield_before_execute),
   next_exec_timeout_(next_exec_timeout)
 {
@@ -62,34 +62,6 @@ MultiThreadedExecutor::MultiThreadedExecutor(
 }
 
 MultiThreadedExecutor::~MultiThreadedExecutor() {}
-
-void
-MultiThreadedExecutor::set_time_node(const rclcpp::Node::SharedPtr & time_node)
-{
-  time_node_ = time_node;
-  use_fss_sim_time_ =
-    fss_time_tools::declare_or_get_parameter<bool>(*time_node_, "use_fss_sim_time", false);
-  if (use_fss_sim_time_) {
-    fss_time_tools::ensure_use_sim_time_enabled(*time_node_);
-  }
-}
-
-void
-MultiThreadedExecutor::add_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify)
-{
-  set_time_node(node_ptr);
-  rclcpp::Executor::add_node(node_ptr, notify);
-}
-
-void
-MultiThreadedExecutor::remove_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify)
-{
-  rclcpp::Executor::remove_node(node_ptr, notify);
-  if (time_node_ == node_ptr) {
-    time_node_.reset();
-    use_fss_sim_time_ = false;
-  }
-}
 
 void
 MultiThreadedExecutor::spin()
