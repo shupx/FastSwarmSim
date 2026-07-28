@@ -177,6 +177,7 @@ fss_time_interfaces::msg::SimClockStatus SimTimeBroker::status_message() const
         return entry.second.has_new_request;
       }));
   status.regulator_active = running_;
+  status.debug_msg = debug_msg_;
   return status;
 }
 
@@ -261,26 +262,50 @@ void SimTimeBroker::on_clock_status_tick()
 void SimTimeBroker::try_update_clock_locked()
 {
   if (participants_.empty()) {
+    debug_msg_ = "try_update_clock_locked: publish_clock_locked skipped: no participants";
     return;
   }
 
   bool all_have_new_request = true;
   int64_t min_request_ns = regulator_request_ns_;
+  std::string waiting_participant;
   for (const auto & entry : participants_) {
     const auto & participant = entry.second;
     if (!participant.has_new_request) {
       all_have_new_request = false;
+      waiting_participant = entry.first;
       break;
     }
     min_request_ns = std::min(min_request_ns, participant.request_time_ns);
   }
 
-  if (!all_have_new_request || min_request_ns >= kInfiniteTimeNs - speed_regulator_step_ns_ || min_request_ns <= sim_time_ns_) {
+  if (!all_have_new_request) {
+    debug_msg_ =
+      "try_update_clock_locked: publish_clock_locked skipped: waiting for participant " +
+      waiting_participant + " to announce next safe time";
     return;
   }
 
+  if (min_request_ns >= kInfiniteTimeNs - speed_regulator_step_ns_) {
+    debug_msg_ =
+      "try_update_clock_locked: publish_clock_locked skipped: minimum request is infinite or near infinite";
+    return;
+  }
+
+  if (min_request_ns <= sim_time_ns_) {
+    debug_msg_ =
+      "try_update_clock_locked: publish_clock_locked skipped: minimum request " +
+      std::to_string(min_request_ns) + " ns is not greater than current sim time " +
+      std::to_string(sim_time_ns_) + " ns";
+    return;
+  }
+
+  const auto previous_sim_time_ns = sim_time_ns_;
   sim_time_ns_ = min_request_ns;
   publish_clock_locked();
+  debug_msg_ =
+    "try_update_clock_locked: publish_clock_locked published: sim time advanced from " +
+    std::to_string(previous_sim_time_ns) + " ns to " + std::to_string(sim_time_ns_) + " ns";
 
   for (auto & entry : participants_) {
     auto & participant = entry.second;

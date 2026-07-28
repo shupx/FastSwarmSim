@@ -180,6 +180,7 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   EXPECT_EQ(status.participant_count, 1u);
   EXPECT_LE(status.new_request_participant_count, status.participant_count);
   EXPECT_GT(status.sim_time.nanosec, 0u);
+  EXPECT_NE(status.debug_msg.find("publish_clock_locked published"), std::string::npos);
 
   participant.unregister_participant();
   wait_until([&broker]() {
@@ -187,6 +188,9 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   }, std::chrono::seconds(1));
   EXPECT_EQ(broker.status_message().participant_count, 0u);
   EXPECT_EQ(broker.status_message().new_request_participant_count, 0u);
+  EXPECT_NE(
+    broker.status_message().debug_msg.find("publish_clock_locked skipped"),
+    std::string::npos);
   fss_time::thread_time_participant::reset_current_thread_for_testing();
 
   stop_executor = true;

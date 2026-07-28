@@ -139,6 +139,7 @@ class BrokerBridge(QObject):
                 "participant_count": int(msg.participant_count),
                 "new_request_participant_count": int(msg.new_request_participant_count),
                 "regulator_active": bool(msg.regulator_active),
+                "debug_msg": str(msg.debug_msg),
             }
         )
 
@@ -215,6 +216,8 @@ class MainWindow(QMainWindow):
             self.label_new_requests_value,
             self.label_regulator_title,
             self.label_regulator_value,
+            self.label_debug_title,
+            self.debug_msg_text,
         ]
         self.status_toggle_button.toggled.connect(self.set_status_details_visible)
         self.set_status_details_visible(False)
@@ -316,6 +319,9 @@ class MainWindow(QMainWindow):
         self.label_participants_value.setText(str(status["participant_count"]))
         self.label_new_requests_value.setText(str(status["new_request_participant_count"]))
         self.label_regulator_value.setText("active" if status["regulator_active"] else "idle")
+        debug_msg = status.get("debug_msg", "")
+        if self.debug_msg_text.toPlainText() != debug_msg:
+            self.debug_msg_text.setPlainText(debug_msg)
 
     def set_target_rtf(self, text: str):
         self.label_target_rtf_value.setText(text)
