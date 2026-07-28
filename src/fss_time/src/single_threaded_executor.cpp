@@ -12,16 +12,40 @@ namespace fss_time
 namespace executors
 {
 SingleThreadedExecutor::SingleThreadedExecutor(
-  const rclcpp::Node::SharedPtr & time_node,
   const rclcpp::ExecutorOptions & options)
-: rclcpp::Executor(options),
-  time_node_(fss_time_tools::require_time_node(time_node)),
-  use_fss_sim_time_(
-    fss_time_tools::declare_or_get_parameter<bool>(*time_node_, "use_fss_sim_time", false))
+: rclcpp::Executor(options)
 {
 }
 
 SingleThreadedExecutor::~SingleThreadedExecutor() {}
+
+void
+SingleThreadedExecutor::set_time_node(const rclcpp::Node::SharedPtr & time_node)
+{
+  time_node_ = time_node;
+  use_fss_sim_time_ =
+    fss_time_tools::declare_or_get_parameter<bool>(*time_node_, "use_fss_sim_time", false);
+  if (use_fss_sim_time_) {
+    fss_time_tools::ensure_use_sim_time_enabled(*time_node_);
+  }
+}
+
+void
+SingleThreadedExecutor::add_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify)
+{
+  set_time_node(node_ptr);
+  rclcpp::Executor::add_node(node_ptr, notify);
+}
+
+void
+SingleThreadedExecutor::remove_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify)
+{
+  rclcpp::Executor::remove_node(node_ptr, notify);
+  if (time_node_ == node_ptr) {
+    time_node_.reset();
+    use_fss_sim_time_ = false;
+  }
+}
 
 void
 SingleThreadedExecutor::spin()
@@ -79,7 +103,7 @@ void spin(const rclcpp::Node::SharedPtr & node_ptr)
 {
   rclcpp::ExecutorOptions options;
   options.context = node_ptr->get_node_base_interface()->get_context();
-  fss_time::executors::SingleThreadedExecutor exec(node_ptr, options);
+  fss_time::executors::SingleThreadedExecutor exec(options);
   exec.add_node(node_ptr);
   exec.spin();
   exec.remove_node(node_ptr);

@@ -196,10 +196,8 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
 
 TEST(Executors, PublicIncludeConstructsBothExecutorTypes)
 {
-  auto time_node = std::make_shared<rclcpp::Node>("fss_executor_construct_time_node");
-  fss_time::executors::SingleThreadedExecutor single_executor(time_node);
+  fss_time::executors::SingleThreadedExecutor single_executor;
   fss_time::executors::MultiThreadedExecutor multi_executor(
-    time_node,
     rclcpp::ExecutorOptions(),
     2);
 
@@ -212,7 +210,7 @@ TEST(Executors, SingleThreadedExecutorSpinsWithoutFssSimTime)
   node->declare_parameter("use_fss_sim_time", false);
 
   std::atomic<int> calls{0};
-  fss_time::executors::SingleThreadedExecutor executor(node);
+  fss_time::executors::SingleThreadedExecutor executor;
   rclcpp::TimerBase::SharedPtr timer;
   timer = node->create_wall_timer(std::chrono::milliseconds(1), [&executor, &calls]() {
     calls.fetch_add(1);
@@ -255,7 +253,6 @@ TEST(Executors, MultiThreadedExecutorSpinsWithoutFssSimTime)
 
   std::atomic<int> calls{0};
   fss_time::executors::MultiThreadedExecutor executor(
-    node,
     rclcpp::ExecutorOptions(),
     2);
   rclcpp::TimerBase::SharedPtr timer;
@@ -269,6 +266,22 @@ TEST(Executors, MultiThreadedExecutorSpinsWithoutFssSimTime)
   executor.remove_node(node);
 
   EXPECT_GE(calls.load(), 1);
+}
+
+TEST(Executors, FssSimTimeEnablesRosSimTime)
+{
+  auto node = std::make_shared<rclcpp::Node>("fss_executor_enables_ros_sim_time_node");
+  node->declare_parameter("use_fss_sim_time", true);
+  node->set_parameter(rclcpp::Parameter("use_sim_time", false));
+
+  fss_time::executors::SingleThreadedExecutor executor;
+  executor.add_node(node);
+
+  bool use_sim_time = false;
+  ASSERT_TRUE(node->get_parameter("use_sim_time", use_sim_time));
+  EXPECT_TRUE(use_sim_time);
+
+  executor.remove_node(node);
 }
 
 TEST(Executors, SingleThreadedExecutorSpinsWithFssSimTime)
@@ -286,7 +299,7 @@ TEST(Executors, SingleThreadedExecutorSpinsWithFssSimTime)
 
   std::atomic<int> calls{0};
   fss_time::thread_time_participant::reset_current_thread_for_testing();
-  fss_time::executors::SingleThreadedExecutor executor(node);
+  fss_time::executors::SingleThreadedExecutor executor;
   rclcpp::TimerBase::SharedPtr timer;
   timer = node->create_wall_timer(std::chrono::milliseconds(1), [&executor, &calls]() {
     calls.fetch_add(1);

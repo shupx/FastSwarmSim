@@ -38,16 +38,23 @@ class SingleThreadedExecutor : public rclcpp::Executor
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(SingleThreadedExecutor)
 
+  using rclcpp::Executor::add_node;
+  using rclcpp::Executor::remove_node;
+
   /** 
    * Single-threaded executor implementation with fss_time support. This is the default executor created by fss_time::spin.
-   * \param[in] time_node Shared pointer to the node that will be used to announce safe time and pin to sim time.
    * \param[in] options Options used to configure the executor. Default options will use the default memory strategy and the global default context.
    */
   explicit SingleThreadedExecutor(
-    const rclcpp::Node::SharedPtr & time_node,
     const rclcpp::ExecutorOptions & options = rclcpp::ExecutorOptions());
 
   ~SingleThreadedExecutor() override;
+
+  void
+  add_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify = true) override;
+
+  void
+  remove_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify = true) override;
 
   /// Single-threaded implementation of spin.
   /**
@@ -62,6 +69,8 @@ public:
 private:
   RCLCPP_DISABLE_COPY(SingleThreadedExecutor)
 
+  void set_time_node(const rclcpp::Node::SharedPtr & time_node);
+
   rclcpp::Node::SharedPtr time_node_;
   bool use_fss_sim_time_{false};
 };
@@ -72,9 +81,11 @@ class MultiThreadedExecutor : public rclcpp::Executor
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(MultiThreadedExecutor)
 
+  using rclcpp::Executor::add_node;
+  using rclcpp::Executor::remove_node;
+
   /**
    * Multi-threaded executor implementation with fss_time support.
-   * \param[in] time_node Shared pointer to the node that will be used to announce safe time and pin to sim time.
    * \param[in] options Options used to configure the executor. Default options will use the default memory strategy and the global default context.
    * \param[in] number_of_threads number of threads to have in the thread pool,
    *   the default 0 will use the number of cpu cores found (minimum of 2)
@@ -82,13 +93,18 @@ public:
    * \param[in] timeout maximum time to wait. Default is -1, which means wait indefinitely for work.
    */
   explicit MultiThreadedExecutor(
-    const rclcpp::Node::SharedPtr & time_node,
     const rclcpp::ExecutorOptions & options = rclcpp::ExecutorOptions(),
     size_t number_of_threads = 0,
     bool yield_before_execute = false,
     std::chrono::nanoseconds timeout = std::chrono::nanoseconds(-1));
 
   ~MultiThreadedExecutor() override;
+
+  void
+  add_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify = true) override;
+
+  void
+  remove_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify = true) override;
 
   /**
    * \sa This inner multi-threaded run() will block until work comes in, execute it, and then repeat
@@ -104,6 +120,8 @@ protected:
 
 private:
   RCLCPP_DISABLE_COPY(MultiThreadedExecutor)
+
+  void set_time_node(const rclcpp::Node::SharedPtr & time_node);
 
   rclcpp::Node::SharedPtr time_node_;
   bool use_fss_sim_time_{false};
@@ -129,12 +147,27 @@ T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const 
   return value;
 }
 
-inline rclcpp::Node::SharedPtr require_time_node(const rclcpp::Node::SharedPtr & time_node)
+inline void ensure_use_sim_time_enabled(rclcpp::Node & node)
 {
-  if (!time_node) {
-    throw std::invalid_argument("fss_time executor requires a non-null time_node");
+  bool use_sim_time = false;
+  if (!node.has_parameter("use_sim_time")) {
+    use_sim_time = node.declare_parameter<bool>("use_sim_time", true);
+  } else {
+    node.get_parameter("use_sim_time", use_sim_time);
   }
-  return time_node;
+
+  if (use_sim_time) {
+    return;
+  }
+
+  RCLCPP_WARN(
+    node.get_logger(),
+    "use_fss_sim_time is true, but use_sim_time is false. Setting use_sim_time to true.");
+  const auto result = node.set_parameter(rclcpp::Parameter("use_sim_time", true));
+  if (!result.successful) {
+    throw std::runtime_error(
+            "failed to set use_sim_time to true: " + result.reason);
+  }
 }
 
 inline void announce_next_safe_time_infinite(thread_time_participant & participant)
