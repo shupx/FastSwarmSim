@@ -9,7 +9,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("auto_start", default_value="true"),
-        DeclareLaunchArgument("speed_regulator_step_ns", default_value="1000000"),
+        DeclareLaunchArgument("speed_regulator_step_ns", default_value="5000000"), # If all time participants may announce infinite safe time (when using fss_time::executors), the step of the broker /clock is equal to this value. Set to the minimum step of all time participants to avoid time jumps. And do not set it too low to avoid high CPU usage of the broker, which may lower the real time factor (RTF). A reasonable value is 5ms (5000000ns) for a broker, which supports time participants with a maximum frequency of 200Hz, and a RTF of 50x.
         DeclareLaunchArgument("start_broker_ui", default_value="true"),
         SetParameter(name="use_sim_time", value=True),
         Node(
