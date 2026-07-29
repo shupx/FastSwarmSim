@@ -129,6 +129,8 @@ void SimTimeBroker::start()
   {
     std::lock_guard<std::mutex> lock(mutex_);
     regulator_request_ns_ = 0;
+    observed_rtf_last_sim_time_ns_ = sim_time_ns_;
+    observed_rtf_last_wall_time_ = std::chrono::steady_clock::now();
     publish_clock_locked();
   }
 
@@ -179,6 +181,7 @@ fss_time_interfaces::msg::SimClockStatus SimTimeBroker::status_message() const
   status.sim_time = from_ns(sim_time_ns_);
   status.running = running_;
   status.max_real_time_factor = max_real_time_factor_;
+  status.observed_real_time_factor = observed_real_time_factor_;
   status.participant_count = static_cast<uint32_t>(participants_.size());
   status.new_request_participant_count = static_cast<uint32_t>(std::count_if(
       participants_.begin(),
@@ -267,9 +270,34 @@ void SimTimeBroker::on_clock_status_tick()
   {
     /* Publish /clock here, only for telling the lately added participants about the current time */
     std::lock_guard<std::mutex> lock(mutex_);
+    update_observed_real_time_factor_locked();
     publish_clock_locked();
   }
   publish_status();
+}
+
+void SimTimeBroker::update_observed_real_time_factor_locked()
+{
+  const auto now = std::chrono::steady_clock::now();
+  if (observed_rtf_last_wall_time_.time_since_epoch().count() == 0) {
+    observed_rtf_last_wall_time_ = now;
+    observed_rtf_last_sim_time_ns_ = sim_time_ns_;
+    observed_real_time_factor_ = 0.0;
+    return;
+  }
+
+  const auto wall_dt = now - observed_rtf_last_wall_time_;
+  const auto wall_dt_ns =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(wall_dt).count();
+  if (wall_dt_ns <= 0) {
+    return;
+  }
+
+  const auto sim_dt_ns = sim_time_ns_ - observed_rtf_last_sim_time_ns_;
+  observed_real_time_factor_ =
+    std::max(0.0, static_cast<double>(sim_dt_ns) / static_cast<double>(wall_dt_ns));
+  observed_rtf_last_wall_time_ = now;
+  observed_rtf_last_sim_time_ns_ = sim_time_ns_;
 }
 
 void SimTimeBroker::try_update_clock_locked()

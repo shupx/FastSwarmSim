@@ -4,7 +4,6 @@ import signal
 import os
 import sys
 import threading
-import time
 
 from PyQt5 import uic
 from PyQt5.QtCore import QObject, Qt, pyqtSignal
@@ -70,17 +69,11 @@ class BrokerBridge(QObject):
         self.expected_rtf = max(0.0, float(initial_rtf))
         self.operation_limited_rtf = 0.0
         self.running = False
-        self._last_clock_time = 0.0
-        self._last_speed_sim_time = 0.0
-        self._last_speed_wall_time = time.monotonic()
-        self._lock = threading.Lock()
         self._shutdown = threading.Event()
         self._ros_ready = threading.Event()
         self._context = Context()
         self._spin_thread = threading.Thread(target=self._spin, daemon=True)
-        self._progress_thread = threading.Thread(target=self._progress_loop, daemon=True)
         self._spin_thread.start()
-        self._progress_thread.start()
 
     def _spin(self):
         rclpy.init(args=None, context=self._context)
@@ -125,13 +118,12 @@ class BrokerBridge(QObject):
                 pass
         if self._spin_thread.is_alive():
             self._spin_thread.join(timeout=2.0)
-        if self._progress_thread.is_alive():
-            self._progress_thread.join(timeout=1.0)
 
     def _on_status(self, msg: SimClockStatus):
         sim_time = float(msg.sim_time.sec) + float(msg.sim_time.nanosec) * 1e-9
         self.running = bool(msg.running)
         self.expected_rtf = max(0.0, float(msg.max_real_time_factor))
+        observed_rtf = max(0.0, float(msg.observed_real_time_factor))
         speed_regulator_step_ns = int(msg.speed_regulator_step_ns)
         min_operation_walltime = int(msg.min_operation_walltime)
         if min_operation_walltime > 0:
@@ -144,6 +136,7 @@ class BrokerBridge(QObject):
                 "sim_time": sim_time,
                 "running": self.running,
                 "max_real_time_factor": self.expected_rtf,
+                "observed_real_time_factor": observed_rtf,
                 "operation_limited_rtf": self.operation_limited_rtf,
                 "participant_count": int(msg.participant_count),
                 "new_request_participant_count": int(msg.new_request_participant_count),
@@ -153,31 +146,18 @@ class BrokerBridge(QObject):
                 "min_operation_walltime": min_operation_walltime,
             }
         )
+        text = "{:.2f}x / {:.2f}x".format(observed_rtf, self.expected_rtf)
+        if self.expected_rtf <= 0.0:
+            value = 0
+        else:
+            value = int(max(0.0, min(observed_rtf / self.expected_rtf, 1.0)) * 100.0)
+        self.progress_signal.emit(
+            {"actual_rtf": observed_rtf, "value": value, "text": text}
+        )
 
     def _on_clock(self, msg: Clock):
         sim_time = float(msg.clock.sec) + float(msg.clock.nanosec) * 1e-9
-        with self._lock:
-            self._last_clock_time = sim_time
         self.clock_signal.emit(sim_time)
-
-    def _progress_loop(self):
-        while not self._shutdown.is_set():
-            time.sleep(0.2)
-            with self._lock:
-                current_sim_time = self._last_clock_time
-            current_wall_time = time.monotonic()
-            wall_dt = max(current_wall_time - self._last_speed_wall_time, 1e-6)
-            actual_rtf = max(0.0, (current_sim_time - self._last_speed_sim_time) / wall_dt)
-            text = "{:.2f}x / {:.2f}x".format(actual_rtf, self.expected_rtf)
-            if self.expected_rtf <= 0.0:
-                value = 0
-            else:
-                value = int(max(0.0, min(actual_rtf / self.expected_rtf, 1.0)) * 100.0)
-            self.progress_signal.emit(
-                {"actual_rtf": actual_rtf, "value": value, "text": text}
-            )
-            self._last_speed_wall_time = current_wall_time
-            self._last_speed_sim_time = current_sim_time
 
     def request_control(self, running: bool, max_real_time_factor: float):
         if not self._ros_ready.wait(timeout=2.0):

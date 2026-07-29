@@ -1,6 +1,7 @@
 builtin_interfaces/Time sim_time
 bool running
 float64 max_real_time_factor
+float64 observed_real_time_factor
 uint32 participant_count
 uint32 new_request_participant_count
 bool regulator_active

@@ -43,6 +43,7 @@ private:
   std::string handle_message(const std::string & identity, const std::string & message);
   void on_regulator_tick();
   void on_clock_status_tick();
+  void update_observed_real_time_factor_locked();
   void try_update_clock_locked();
   void publish_clock_locked();
   void publish_status();
@@ -68,6 +69,9 @@ private:
   int64_t speed_regulator_step_ns_{10000000};
   int64_t min_operation_walltime_{100000};
   double max_real_time_factor_{1.0};
+  double observed_real_time_factor_{0.0};
+  int64_t observed_rtf_last_sim_time_ns_{0};
+  std::chrono::steady_clock::time_point observed_rtf_last_wall_time_{};
   bool running_{true};
   std::string debug_msg_{"try_update_clock_locked has not run yet"};
   std::string ipc_endpoint_;

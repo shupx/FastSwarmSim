@@ -63,7 +63,6 @@ def generate_launch_description():
         DeclareLaunchArgument("node.use_fss_sim_time", default_value="true"),
         DeclareLaunchArgument("broker.max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("broker.auto_start", default_value="true"),
-        SetParameter(name="use_sim_time", value=True),
         TimerAction(
             period=0.2,
             actions=[
