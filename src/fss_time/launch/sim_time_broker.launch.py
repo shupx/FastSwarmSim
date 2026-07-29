@@ -9,6 +9,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("auto_start", default_value="true"),
+        DeclareLaunchArgument("speed_regulator_step_ns", default_value="1000000"),
         DeclareLaunchArgument("start_broker_ui", default_value="true"),
         SetParameter(name="use_sim_time", value=True),
         Node(
@@ -19,6 +20,7 @@ def generate_launch_description():
             parameters=[{
                 "max_real_time_factor": LaunchConfiguration("max_real_time_factor"),
                 "auto_start": LaunchConfiguration("auto_start"),
+                "speed_regulator_step_ns": LaunchConfiguration("speed_regulator_step_ns"),
             }],
         ),
         Node(

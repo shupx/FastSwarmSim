@@ -67,11 +67,16 @@ inline void ensure_use_sim_time_enabled(rclcpp::Node & node)
 inline void announce_next_safe_time_infinite(thread_time_participant & participant)
 {
   participant.announce_next_safe_time(rclcpp::Time(fss_time::kInfiniteTimeNs, RCL_ROS_TIME));
+
+  std::cout << "thread_time_participant::announce_next_safe_time_infinite" << std::endl;
 }
 
 inline void announce_current_time(thread_time_participant & participant)
 {
   participant.announce_next_safe_time(participant.get_sim_time());
+
+  std::cout << "thread_time_participant::announce_current_time: "
+            << participant.get_last_safe_time().nanoseconds() << " ns" << std::endl;
 }
 
 }  // namespace fss_time_tools

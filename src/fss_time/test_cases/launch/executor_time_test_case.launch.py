@@ -11,6 +11,7 @@ def _create_executor_nodes(context):
     single_count = int(LaunchConfiguration("single.node_count").perform(context))
     multi_count = int(LaunchConfiguration("multi.node_count").perform(context))
     timer_period_ms = LaunchConfiguration("node.timer_period_ms")
+    timer_count = LaunchConfiguration("node.timer_count")
     topic_prefix = LaunchConfiguration("node.topic_prefix")
     log_every_n = LaunchConfiguration("node.log_every_n")
     multi_thread_count = LaunchConfiguration("multi.thread_count")
@@ -30,6 +31,7 @@ def _create_executor_nodes(context):
                     parameters=[{
                         "executor_type": executor_type,
                         "timer_period_ms": timer_period_ms,
+                        "timer_count": timer_count,
                         "topic_prefix": topic_prefix,
                         "log_every_n": log_every_n,
                         "multi_thread_count": multi_thread_count,
@@ -55,6 +57,7 @@ def generate_launch_description():
         DeclareLaunchArgument("multi.node_count", default_value="1"),
         DeclareLaunchArgument("multi.thread_count", default_value="2"),
         DeclareLaunchArgument("node.timer_period_ms", default_value="10"),
+        DeclareLaunchArgument("node.timer_count", default_value="2"),
         DeclareLaunchArgument("node.topic_prefix", default_value="executor_time"),
         DeclareLaunchArgument("node.log_every_n", default_value="100"),
         DeclareLaunchArgument("node.use_fss_sim_time", default_value="true"),

@@ -68,13 +68,15 @@ ros2 topic echo /sim_time_test/node_0/load/thread_0
 - 使用 `fss_time::executors::SingleThreadedExecutor` 的节点
 - 使用 `fss_time::executors::MultiThreadedExecutor` 的节点
 
-每个节点使用 ROS-time timer，按 `node.timer_period_ms` 指定的仿真时间周期发布
+每个节点默认创建 2 个 ROS-time timer，可用 `node.timer_count` 调整数量；每个 timer
+按 `node.timer_period_ms` 指定的仿真时间周期发布
 `std_msgs/msg/UInt64MultiArray`。消息字段依次为：
 
 1. executor 类型编号：`1=fss_spin`，`2=single_threaded`，`3=multi_threaded`
 2. 序号
 3. 当前 timer callback 的仿真时间，单位 ns
 4. timer 周期，单位 ns
+5. timer 编号
 
 启动：
 
@@ -91,13 +93,14 @@ ros2 launch fss_time executor_time_test_case.launch.py \
   multi.node_count:=2 \
   multi.thread_count:=4 \
   node.timer_period_ms:=20 \
+  node.timer_count:=4 \
   broker.max_real_time_factor:=1.0
 ```
 
 可直接观察：
 
 ```bash
-ros2 topic echo /fss_spin_0/executor_time/fss_spin
-ros2 topic echo /single_threaded_0/executor_time/single_threaded
-ros2 topic echo /multi_threaded_0/executor_time/multi_threaded
+ros2 topic echo /fss_spin_0/executor_time/fss_spin/timer_0
+ros2 topic echo /single_threaded_0/executor_time/single_threaded/timer_0
+ros2 topic echo /multi_threaded_0/executor_time/multi_threaded/timer_0
 ```

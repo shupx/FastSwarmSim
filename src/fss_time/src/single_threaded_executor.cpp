@@ -45,8 +45,8 @@ SingleThreadedExecutor::spin()
     rclcpp::AnyExecutable any_executable;
     // While get_next_executable(any_executable) blocks for ROS work, this executor thread does not constrain sim-time progress as thread_time_participant announces infinite safe time.
     fss_time_tools::announce_next_safe_time_infinite(participant);
-    if (!get_next_executable(any_executable)) {
-      continue;
+    while (!get_next_executable(any_executable)) {
+      // get_next_executable(x, -1) blocks until the next timer triggering walltime. If sim time is paused, this will return with false (no work ready). So a while loop is needed to keep waiting for work in sim time paused state.
     }
 
     while (rclcpp::ok(this->context_) && spinning.load()) {
@@ -60,7 +60,6 @@ SingleThreadedExecutor::spin()
       // get_next_executable(next_executable, 0) drains work already ready in the wait set without blocking.
       if (!get_next_executable(next_executable, std::chrono::nanoseconds(0))) {
         // No immediately-ready work remains, so release this worker's sim-time constraint.
-        fss_time_tools::announce_next_safe_time_infinite(participant);
         break;
         // The speed_regulator in sim_time_broker will push one time step forward if all thread_time_participants have released their safe-time constraints. So the step of the speed_regulator determines the sim time step in this case, and a small step is preferred and more accurated.
       }

@@ -4,6 +4,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "fss_time/executors.hpp"
 #include "rclcpp/create_timer.hpp"
@@ -53,17 +54,25 @@ public:
       declare_or_get_parameter<std::string>(*this, "topic_prefix", "executor_time");
     timer_period_ms_ =
       std::max<int64_t>(1, declare_or_get_parameter<int64_t>(*this, "timer_period_ms", 10));
+    timer_count_ =
+      std::max<int64_t>(1, declare_or_get_parameter<int64_t>(*this, "timer_count", 2));
     log_every_n_ =
       std::max<int64_t>(1, declare_or_get_parameter<int64_t>(*this, "log_every_n", 100));
 
-    const auto topic_name = topic_prefix_ + "/" + executor_type_;
-    publisher_ = create_publisher<std_msgs::msg::UInt64MultiArray>(topic_name, rclcpp::QoS(10));
-    timer_ = rclcpp::create_timer(
-      this->get_node_base_interface(),
-      this->get_node_timers_interface(),
-      this->get_clock(),
-      rclcpp::Duration::from_nanoseconds(timer_period_ms_ * 1000000LL),
-      [this]() { on_timer(); });
+    publishers_.reserve(static_cast<size_t>(timer_count_));
+    timers_.reserve(static_cast<size_t>(timer_count_));
+    for (int64_t timer_index = 0; timer_index < timer_count_; ++timer_index) {
+      const auto topic_name =
+        topic_prefix_ + "/" + executor_type_ + "/timer_" + std::to_string(timer_index);
+      publishers_.push_back(
+        create_publisher<std_msgs::msg::UInt64MultiArray>(topic_name, rclcpp::QoS(10)));
+      timers_.push_back(rclcpp::create_timer(
+          this->get_node_base_interface(),
+          this->get_node_timers_interface(),
+          this->get_clock(),
+          rclcpp::Duration::from_nanoseconds(timer_period_ms_ * 1000000LL),
+          [this, timer_index]() { on_timer(timer_index); }));
+    }
   }
 
   const std::string & executor_type() const
@@ -72,7 +81,7 @@ public:
   }
 
 private:
-  void on_timer()
+  void on_timer(int64_t timer_index)
   {
     const auto sim_time_ns = now().nanoseconds();
     std_msgs::msg::UInt64MultiArray message;
@@ -80,15 +89,17 @@ private:
       executor_type_id(executor_type_),
       sequence_,
       static_cast<uint64_t>(std::max<int64_t>(0, sim_time_ns)),
-      static_cast<uint64_t>(timer_period_ms_ * 1000000LL)
+      static_cast<uint64_t>(timer_period_ms_ * 1000000LL),
+      static_cast<uint64_t>(timer_index)
     };
-    publisher_->publish(message);
+    publishers_.at(static_cast<size_t>(timer_index))->publish(message);
 
     if (sequence_ % static_cast<uint64_t>(log_every_n_) == 0) {
       RCLCPP_INFO(
         get_logger(),
-        "executor_type=%s sequence=%lu sim_time=%ld ns period=%ld ms",
+        "executor_type=%s timer=%ld sequence=%lu sim_time=%ld ns period=%ld ms",
         executor_type_.c_str(),
+        timer_index,
         sequence_,
         sim_time_ns,
         timer_period_ms_);
@@ -99,10 +110,11 @@ private:
   std::string executor_type_;
   std::string topic_prefix_;
   int64_t timer_period_ms_{10};
+  int64_t timer_count_{2};
   int64_t log_every_n_{100};
   uint64_t sequence_{0};
-  rclcpp::Publisher<std_msgs::msg::UInt64MultiArray>::SharedPtr publisher_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  std::vector<rclcpp::Publisher<std_msgs::msg::UInt64MultiArray>::SharedPtr> publishers_;
+  std::vector<rclcpp::TimerBase::SharedPtr> timers_;
 };
 
 int main(int argc, char ** argv)
