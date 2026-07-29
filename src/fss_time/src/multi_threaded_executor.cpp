@@ -138,27 +138,28 @@ MultiThreadedExecutor::run([[maybe_unused]] size_t this_thread_number)
   auto & participant = thread_time_participant::for_current_thread(*time_node_, participant_id);
 
   while (rclcpp::ok(this->context_) && spinning.load()) {
+    // While get_next_executable(any_exec, next_exec_timeout_) with next_exec_timeout_=-1 by default blocks for ROS work, this worker does not constrain sim-time progress as thread_time_participant announces infinite safe time.
+    fss_time_tools::announce_next_safe_time_infinite(participant);
+
     rclcpp::AnyExecutable any_exec;
+    bool got_work = false;
+    while (!got_work)
     {
-      // Protect the shared wait set while announcing safe time and taking work.
       std::lock_guard wait_lock{wait_mutex_};
       if (!rclcpp::ok(this->context_) || !spinning.load()) {
         return;
       }
-      // While get_next_executable(any_exec, next_exec_timeout_) with next_exec_timeout_=-1 by default blocks for ROS work, this worker does not constrain sim-time progress as thread_time_participant announces infinite safe time.
-      fss_time_tools::announce_next_safe_time_infinite(participant);
-      while (!get_next_executable(any_exec, next_exec_timeout_)) {
-        // get_next_executable(x, -1) blocks only until the next timer time. If sim time is paused, this will return with false (no work ready). So a while loop is needed to keep waiting for work in sim time paused state.
-      }
+      got_work = get_next_executable(any_exec, next_exec_timeout_);
+      // get_next_executable(x, -1) blocks only until the next timer time. If sim time is paused, this will return with false (no work ready). So a while loop is needed to keep waiting for work in sim time paused state.
     }
+
+    // Before executing any_executable callbacks, pin this thread_time_participant to the broker's current sim time, so that the sim time does not advance while callbacks are running. 
+    fss_time_tools::announce_current_time(participant);
 
     while (rclcpp::ok(this->context_) && spinning.load()) {
       if (yield_before_execute_) {
         std::this_thread::yield();
       }
-
-      // Before executing any_executable callbacks, pin this thread_time_participant to the broker's current sim time, so that the sim time does not advance while callbacks are running. 
-      fss_time_tools::announce_current_time(participant);
 
       execute_any_executable(any_exec);
 

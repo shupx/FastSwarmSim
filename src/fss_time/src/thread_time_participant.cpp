@@ -6,6 +6,7 @@
 #include <cctype>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <utility>
@@ -21,6 +22,8 @@ namespace
 template<typename T>
 T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const T & default_value)
 {
+  static std::mutex parameter_mutex;
+  std::lock_guard<std::mutex> lock(parameter_mutex);
   if (!node.has_parameter(name)) {
     return node.declare_parameter<T>(name, default_value);
   }
