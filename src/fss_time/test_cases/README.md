@@ -49,7 +49,7 @@ ros2 launch fss_time multi_node_sim_time_test_case.launch.py \
 
 - 终端日志里 `sim_time` 应持续增长，而不是一直停在 `0`
 - `max_real_time_factor:=1.0` 时，仿真时间推进速度应接近真实时间
-- `max_real_time_factor:=0.0` 时，仿真时间通常会明显快于真实时间
+- `max_real_time_factor:=0.0` 时，broker 不再周期性推进 regulator request
 - 不同线程发布频率不同，但发布时间戳都应随 broker 授时单调增加
 
 可直接观察：

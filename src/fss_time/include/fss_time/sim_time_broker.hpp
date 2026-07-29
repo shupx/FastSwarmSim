@@ -66,6 +66,7 @@ private:
   int64_t sim_time_ns_{0};
   int64_t regulator_request_ns_{0};
   int64_t speed_regulator_step_ns_{10000000};
+  int64_t min_operation_walltime_{100000};
   double max_real_time_factor_{1.0};
   bool running_{true};
   std::string debug_msg_{"try_update_clock_locked has not run yet"};

@@ -68,6 +68,7 @@ class BrokerBridge(QObject):
     def __init__(self, initial_rtf: float):
         super().__init__()
         self.expected_rtf = max(0.0, float(initial_rtf))
+        self.operation_limited_rtf = 0.0
         self.running = False
         self._last_clock_time = 0.0
         self._last_speed_sim_time = 0.0
@@ -131,15 +132,25 @@ class BrokerBridge(QObject):
         sim_time = float(msg.sim_time.sec) + float(msg.sim_time.nanosec) * 1e-9
         self.running = bool(msg.running)
         self.expected_rtf = max(0.0, float(msg.max_real_time_factor))
+        speed_regulator_step_ns = int(msg.speed_regulator_step_ns)
+        min_operation_walltime = int(msg.min_operation_walltime)
+        if min_operation_walltime > 0:
+            self.operation_limited_rtf = max(
+                0.0, float(speed_regulator_step_ns) / float(min_operation_walltime))
+        else:
+            self.operation_limited_rtf = 0.0
         self.status_signal.emit(
             {
                 "sim_time": sim_time,
                 "running": self.running,
                 "max_real_time_factor": self.expected_rtf,
+                "operation_limited_rtf": self.operation_limited_rtf,
                 "participant_count": int(msg.participant_count),
                 "new_request_participant_count": int(msg.new_request_participant_count),
                 "regulator_active": bool(msg.regulator_active),
                 "debug_msg": str(msg.debug_msg),
+                "speed_regulator_step_ns": speed_regulator_step_ns,
+                "min_operation_walltime": min_operation_walltime,
             }
         )
 
@@ -157,11 +168,10 @@ class BrokerBridge(QObject):
             current_wall_time = time.monotonic()
             wall_dt = max(current_wall_time - self._last_speed_wall_time, 1e-6)
             actual_rtf = max(0.0, (current_sim_time - self._last_speed_sim_time) / wall_dt)
+            text = "{:.2f}x / {:.2f}x".format(actual_rtf, self.expected_rtf)
             if self.expected_rtf <= 0.0:
-                text = "{:.2f}x / unbounded".format(actual_rtf)
-                value = 100 if actual_rtf > 0.0 else 0
+                value = 0
             else:
-                text = "{:.2f}x / {:.2f}x".format(actual_rtf, self.expected_rtf)
                 value = int(max(0.0, min(actual_rtf / self.expected_rtf, 1.0)) * 100.0)
             self.progress_signal.emit(
                 {"actual_rtf": actual_rtf, "value": value, "text": text}
@@ -319,6 +329,7 @@ class MainWindow(QMainWindow):
         self.label_participants_value.setText(str(status["participant_count"]))
         self.label_new_requests_value.setText(str(status["new_request_participant_count"]))
         self.label_regulator_value.setText("active" if status["regulator_active"] else "idle")
+        self.unbounded_button.setText(format_rtf(status.get("operation_limited_rtf", 0.0)))
         debug_msg = status.get("debug_msg", "")
         if self.debug_msg_text.toPlainText() != debug_msg:
             self.debug_msg_text.setPlainText(debug_msg)
@@ -338,7 +349,7 @@ class MainWindow(QMainWindow):
 
 
 def format_rtf(speed: float) -> str:
-    return "unbounded" if speed <= 0.0 else "{:.2f}x".format(speed)
+    return "{:.2f}x".format(max(0.0, float(speed)))
 
 
 def format_sim_time(sim_time: float) -> str:
@@ -390,7 +401,7 @@ class SimTimeBrokerUi(QObject):
 
         self.window.start_button.clicked.connect(self._start)
         self.window.pause_button.clicked.connect(self._pause)
-        self.window.unbounded_button.clicked.connect(self._set_unbounded)
+        self.window.unbounded_button.clicked.connect(self._set_operation_limited_rtf)
         self.window.speed_dial.valueChanged.connect(self._dial_changed)
         self._connect_scale_labels()
 
@@ -421,9 +432,11 @@ class SimTimeBrokerUi(QObject):
     def _pause(self):
         self.bridge.request_control(False, self.bridge.expected_rtf)
 
-    def _set_unbounded(self):
-        self.window.set_target_rtf("unbounded")
-        self.bridge.request_control(self.bridge.running, 0.0)
+    def _set_operation_limited_rtf(self):
+        target_rtf = self.bridge.operation_limited_rtf
+        self.window.set_dial_value(rtf_to_dial(target_rtf))
+        self.window.set_target_rtf(format_rtf(target_rtf))
+        self.bridge.request_control(self.bridge.running, target_rtf)
 
     def _dial_changed(self, dial_value: int):
         target_rtf = dial_to_rtf(dial_value)

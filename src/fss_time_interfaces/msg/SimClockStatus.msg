@@ -5,3 +5,5 @@ uint32 participant_count
 uint32 new_request_participant_count
 bool regulator_active
 string debug_msg
+int64 speed_regulator_step_ns
+int64 min_operation_walltime

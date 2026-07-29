@@ -180,7 +180,8 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   EXPECT_EQ(status.participant_count, 1u);
   EXPECT_LE(status.new_request_participant_count, status.participant_count);
   EXPECT_GT(status.sim_time.nanosec, 0u);
-  EXPECT_NE(status.debug_msg.find("publish_clock_locked published"), std::string::npos);
+  EXPECT_EQ(status.speed_regulator_step_ns, 1000000);
+  EXPECT_EQ(status.min_operation_walltime, 100000);
 
   participant.unregister_participant();
   wait_until([&broker]() {

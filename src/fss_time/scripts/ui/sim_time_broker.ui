@@ -234,7 +234,7 @@ QToolButton:hover {
          <item>
           <widget class="QPushButton" name="unbounded_button">
            <property name="text">
-            <string>Unbounded</string>
+            <string>0.00x</string>
            </property>
           </widget>
          </item>

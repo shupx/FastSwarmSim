@@ -21,6 +21,8 @@ namespace fss_time
 namespace
 {
 
+constexpr int64_t kMinOperationWalltime_ns = 100000;
+
 template<typename T>
 T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const T & default_value)
 {
@@ -56,8 +58,20 @@ SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
 {
   ipc_endpoint_ = normalize_ipc_endpoint(
     declare_or_get_parameter<std::string>(node_, "sim_time_broker_endpoint", "ipc:///tmp/fss_time_broker.ipc"));
-  speed_regulator_step_ns_ = std::max<int64_t>(1,
-      declare_or_get_parameter<int64_t>(node_, "speed_regulator_step_ns", 1000000));
+  min_operation_walltime_ = kMinOperationWalltime_ns;
+  const auto configured_speed_regulator_step_ns =
+    declare_or_get_parameter<int64_t>(node_, "speed_regulator_step_ns", 1000000);
+  if (configured_speed_regulator_step_ns < min_operation_walltime_) {
+    RCLCPP_WARN(
+      node_.get_logger(),
+      "speed_regulator_step_ns=%lld is smaller than min_operation_walltime=%lld ns. "
+      "Clamping speed_regulator_step_ns to %lld ns.",
+      static_cast<long long>(configured_speed_regulator_step_ns),
+      static_cast<long long>(min_operation_walltime_),
+      static_cast<long long>(min_operation_walltime_));
+  }
+  speed_regulator_step_ns_ =
+    std::max<int64_t>(min_operation_walltime_, configured_speed_regulator_step_ns);
   const auto max_rtf = declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0);
   running_ = declare_or_get_parameter<bool>(node_, "auto_start", true);
   max_real_time_factor_ = max_rtf;
@@ -136,8 +150,6 @@ void SimTimeBroker::set_running(bool running)
     running_ = running;
     if (!running_) {
       regulator_request_ns_ = sim_time_ns_;
-    } else if (max_real_time_factor_ <= 0.0) {
-      regulator_request_ns_ = kInfiniteTimeNs;
     } else {
       regulator_request_ns_ = sim_time_ns_;
     }
@@ -152,8 +164,6 @@ void SimTimeBroker::set_max_real_time_factor(double max_real_time_factor)
     max_real_time_factor_ = max_real_time_factor;
     if (!running_) {
       regulator_request_ns_ = sim_time_ns_;
-    } else if (max_real_time_factor_ <= 0.0) {
-      regulator_request_ns_ = kInfiniteTimeNs;
     } else {
       regulator_request_ns_ = sim_time_ns_;
     }
@@ -176,8 +186,10 @@ fss_time_interfaces::msg::SimClockStatus SimTimeBroker::status_message() const
       [](const auto & entry) {
         return entry.second.has_new_request;
       }));
-  status.regulator_active = running_;
+  status.regulator_active = running_ && max_real_time_factor_ > 0.0;
   status.debug_msg = debug_msg_;
+  status.speed_regulator_step_ns = speed_regulator_step_ns_;
+  status.min_operation_walltime = min_operation_walltime_;
   return status;
 }
 
@@ -335,7 +347,7 @@ int64_t SimTimeBroker::compute_regulator_target_ns_locked() const
   }
 
   if (max_real_time_factor_ <= 0.0) {
-    return kInfiniteTimeNs;
+    return sim_time_ns_;
   }
 
   if (sim_time_ns_ < regulator_request_ns_) {
@@ -350,8 +362,12 @@ int64_t SimTimeBroker::compute_regulator_target_ns_locked() const
 
 void SimTimeBroker::reset_regulator_timer()
 {
-  regulator_timer_.reset();
-  regulator_timer_ = node_.create_wall_timer(regulator_wall_period(), [this]() {
+  regulator_timer_.reset();  // Cancel the previous timer if it exists
+  const auto period = regulator_wall_period();
+  if (period == std::chrono::nanoseconds::max()) {
+    return; // regulator has already been cancelled, no need to create a timer
+  }
+  regulator_timer_ = node_.create_wall_timer(period, [this]() {
     on_regulator_tick();
   });
 }
@@ -360,12 +376,12 @@ std::chrono::nanoseconds SimTimeBroker::regulator_wall_period() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
   if (max_real_time_factor_ <= 0.0) {
-    return std::chrono::nanoseconds(speed_regulator_step_ns_);
+    return std::chrono::nanoseconds::max();
   }
 
   const auto period_ns = static_cast<int64_t>(std::ceil(
       static_cast<double>(speed_regulator_step_ns_) / max_real_time_factor_));
-  return std::chrono::nanoseconds(std::max<int64_t>(1, period_ns));
+  return std::chrono::nanoseconds(std::max<int64_t>(min_operation_walltime_, period_ns));
 }
 
 std::string SimTimeBroker::normalize_ipc_endpoint(const std::string & endpoint) const

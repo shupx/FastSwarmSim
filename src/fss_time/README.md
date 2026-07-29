@@ -9,7 +9,12 @@
 - `unregister_participant()` unregisters explicitly; thread-local destruction also unregisters.
 - `auto_start` controls whether the broker starts in running or paused state.
 - `speed_regulator_step_ns` is the fixed simulation-time step emitted by the speed regulator.
-- For bounded RTF, regulator requests are emitted every `speed_regulator_step_ns / max_real_time_factor` wall-time nanoseconds.
+- `speed_regulator_step_ns` and the regulator wall period are clamped to at least
+  `min_operation_walltime` (`100000` ns).
+- For positive RTF, regulator requests are emitted every
+  `max(speed_regulator_step_ns / max_real_time_factor, min_operation_walltime)` wall-time
+  nanoseconds.
+- `max_real_time_factor <= 0` disables periodic regulator requests instead of running unbounded.
 
 Default endpoint:
 
