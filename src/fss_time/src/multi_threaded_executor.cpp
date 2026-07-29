@@ -141,6 +141,8 @@ MultiThreadedExecutor::run([[maybe_unused]] size_t this_thread_number)
     // While get_next_executable(any_exec, next_exec_timeout_) with next_exec_timeout_=-1 by default blocks for ROS work, this worker does not constrain sim-time progress as thread_time_participant announces infinite safe time.
     fss_time_tools::announce_next_safe_time_infinite(participant);
 
+    // std::cout << "thread " << this_thread_number << " announce_next_safe_time_infinite" << std::endl;
+
     rclcpp::AnyExecutable any_exec;
     bool got_work = false;
     while (!got_work)
@@ -151,17 +153,27 @@ MultiThreadedExecutor::run([[maybe_unused]] size_t this_thread_number)
       }
       got_work = get_next_executable(any_exec, next_exec_timeout_);
       // get_next_executable(x, -1) blocks only until the next timer time. If sim time is paused, this will return with false (no work ready). So a while loop is needed to keep waiting for work in sim time paused state.
+
+      // if (!got_work) {
+      //   std::cout << "thread " << this_thread_number << " get_next_executable() returned false, no work ready" << std::endl;
+      // }
     }
 
     // Before executing any_executable callbacks, pin this thread_time_participant to the broker's current sim time, so that the sim time does not advance while callbacks are running. 
     fss_time_tools::announce_current_time(participant);
+
+    // std::cout << "thread " << this_thread_number << " announce_current_time: " << participant.get_last_safe_time().nanoseconds() << " ns" << std::endl;
 
     while (rclcpp::ok(this->context_) && spinning.load()) {
       if (yield_before_execute_) {
         std::this_thread::yield();
       }
 
+      // std::cout << "thread " << this_thread_number << " execute_any_executable: " << any_exec.callback_group.get() << std::endl;
+
       execute_any_executable(any_exec);
+
+      // std::cout << "thread " << this_thread_number << " execute_any_executable done: " << any_exec.callback_group.get() << std::endl;
 
       // Wake peer threads if this callback released a mutually-exclusive group. (original rclcpp::executors::MultiThreadedExecutor behavior)
       if (any_exec.callback_group &&
@@ -177,21 +189,31 @@ MultiThreadedExecutor::run([[maybe_unused]] size_t this_thread_number)
       }
       any_exec.callback_group.reset();
 
+      // std::cout << "thread " << this_thread_number << " check for more work ready to execute" << std::endl;
+
       // check if there is more work ready to execute, and if so, continue executing callbacks without releasing the sim-time constraint. If there is no more work ready, release the sim-time constraint again by announcing infinite safe time.
       rclcpp::AnyExecutable next_exec;
       {
-        std::lock_guard wait_lock{wait_mutex_};
-        if (!rclcpp::ok(this->context_) || !spinning.load()) {
-          return;
-        }
-        // get_next_executable(next_exec, 0) drains work already ready in the wait set without blocking.
-        if (!get_next_executable(next_exec, std::chrono::nanoseconds(0))) {
-          // No immediately-ready work remains, so release this worker's sim-time constraint.
+        // only using try_to_lock. If this mutex is locked by other executor threads, then this thread does not need to check for more work ready to execute, and will proceed to the next loop and release the sim-time constraint by announcing infinite safe time. 
+        std::unique_lock lock(wait_mutex_, std::try_to_lock); 
+        if (!lock.owns_lock()) {
           break;
-          // The speed_regulator in sim_time_broker will push one time step forward if all thread_time_participants have released their safe-time constraints. So the step of the speed_regulator determines the sim time step in this case, and a small step is preferred and more accurated.
+        } 
+        else {
+          if (!rclcpp::ok(this->context_) || !spinning.load()) {
+            return;
+          }
+          // get_next_executable(next_exec, 0) drains work already ready in the wait set without blocking.
+          if (!get_next_executable(next_exec, std::chrono::nanoseconds(0))) {
+            // No immediately-ready work remains, so release this worker's sim-time constraint.
+            break;
+            // The speed_regulator in sim_time_broker will push one time step forward if all thread_time_participants have released their safe-time constraints. So the step of the speed_regulator determines the sim time step in this case, and a small step is preferred and more accurated.
+          }
         }
+        any_exec = next_exec;
+
+        // std::cout << "thread " << this_thread_number << " more work ready to execute: " << any_exec.callback_group.get() << std::endl;
       }
-      any_exec = next_exec;
     }
   }
 }
