@@ -67,11 +67,13 @@ public:
       publishers_.push_back(
         create_publisher<std_msgs::msg::UInt64MultiArray>(topic_name, rclcpp::QoS(10)));
       timers_.push_back(rclcpp::create_timer(
-          this->get_node_base_interface(),
-          this->get_node_timers_interface(),
+          this,
           this->get_clock(),
           rclcpp::Duration::from_nanoseconds(timer_period_ms_ * 1000000LL),
           [this, timer_index]() { on_timer(timer_index); }));
+      // timers_.push_back(this->create_timer(
+      //     rclcpp::Duration::from_nanoseconds(timer_period_ms_ * 1000000LL),
+      //     [this, timer_index]() { on_timer(timer_index); })); // jazzy+ API in node_impl.hpp
     }
   }
 
