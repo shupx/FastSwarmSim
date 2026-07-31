@@ -66,13 +66,14 @@ public:
         topic_prefix_ + "/" + executor_type_ + "/timer_" + std::to_string(timer_index);
       publishers_.push_back(
         create_publisher<std_msgs::msg::UInt64MultiArray>(topic_name, rclcpp::QoS(10)));
+      const auto period_ms = timer_period_ms(timer_index);
       timers_.push_back(rclcpp::create_timer(
           this,
           this->get_clock(),
-          rclcpp::Duration::from_nanoseconds(timer_period_ms_ * 1000000LL),
+          rclcpp::Duration::from_nanoseconds(period_ms * 1000000LL),
           [this, timer_index]() { on_timer(timer_index); }));
       // timers_.push_back(this->create_timer(
-      //     rclcpp::Duration::from_nanoseconds(timer_period_ms_ * 1000000LL),
+      //     rclcpp::Duration::from_nanoseconds(period_ms * 1000000LL),
       //     [this, timer_index]() { on_timer(timer_index); })); // jazzy+ API in node_impl.hpp
     }
   }
@@ -83,15 +84,21 @@ public:
   }
 
 private:
+  int64_t timer_period_ms(int64_t timer_index) const
+  {
+    return timer_period_ms_ * (timer_index + 1);
+  }
+
   void on_timer(int64_t timer_index)
   {
     const auto sim_time_ns = now().nanoseconds();
+    const auto period_ms = timer_period_ms(timer_index);
     std_msgs::msg::UInt64MultiArray message;
     message.data = {
       executor_type_id(executor_type_),
       sequence_,
       static_cast<uint64_t>(std::max<int64_t>(0, sim_time_ns)),
-      static_cast<uint64_t>(timer_period_ms_ * 1000000LL),
+      static_cast<uint64_t>(period_ms * 1000000LL),
       static_cast<uint64_t>(timer_index)
     };
     publishers_.at(static_cast<size_t>(timer_index))->publish(message);
@@ -104,7 +111,7 @@ private:
         timer_index,
         sequence_,
         sim_time_ns,
-        timer_period_ms_);
+        period_ms);
     }
     ++sequence_;
   }
