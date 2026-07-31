@@ -37,7 +37,7 @@ public:
   ~thread_time_participant();
 
   /**
-   * @brief Announce the next simulation time this thread can safely allow. It will register the participant with the broker if not already registered, and send the next safe time no smaller than the last announced safe time (except for infinite times).
+   * @brief Announce the next simulation time this thread can safely allow. It will register the participant with the broker if not already registered.
    * @param next_safe_time Safe time request in ROS time.
    */
   void announce_next_safe_time(const rclcpp::Time & next_safe_time);
