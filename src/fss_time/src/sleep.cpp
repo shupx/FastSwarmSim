@@ -1,6 +1,7 @@
 #include "fss_time/sleep.hpp"
 
 #include "fss_time/thread_time_participant.hpp"
+#include "fss_time/tools.hpp"
 
 #include <mutex>
 #include <string>
@@ -41,6 +42,7 @@ bool sleep_until(
   const rclcpp::Context::SharedPtr & context)
 {
   if (use_fss_sim_time(node)) {
+    fss_time_tools::ensure_use_sim_time_enabled(node);
     thread_time_participant::for_current_thread(node).announce_next_safe_time(until);
   }
   return node.get_clock()->sleep_until(until, context);

@@ -57,7 +57,7 @@ ZeroMqTimeParticipantOptions make_options(
   ZeroMqTimeParticipantOptions options;
   auto base_name = participant_id_hint;
   if (base_name.empty()) {
-    base_name = std::string(node.get_namespace());
+    base_name = std::string(node.get_namespace()) + "_" + node.get_name();
     if (base_name.empty() || base_name == "/") {
       base_name = node.get_name();
     }

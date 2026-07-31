@@ -7,6 +7,7 @@
 #include "fss_time/sleep.hpp"
 #include "fss_time/thread_time_participant.hpp"
 #include "fss_time/time_types.hpp"
+#include "fss_time/tools.hpp"
 #include "fss_time/zeromq_time_participant_backend.hpp"
 
 #endif  // FSS_TIME_FSS_TIME_HPP_

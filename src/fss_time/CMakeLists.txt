@@ -49,30 +49,63 @@ add_executable(sim_time_broker src/sim_time_broker_node.cpp)
 target_link_libraries(sim_time_broker ${PROJECT_NAME})
 ament_target_dependencies(sim_time_broker rclcpp fss_time_interfaces)
 
-add_executable(sim_time_test_load_node test_cases/src/sim_time_test_load_node.cpp)
-target_link_libraries(sim_time_test_load_node ${PROJECT_NAME})
-ament_target_dependencies(
-  sim_time_test_load_node
-  builtin_interfaces
-  rclcpp
-  std_msgs
-)
+if(BUILD_TESTING)
+  add_executable(sim_time_test_load_node test_cases/src/sim_time_test_load_node.cpp)
+  target_link_libraries(sim_time_test_load_node ${PROJECT_NAME})
+  ament_target_dependencies(
+    sim_time_test_load_node
+    builtin_interfaces
+    rclcpp
+    std_msgs
+  )
 
-add_executable(executor_time_test_node test_cases/src/executor_time_test_node.cpp)
-target_link_libraries(executor_time_test_node ${PROJECT_NAME})
-ament_target_dependencies(
-  executor_time_test_node
-  rclcpp
-  std_msgs
-)
+  add_executable(executor_time_test_node test_cases/src/executor_time_test_node.cpp)
+  target_link_libraries(executor_time_test_node ${PROJECT_NAME})
+  ament_target_dependencies(
+    executor_time_test_node
+    rclcpp
+    std_msgs
+  )
 
-ament_add_gtest(test_fss_time test/test_fss_time.cpp)
-if(TARGET test_fss_time)
-  target_link_libraries(test_fss_time ${PROJECT_NAME})
-  ament_target_dependencies(test_fss_time rclcpp fss_time_interfaces rosgraph_msgs)
+  add_executable(fss_rate_test_node test_cases/src/fss_rate_test_node.cpp)
+  target_link_libraries(fss_rate_test_node ${PROJECT_NAME})
+  ament_target_dependencies(
+    fss_rate_test_node
+    rclcpp
+    std_msgs
+  )
+
+  add_executable(timer_sleep_test_node test_cases/src/timer_sleep_test_node.cpp)
+  target_link_libraries(timer_sleep_test_node ${PROJECT_NAME})
+  ament_target_dependencies(
+    timer_sleep_test_node
+    rclcpp
+    std_msgs
+  )
+
+  ament_add_gtest(test_fss_time test/test_fss_time.cpp)
+  if(TARGET test_fss_time)
+    target_link_libraries(test_fss_time ${PROJECT_NAME})
+    ament_target_dependencies(test_fss_time rclcpp fss_time_interfaces rosgraph_msgs)
+  endif()
+
+  install(TARGETS
+    sim_time_test_load_node
+    executor_time_test_node
+    fss_rate_test_node
+    timer_sleep_test_node
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+  install(DIRECTORY
+    test_cases
+    DESTINATION share/${PROJECT_NAME}
+  )
 endif()
 
-install(TARGETS ${PROJECT_NAME} sim_time_broker sim_time_test_load_node executor_time_test_node
+install(TARGETS
+  ${PROJECT_NAME}
+  sim_time_broker
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -87,7 +120,6 @@ install(DIRECTORY
 )
 install(DIRECTORY
   launch
-  test_cases
   DESTINATION share/${PROJECT_NAME}
 )
 install(DIRECTORY include/ DESTINATION include)
