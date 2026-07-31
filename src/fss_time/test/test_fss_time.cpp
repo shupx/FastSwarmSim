@@ -217,6 +217,15 @@ TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
   broker_node->declare_parameter("auto_start", true);
   fss_time::SimTimeBroker broker(*broker_node);
   broker.start();
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(broker_node);
+  std::atomic<bool> stop_executor{false};
+  std::thread spin_thread([&executor, &stop_executor]() {
+    while (!stop_executor.load()) {
+      executor.spin_some();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  });
 
   auto node = std::make_shared<rclcpp::Node>("fss_sleep_until_sim_time_node");
   node->declare_parameter("sim_time_broker_endpoint", endpoint);
@@ -228,6 +237,10 @@ TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
   auto & participant = fss_time::thread_time_participant::for_current_thread(*node);
   EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), until.nanoseconds());
   fss_time::thread_time_participant::reset_current_thread_for_testing();
+
+  stop_executor = true;
+  spin_thread.join();
+  executor.remove_node(broker_node);
 }
 
 TEST(TimeSleep, RateSleepUsesFssSleepFor)

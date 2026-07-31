@@ -55,9 +55,8 @@ void Rate::initialize_fss_sim_time()
   }
 }
 
-bool Rate::sleep_for(const rclcpp::Duration & rel_time)
+bool Rate::utils_sleep_until(const rclcpp::Time & until)
 {
-  const auto until = clock_->now() + rel_time;
   if (use_fss_sim_time_) {
     thread_time_participant::for_current_thread(node_).announce_next_safe_time(until);
   }
@@ -78,9 +77,8 @@ bool Rate::sleep()
     }
     return false;
   }
-  auto time_to_sleep = next_interval - now;
   try {
-    sleep_for(time_to_sleep);
+    utils_sleep_until(next_interval);
   } catch (const std::runtime_error &) {
     return false;
   }

@@ -115,7 +115,7 @@ void thread_time_participant::announce_next_safe_time(const rclcpp::Time & next_
   bool clamped = false;
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    const bool last_safe_time_is_infinite = last_safe_time_ns_ >= kInfiniteTimeNs / 2;
+    const bool last_safe_time_is_infinite = last_safe_time_ns_ >= kInfiniteTimeNs - 1;
     clamped = requested_safe_time_ns < last_safe_time_ns_ && !last_safe_time_is_infinite;
     if (last_safe_time_is_infinite) {
       last_safe_time_ns_ = requested_safe_time_ns;

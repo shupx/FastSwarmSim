@@ -14,9 +14,9 @@ namespace fss_time
  *
  * The rate uses the supplied node's clock for interval accounting. During
  * construction, if the node parameter `use_fss_sim_time` is true, the node's
- * `use_sim_time` parameter is enabled before the initial interval time is read.
- * Each sleep cycle uses a cached fss_time setting and avoids repeated
- * parameter lookups.
+ * `use_sim_time` parameter is enabled and the node clock is confirmed to be in
+ * active ROS time before the initial interval time is read. Each sleep cycle
+ * uses a cached fss_time setting and avoids repeated parameter lookups.
  */
 class Rate
 {
@@ -79,16 +79,16 @@ private:
    * @brief Initialize simulated-time settings for fss_time-aware rate sleeps.
    *
    * If `use_fss_sim_time` is true, this enables `use_sim_time` before
-   * last_interval_ is initialized from the node clock.
+   * last_interval_ is initialized.
    */
   void initialize_fss_sim_time();
 
   /**
-   * @brief Sleep for a duration using cached fss_time settings.
-   * @param rel_time Relative duration to sleep for.
+   * @brief Sleep until a specific time using cached fss_time settings.
+   * @param until Time to sleep until.
    * @return true if the underlying clock sleep reaches its target.
    */
-  bool sleep_for(const rclcpp::Duration & rel_time);
+  bool utils_sleep_until(const rclcpp::Time & until);
 
   rclcpp::Node & node_;
   rclcpp::Clock::SharedPtr clock_;
