@@ -1,6 +1,8 @@
 #include "fss_time/executors.hpp"
+#include "fss_time/rate.hpp"
 #include "fss_time/sim_time_broker.hpp"
 #include "fss_time/thread_time_participant.hpp"
+#include "fss_time/sleep.hpp"
 #include "fss_time/time_types.hpp"
 
 #include <atomic>
@@ -197,6 +199,46 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   stop_executor = true;
   spin_thread.join();
   executor.remove_node(broker_node);
+}
+
+TEST(TimeSleep, SleepForWithoutFssSimTimeBehavesLikeClock)
+{
+  auto node = std::make_shared<rclcpp::Node>("fss_sleep_without_sim_time_node");
+  node->declare_parameter("use_fss_sim_time", false);
+
+  EXPECT_TRUE(fss_time::sleep_for(*node, rclcpp::Duration(0, 1000000)));
+}
+
+TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
+{
+  const auto endpoint = reserve_test_endpoint();
+  auto broker_node = std::make_shared<rclcpp::Node>("fss_sleep_until_broker_node");
+  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  broker_node->declare_parameter("auto_start", true);
+  fss_time::SimTimeBroker broker(*broker_node);
+  broker.start();
+
+  auto node = std::make_shared<rclcpp::Node>("fss_sleep_until_sim_time_node");
+  node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  node->declare_parameter("use_fss_sim_time", true);
+  const rclcpp::Time until(5000000LL, RCL_ROS_TIME);
+
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+  EXPECT_TRUE(fss_time::sleep_until(*node, until));
+  auto & participant = fss_time::thread_time_participant::for_current_thread(*node);
+  EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), until.nanoseconds());
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+}
+
+TEST(TimeSleep, RateSleepUsesFssSleepFor)
+{
+  auto node = std::make_shared<rclcpp::Node>("fss_rate_without_sim_time_node");
+  node->declare_parameter("use_fss_sim_time", false);
+  fss_time::Rate rate(*node, rclcpp::Duration(0, 1000000));
+
+  EXPECT_TRUE(rate.sleep());
+  EXPECT_EQ(rate.get_type(), node->get_clock()->get_clock_type());
+  EXPECT_EQ(rate.period(), std::chrono::nanoseconds(1000000));
 }
 
 TEST(Executors, PublicIncludeConstructsBothExecutorTypes)
