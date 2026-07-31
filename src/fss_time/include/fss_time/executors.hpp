@@ -29,6 +29,14 @@ void spin(const rclcpp::Node::SharedPtr & node_ptr);
 namespace fss_time_tools
 {
 
+/**
+ * @brief Declare a node parameter if missing, otherwise read its current value.
+ * @tparam T Parameter value type.
+ * @param node Node that owns the parameter.
+ * @param name Parameter name.
+ * @param default_value Value used when declaring a missing parameter.
+ * @return Declared or existing parameter value.
+ */
 template<typename T>
 T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const T & default_value)
 {
@@ -41,6 +49,15 @@ T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const 
   return value;
 }
 
+/**
+ * @brief Ensure a node has ROS simulated time enabled.
+ *
+ * If `use_sim_time` is missing, it is declared as true. If it exists and is
+ * false, this function attempts to set it to true.
+ *
+ * @param node Node whose use_sim_time parameter is checked.
+ * @throws std::runtime_error if setting use_sim_time fails.
+ */
 inline void ensure_use_sim_time_enabled(rclcpp::Node & node)
 {
   bool use_sim_time = false;
@@ -64,6 +81,10 @@ inline void ensure_use_sim_time_enabled(rclcpp::Node & node)
   }
 }
 
+/**
+ * @brief Announce unconstrained safe time for a participant.
+ * @param participant Participant to update.
+ */
 inline void announce_next_safe_time_infinite(thread_time_participant & participant)
 {
   participant.announce_next_safe_time(rclcpp::Time(fss_time::kInfiniteTimeNs, RCL_ROS_TIME));
@@ -71,6 +92,10 @@ inline void announce_next_safe_time_infinite(thread_time_participant & participa
 //   std::cout << "thread_time_participant::announce_next_safe_time_infinite" << std::endl;
 }
 
+/**
+ * @brief Announce the participant's current broker simulation time as its safe time.
+ * @param participant Participant to update.
+ */
 inline void announce_current_time(thread_time_participant & participant)
 {
   participant.announce_next_safe_time(participant.get_sim_time());
@@ -96,11 +121,18 @@ public:
   using rclcpp::Executor::add_node;
   using rclcpp::Executor::remove_node;
 
+  /**
+   * @brief Construct the fss_time executor base.
+   * @param options rclcpp executor options.
+   */
   explicit Executor(const rclcpp::ExecutorOptions & options = rclcpp::ExecutorOptions())
   : rclcpp::Executor(options)
   {
   }
 
+  /**
+   * @brief Destroy the fss_time executor base.
+   */
   ~Executor() override = default;
 
   /**
@@ -172,6 +204,9 @@ public:
   explicit SingleThreadedExecutor(
     const rclcpp::ExecutorOptions & options = rclcpp::ExecutorOptions());
 
+  /**
+   * @brief Destroy the single-threaded fss_time executor.
+   */
   ~SingleThreadedExecutor() override;
 
   /// Single-threaded implementation of spin.
@@ -212,6 +247,9 @@ public:
     bool yield_before_execute = false,
     std::chrono::nanoseconds timeout = std::chrono::nanoseconds(-1));
 
+  /**
+   * @brief Destroy the multi-threaded fss_time executor.
+   */
   ~MultiThreadedExecutor() override;
 
   /**
@@ -223,9 +261,17 @@ public:
    */
   void spin() override;
 
+  /**
+   * @brief Return the configured executor worker thread count.
+   * @return Number of worker threads.
+   */
   size_t get_number_of_threads();
 
 protected:
+  /**
+   * @brief Run one multi-threaded executor worker loop.
+   * @param this_thread_number Worker index.
+   */
   void run(size_t this_thread_number);
 
 private:

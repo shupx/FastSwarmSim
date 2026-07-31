@@ -21,15 +21,48 @@ namespace fss_time
 class SimTimeBroker
 {
 public:
+  /**
+   * @brief Construct a simulation time broker attached to a ROS node.
+   * @param node Node used for parameters, publishers, services, and timers.
+   */
   explicit SimTimeBroker(rclcpp::Node & node);
+
+  /**
+   * @brief Stop broker background work and release broker resources.
+   */
   ~SimTimeBroker();
 
+  /**
+   * @brief Copy construction is disabled.
+   */
   SimTimeBroker(const SimTimeBroker &) = delete;
+
+  /**
+   * @brief Copy assignment is disabled.
+   */
   SimTimeBroker & operator=(const SimTimeBroker &) = delete;
 
+  /**
+   * @brief Start broker communication and timer-driven clock regulation.
+   */
   void start();
+
+  /**
+   * @brief Enable or pause simulation clock advancement.
+   * @param running true to advance simulated time, false to pause it.
+   */
   void set_running(bool running);
+
+  /**
+   * @brief Set the maximum simulated-time to wall-time speed ratio.
+   * @param max_real_time_factor Maximum allowed real time factor.
+   */
   void set_max_real_time_factor(double max_real_time_factor);
+
+  /**
+   * @brief Build a status message describing broker state.
+   * @return Current broker status message.
+   */
   fss_time_interfaces::msg::SimClockStatus status_message() const;
 
 private:

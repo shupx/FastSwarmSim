@@ -13,28 +13,81 @@ namespace fss_time
 
 struct ZeroMqTimeParticipantOptions
 {
+  /// Unique participant id sent to the broker.
   std::string participant_id;
+
+  /// ZeroMQ IPC endpoint for the broker.
   std::string ipc_endpoint{"ipc:///tmp/fss_time_broker.ipc"};
 };
 
+/**
+ * @brief ZeroMQ client backend for a thread time participant.
+ */
 class ZeroMqTimeParticipantBackend
 {
 public:
+  /**
+   * @brief Construct a participant backend.
+   * @param options Participant id and broker endpoint options.
+   * @param clock Clock used to track broker time.
+   */
   ZeroMqTimeParticipantBackend(
     ZeroMqTimeParticipantOptions options,
     rclcpp::Clock::SharedPtr clock);
+
+  /**
+   * @brief Unregister and release backend resources.
+   */
   ~ZeroMqTimeParticipantBackend();
 
+  /**
+   * @brief Copy construction is disabled.
+   */
   ZeroMqTimeParticipantBackend(const ZeroMqTimeParticipantBackend &) = delete;
+
+  /**
+   * @brief Copy assignment is disabled.
+   */
   ZeroMqTimeParticipantBackend & operator=(const ZeroMqTimeParticipantBackend &) = delete;
 
+  /**
+   * @brief Send the next safe simulation time request to the broker.
+   * @param next_safe_time_ns Requested next safe time in nanoseconds.
+   */
   void announce_next_safe_time(int64_t next_safe_time_ns);
+
+  /**
+   * @brief Register this participant with the broker.
+   */
   void register_participant();
+
+  /**
+   * @brief Unregister this participant from the broker.
+   */
   void unregister_participant();
 
+  /**
+   * @brief Return the latest broker time observed by this backend.
+   * @return Simulation time in nanoseconds.
+   */
   int64_t current_time_ns() const;
+
+  /**
+   * @brief Return the last safe time request sent to the broker.
+   * @return Last requested simulation time in nanoseconds.
+   */
   int64_t last_requested_time_ns() const;
+
+  /**
+   * @brief Check whether this backend is registered with the broker.
+   * @return true if registered.
+   */
   bool is_registered() const;
+
+  /**
+   * @brief Return this backend's participant id.
+   * @return Participant id string.
+   */
   const std::string & participant_id() const;
 
 private:
