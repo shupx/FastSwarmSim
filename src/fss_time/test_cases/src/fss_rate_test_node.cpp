@@ -109,7 +109,7 @@ int main(int argc, char ** argv)
   auto node = std::make_shared<FssRateTestNode>(options);
 
   std::thread spin_thread([node]() {
-    rclcpp::spin(node);
+    fss_time::spin(node);
   });
 
   node->run();
