@@ -47,13 +47,7 @@ T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const 
  */
 inline void ensure_use_sim_time_enabled(rclcpp::Node & node)
 {
-  bool use_sim_time = false;
-  if (!node.has_parameter("use_sim_time")) {
-    use_sim_time = node.declare_parameter<bool>("use_sim_time", true);
-  } else {
-    node.get_parameter("use_sim_time", use_sim_time);
-  }
-
+  bool use_sim_time = declare_or_get_parameter<bool>(node, "use_sim_time", false);
   if (use_sim_time) {
     return;
   }
