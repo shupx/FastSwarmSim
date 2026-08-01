@@ -68,7 +68,7 @@ ZeroMqTimeParticipantOptions make_options(
     std::to_string(static_cast<long long>(getpid())) + "_" +
     std::to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())));
   options.ipc_endpoint =
-    declare_or_get_parameter_locked<std::string>(node, "sim_time_broker_endpoint", options.ipc_endpoint);
+    declare_or_get_parameter_locked<std::string>(node, "fss_time_broker_endpoint", options.ipc_endpoint);
   return options;
 }
 

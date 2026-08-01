@@ -56,8 +56,8 @@ struct SimTimeBroker::Impl
 SimTimeBroker::SimTimeBroker(rclcpp::Node & node)
 : node_(node), impl_(std::make_unique<Impl>())
 {
-  ipc_endpoint_ = normalize_ipc_endpoint(
-    declare_or_get_parameter<std::string>(node_, "sim_time_broker_endpoint", "ipc:///tmp/fss_time_broker.ipc"));
+  endpoint_ = normalize_zmq_endpoint(
+    declare_or_get_parameter<std::string>(node_, "fss_time_broker_endpoint", "ipc:///tmp/fss_time_broker.ipc"));
   min_operation_walltime_ = kMinOperationWalltime_ns;
   const auto configured_speed_regulator_step_ns =
     declare_or_get_parameter<int64_t>(node_, "speed_regulator_step_ns", 1000000);
@@ -109,7 +109,7 @@ SimTimeBroker::~SimTimeBroker()
   }
 
   std::string ipc_path;
-  if (ipc_endpoint_path(ipc_endpoint_, ipc_path)) {
+  if (ipc_endpoint_path(endpoint_, ipc_path)) {
     std::remove(ipc_path.c_str());
   }
 }
@@ -117,14 +117,14 @@ SimTimeBroker::~SimTimeBroker()
 void SimTimeBroker::start()
 {
   std::string ipc_path;
-  if (ipc_endpoint_path(ipc_endpoint_, ipc_path)) {
+  if (ipc_endpoint_path(endpoint_, ipc_path)) {
     std::remove(ipc_path.c_str());
   }
 
   impl_->socket.set(zmq::sockopt::linger, 0);
   impl_->socket.set(zmq::sockopt::rcvhwm, 100000);
   impl_->socket.set(zmq::sockopt::rcvtimeo, 100);
-  impl_->socket.bind(ipc_endpoint_);
+  impl_->socket.bind(endpoint_);
 
   {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -412,7 +412,7 @@ std::chrono::nanoseconds SimTimeBroker::regulator_wall_period() const
   return std::chrono::nanoseconds(std::max<int64_t>(min_operation_walltime_, period_ns));
 }
 
-std::string SimTimeBroker::normalize_ipc_endpoint(const std::string & endpoint) const
+std::string SimTimeBroker::normalize_zmq_endpoint(const std::string & endpoint) const
 {
   if (!endpoint.empty()) {
     return endpoint;

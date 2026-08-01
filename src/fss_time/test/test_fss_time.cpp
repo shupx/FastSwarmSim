@@ -26,6 +26,11 @@ std::string reserve_test_endpoint()
   return "ipc:///tmp/fss_time_test_" + std::to_string(g_next_test_endpoint.fetch_add(1)) + ".ipc";
 }
 
+std::string reserve_tcp_test_endpoint()
+{
+  return "tcp://127.0.0.1:" + std::to_string(28000 + g_next_test_endpoint.fetch_add(1));
+}
+
 void wait_until(const std::function<bool()> & predicate, std::chrono::milliseconds timeout)
 {
   const auto deadline = std::chrono::steady_clock::now() + timeout;
@@ -65,12 +70,12 @@ TEST(ThreadTimeParticipant, SameThreadReturnsSameParticipant)
 {
   const auto endpoint = reserve_test_endpoint();
   auto broker_node = std::make_shared<rclcpp::Node>("thread_time_same_thread_broker_test");
-  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
   fss_time::SimTimeBroker broker(*broker_node);
   broker.start();
 
   rclcpp::Node node("thread_time_same_thread_test");
-  node.declare_parameter("sim_time_broker_endpoint", endpoint);
+  node.declare_parameter("fss_time_broker_endpoint", endpoint);
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & first = fss_time::thread_time_participant::for_current_thread(node, "same_thread");
   auto & second = fss_time::thread_time_participant::for_current_thread(node, "same_thread");
@@ -82,12 +87,12 @@ TEST(ThreadTimeParticipant, DifferentThreadsReturnDifferentParticipants)
 {
   const auto endpoint = reserve_test_endpoint();
   auto broker_node = std::make_shared<rclcpp::Node>("thread_time_different_thread_broker_test");
-  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
   fss_time::SimTimeBroker broker(*broker_node);
   broker.start();
 
   rclcpp::Node node("thread_time_different_thread_test");
-  node.declare_parameter("sim_time_broker_endpoint", endpoint);
+  node.declare_parameter("fss_time_broker_endpoint", endpoint);
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & first = fss_time::thread_time_participant::for_current_thread(node, "thread_one");
 
@@ -115,7 +120,7 @@ TEST(ThreadTimeParticipant, WaitsForBrokerBeforeReturning)
 
   std::thread participant_thread([endpoint, &participant_entered_promise, &participant_registered_promise]() {
     rclcpp::Node node("thread_time_waits_for_broker_test");
-    node.declare_parameter("sim_time_broker_endpoint", endpoint);
+    node.declare_parameter("fss_time_broker_endpoint", endpoint);
     fss_time::thread_time_participant::reset_current_thread_for_testing();
     participant_entered_promise.set_value();
     auto & participant = fss_time::thread_time_participant::for_current_thread(node, "wait_for_broker");
@@ -128,7 +133,7 @@ TEST(ThreadTimeParticipant, WaitsForBrokerBeforeReturning)
   EXPECT_EQ(participant_registered.wait_for(std::chrono::milliseconds(150)), std::future_status::timeout);
 
   auto broker_node = std::make_shared<rclcpp::Node>("thread_time_delayed_broker_test");
-  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
   fss_time::SimTimeBroker broker(*broker_node);
   broker.start();
 
@@ -136,11 +141,35 @@ TEST(ThreadTimeParticipant, WaitsForBrokerBeforeReturning)
   participant_thread.join();
 }
 
+TEST(SimTimeBroker, SupportsTcpEndpoint)
+{
+  const auto endpoint = reserve_tcp_test_endpoint();
+  auto broker_node = std::make_shared<rclcpp::Node>("sim_time_broker_tcp_endpoint_test");
+  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
+  fss_time::SimTimeBroker broker(*broker_node);
+  broker.start();
+
+  rclcpp::Node participant_node("sim_time_participant_tcp_endpoint_test");
+  participant_node.declare_parameter("fss_time_broker_endpoint", endpoint);
+
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+  auto & participant =
+    fss_time::thread_time_participant::for_current_thread(participant_node, "tcp_endpoint");
+
+  EXPECT_EQ(broker.status_message().participant_count, 1u);
+
+  participant.unregister_participant();
+  wait_until([&broker]() {
+    return broker.status_message().participant_count == 0;
+  }, std::chrono::seconds(1));
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+}
+
 TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
 {
   const auto endpoint = reserve_test_endpoint();
   auto broker_node = std::make_shared<rclcpp::Node>("sim_time_broker_status_test");
-  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
   broker_node->declare_parameter("speed_regulator_step_ns", 1000000);
   broker_node->declare_parameter("max_real_time_factor", 1.0);
   broker_node->declare_parameter("auto_start", true);
@@ -157,7 +186,7 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   });
 
   rclcpp::Node participant_node("sim_time_participant_test");
-  participant_node.declare_parameter("sim_time_broker_endpoint", endpoint);
+  participant_node.declare_parameter("fss_time_broker_endpoint", endpoint);
 
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & participant =
@@ -213,7 +242,7 @@ TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
 {
   const auto endpoint = reserve_test_endpoint();
   auto broker_node = std::make_shared<rclcpp::Node>("fss_sleep_until_broker_node");
-  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
   broker_node->declare_parameter("auto_start", true);
   fss_time::SimTimeBroker broker(*broker_node);
   broker.start();
@@ -228,7 +257,7 @@ TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
   });
 
   auto node = std::make_shared<rclcpp::Node>("fss_sleep_until_sim_time_node");
-  node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  node->declare_parameter("fss_time_broker_endpoint", endpoint);
   node->declare_parameter("use_fss_sim_time", true);
   const rclcpp::Time until(5000000LL, RCL_ROS_TIME);
 
@@ -348,13 +377,13 @@ TEST(Executors, SingleThreadedExecutorSpinsWithFssSimTime)
 {
   const auto endpoint = reserve_test_endpoint();
   auto broker_node = std::make_shared<rclcpp::Node>("fss_single_executor_broker_node");
-  broker_node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
   broker_node->declare_parameter("auto_start", true);
   fss_time::SimTimeBroker broker(*broker_node);
   broker.start();
 
   auto node = std::make_shared<rclcpp::Node>("fss_single_executor_sim_time_node");
-  node->declare_parameter("sim_time_broker_endpoint", endpoint);
+  node->declare_parameter("fss_time_broker_endpoint", endpoint);
   node->declare_parameter("use_fss_sim_time", true);
 
   std::atomic<int> calls{0};

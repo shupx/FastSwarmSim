@@ -49,6 +49,10 @@ def generate_launch_description():
         DeclareLaunchArgument("node.enable_fss_time", default_value="true"),
         DeclareLaunchArgument("broker.max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("broker.auto_start", default_value="true"),
+        
+        DeclareLaunchArgument("fss_time_broker_endpoint", default_value="ipc:///tmp/fss_time_broker.ipc"),
+        SetParameter(name="fss_time_broker_endpoint", value=LaunchConfiguration("fss_time_broker_endpoint")),
+        
         SetParameter(name="use_sim_time", value=True),
         TimerAction(
             period=2.0,

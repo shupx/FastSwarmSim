@@ -2,7 +2,7 @@
 
 `fss_time` now uses a local ZeroMQ ROUTER/DEALER channel instead of HELICS.
 
-- `sim_time_broker` binds a ROUTER socket to `sim_time_broker_endpoint` and publishes ROS `/clock`.
+- `sim_time_broker` binds a ROUTER socket to `fss_time_broker_endpoint` and publishes ROS `/clock`.
 - `thread_time_participant` creates one DEALER participant per thread.
 - Participant construction waits until the broker acknowledges registration.
 - `announce_next_safe_time()` sends a time request and waits for broker acknowledgement.

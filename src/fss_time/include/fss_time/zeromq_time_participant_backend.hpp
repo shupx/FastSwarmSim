@@ -16,7 +16,7 @@ struct ZeroMqTimeParticipantOptions
   /// Unique participant id sent to the broker.
   std::string participant_id;
 
-  /// ZeroMQ IPC endpoint for the broker.
+  /// ZeroMQ endpoint for the broker. Supports any endpoint accepted by zmq::socket_t::connect().
   std::string ipc_endpoint{"ipc:///tmp/fss_time_broker.ipc"};
 };
 

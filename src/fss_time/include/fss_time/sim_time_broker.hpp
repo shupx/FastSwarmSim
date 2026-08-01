@@ -83,7 +83,7 @@ private:
   int64_t compute_regulator_target_ns_locked() const;
   void reset_regulator_timer();
   std::chrono::nanoseconds regulator_wall_period() const;
-  std::string normalize_ipc_endpoint(const std::string & endpoint) const;
+  std::string normalize_zmq_endpoint(const std::string & endpoint) const;
 
   struct Impl;
 
@@ -107,7 +107,7 @@ private:
   std::chrono::steady_clock::time_point observed_rtf_last_wall_time_{};
   bool running_{true};
   std::string debug_msg_{"try_update_clock_locked has not run yet"};
-  std::string ipc_endpoint_;
+  std::string endpoint_;
   std::thread receive_thread_;
   std::atomic<bool> stop_receive_{false};
 };
