@@ -88,7 +88,7 @@ private:
    * @param until Time to sleep until.
    * @return true if the underlying clock sleep reaches its target.
    */
-  bool utils_sleep_until(const rclcpp::Time & until);
+  bool inner_sleep_until(const rclcpp::Time & until);
 
   rclcpp::Node & node_;
   rclcpp::Clock::SharedPtr clock_;

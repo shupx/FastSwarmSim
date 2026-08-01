@@ -145,7 +145,7 @@ MultiThreadedExecutor::run([[maybe_unused]] size_t this_thread_number)
 
     rclcpp::AnyExecutable any_exec;
     bool got_work = false;
-    while (!got_work)
+    while (rclcpp::ok(this->context_) && !got_work)
     {
       std::lock_guard wait_lock{wait_mutex_};
       if (!rclcpp::ok(this->context_) || !spinning.load()) {

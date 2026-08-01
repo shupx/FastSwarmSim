@@ -117,7 +117,7 @@ class BrokerBridge(QObject):
             except Exception:
                 pass
         if self._spin_thread.is_alive():
-            self._spin_thread.join(timeout=2.0)
+            self._spin_thread.join(timeout=0.5)
 
     def _on_status(self, msg: SimClockStatus):
         sim_time = float(msg.sim_time.sec) + float(msg.sim_time.nanosec) * 1e-9
@@ -422,7 +422,6 @@ class SimTimeBrokerUi(QObject):
         sys.exit(exit_code)
 
     def _handle_signal(self, *_args):
-        self.bridge.shutdown()
         self.app.quit()
 
     def _status_updated(self, status: dict):

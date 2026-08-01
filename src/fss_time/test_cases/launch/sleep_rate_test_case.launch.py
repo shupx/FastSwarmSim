@@ -4,6 +4,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, SetParameter
 from launch_ros.substitutions import FindPackageShare
+from launch.actions import SetEnvironmentVariable
 
 
 def generate_launch_description():
@@ -12,6 +13,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
         DeclareLaunchArgument("rate.topic_name", default_value="fss_rate"),
         DeclareLaunchArgument("rate.period_ms", default_value="10"),
         DeclareLaunchArgument("rate.enable_loop_sleep_for", default_value="false"),
@@ -20,9 +22,13 @@ def generate_launch_description():
         DeclareLaunchArgument("timer.period_ms", default_value="10"),
         DeclareLaunchArgument("timer.callback_sleep_for_ms", default_value="5"),
         DeclareLaunchArgument("node.log_every_n", default_value="100"),
-        DeclareLaunchArgument("node.use_fss_sim_time", default_value="true"),
         DeclareLaunchArgument("broker.max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("broker.auto_start", default_value="true"),
+
+        DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
+        SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+        SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+        
         TimerAction(
             period=0.2,
             actions=[
@@ -47,7 +53,6 @@ def generate_launch_description():
                 "enable_loop_sleep_for": LaunchConfiguration("rate.enable_loop_sleep_for"),
                 "loop_sleep_for_ms": LaunchConfiguration("rate.loop_sleep_for_ms"),
                 "log_every_n": LaunchConfiguration("node.log_every_n"),
-                "use_fss_sim_time": LaunchConfiguration("node.use_fss_sim_time"),
             }],
         ),
         Node(
@@ -61,7 +66,6 @@ def generate_launch_description():
                 "timer_period_ms": LaunchConfiguration("timer.period_ms"),
                 "callback_sleep_for_ms": LaunchConfiguration("timer.callback_sleep_for_ms"),
                 "log_every_n": LaunchConfiguration("node.log_every_n"),
-                "use_fss_sim_time": LaunchConfiguration("node.use_fss_sim_time"),
             }],
         ),
     ])

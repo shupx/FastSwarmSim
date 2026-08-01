@@ -85,7 +85,11 @@ protected:
     use_fss_sim_time_ =
       fss_time_tools::declare_or_get_parameter<bool>(*time_node_, "use_fss_sim_time", false);
     if (use_fss_sim_time_) {
-      fss_time_tools::ensure_use_sim_time_enabled(*time_node_);
+      fss_time_tools::wait_until_ros_time_is_active(*time_node_);  // wait for the use_sim_time parameter to take effect.
+      
+      // set use_sim_time to true
+      // fss_time_tools::ensure_bool_parameter_enabled(*time_node_, "use_sim_time");
+      // Note that use_sim_time will not take effect until the node is spun and the parameter change and clock subscription is processed.
     }
   }
 

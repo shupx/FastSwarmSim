@@ -4,6 +4,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, SetParameter
 from launch_ros.substitutions import FindPackageShare
+from launch.actions import SetEnvironmentVariable
 
 
 def _create_executor_nodes(context):
@@ -15,7 +16,6 @@ def _create_executor_nodes(context):
     topic_prefix = LaunchConfiguration("node.topic_prefix")
     log_every_n = LaunchConfiguration("node.log_every_n")
     multi_thread_count = LaunchConfiguration("multi.thread_count")
-    use_fss_sim_time = LaunchConfiguration("node.use_fss_sim_time")
 
     actions = []
 
@@ -35,7 +35,6 @@ def _create_executor_nodes(context):
                         "topic_prefix": topic_prefix,
                         "log_every_n": log_every_n,
                         "multi_thread_count": multi_thread_count,
-                        "use_fss_sim_time": use_fss_sim_time,
                     }],
                 )
             )
@@ -52,6 +51,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
         DeclareLaunchArgument("spin.node_count", default_value="1"),
         DeclareLaunchArgument("single.node_count", default_value="1"),
         DeclareLaunchArgument("multi.node_count", default_value="1"),
@@ -60,9 +60,13 @@ def generate_launch_description():
         DeclareLaunchArgument("node.timer_count", default_value="2"),
         DeclareLaunchArgument("node.topic_prefix", default_value="executor_time"),
         DeclareLaunchArgument("node.log_every_n", default_value="100"),
-        DeclareLaunchArgument("node.use_fss_sim_time", default_value="true"),
         DeclareLaunchArgument("broker.max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("broker.auto_start", default_value="true"),
+
+        DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
+        SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+        SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+
         TimerAction(
             period=0.2,
             actions=[

@@ -17,7 +17,7 @@ namespace fss_time_tools
 {
 
 /**
- * @brief Declare a node parameter if missing, otherwise read its current value.
+ * @brief Declare a node parameter if missing, otherwise read its current value. Thread-safe.
  * @tparam T Parameter value type.
  * @param node Node that owns the parameter.
  * @param name Parameter name.
@@ -28,7 +28,15 @@ template<typename T>
 T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const T & default_value)
 {
   if (!node.has_parameter(name)) {
-    return node.declare_parameter<T>(name, default_value);
+    try {
+      return node.declare_parameter<T>(name, default_value);
+    } catch (const rclcpp::exceptions::ParameterAlreadyDeclaredException & e) {
+      RCLCPP_WARN(
+        node.get_logger(),
+        "Parameter %s was declared by another thread before this thread could declare it. "
+        "Using the existing value.",
+        name.c_str()); // in case of race condition, another thread may have declared the parameter and node.has_parameter(）does not take effect yet, so we catch the exception and use the existing value.
+    }
   }
 
   T value{};
@@ -37,28 +45,47 @@ T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const 
 }
 
 /**
- * @brief Ensure a node has ROS simulated time enabled.
+ * @brief Ensure a node has a boolean parameter enabled.
  *
- * If `use_sim_time` is missing, it is declared as true. If it exists and is
+ * If the parameter is missing, it is declared as true. If it exists and is
  * false, this function attempts to set it to true.
  *
- * @param node Node whose use_sim_time parameter is checked.
- * @throws std::runtime_error if setting use_sim_time fails.
+ * @param node Node whose boolean parameter is checked.
+ * @param parameter_name Name of the boolean parameter.
  */
-inline void ensure_use_sim_time_enabled(rclcpp::Node & node)
+inline void ensure_bool_parameter_enabled(rclcpp::Node & node, const std::string & parameter_name)
 {
-  bool use_sim_time = declare_or_get_parameter<bool>(node, "use_sim_time", false);
-  if (use_sim_time) {
+  bool param_value = declare_or_get_parameter<bool>(node, parameter_name, false);
+  if (param_value) {
     return;
   }
 
-  RCLCPP_WARN(
+  RCLCPP_INFO(
     node.get_logger(),
-    "use_fss_sim_time is true, but use_sim_time is false. Setting use_sim_time to true.");
-  const auto result = node.set_parameter(rclcpp::Parameter("use_sim_time", true));
+    "Setting %s to true.", parameter_name.c_str());
+  const auto result = node.set_parameter(rclcpp::Parameter(parameter_name, true));
   if (!result.successful) {
     throw std::runtime_error(
-            "failed to set use_sim_time to true: " + result.reason);
+            "failed to set " + parameter_name + " to true: " + result.reason);
+  }
+}
+
+inline void wait_until_ros_time_is_active(rclcpp::Node & node, bool verbose = false)
+{
+  int repeat = 0;
+  while(rclcpp::ok() && !node.get_clock()->ros_time_is_active()) {
+    if (repeat % 5 == 0) { // warn every 1s
+      RCLCPP_WARN(
+        node.get_logger(),
+        "Waiting for ROS time to be active... (Please ensure the use_sim_time parameter be true on start of the node if use_fss_sim_time is true)");
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    repeat++;
+  }
+  if (verbose) {
+    RCLCPP_INFO(
+      node.get_logger(),
+      "ros time is active.");
   }
 }
 

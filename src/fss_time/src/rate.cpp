@@ -50,12 +50,13 @@ void Rate::initialize_fss_sim_time()
 {
   use_fss_sim_time_ =
     fss_time_tools::declare_or_get_parameter<bool>(node_, "use_fss_sim_time", false);
-  if (use_fss_sim_time_) {
-    fss_time_tools::ensure_use_sim_time_enabled(node_);
+  if (use_fss_sim_time_) { 
+    // wait for the use_sim_time parameter to take effect. 
+    fss_time_tools::wait_until_ros_time_is_active(node_);
   }
 }
 
-bool Rate::utils_sleep_until(const rclcpp::Time & until)
+bool Rate::inner_sleep_until(const rclcpp::Time & until)
 {
   if (use_fss_sim_time_) {
     thread_time_participant::for_current_thread(node_).announce_next_safe_time(until);
@@ -78,7 +79,7 @@ bool Rate::sleep()
     return false;
   }
   try {
-    utils_sleep_until(next_interval);
+    inner_sleep_until(next_interval);
   } catch (const std::runtime_error &) {
     return false;
   }
