@@ -143,7 +143,7 @@ void TimeCoordinator::start()
   if (follows_real_time_) {
     reset_real_time_timer();
   }
-  clock_status_timer_ = node_.create_wall_timer(std::chrono::milliseconds(100), [this]() {
+  clock_status_timer_ = node_.create_wall_timer(std::chrono::milliseconds(200), [this]() {
     on_clock_status_tick();
   });
   publish_status();
@@ -454,8 +454,9 @@ void TimeCoordinator::reset_real_time_timer()
   if (!follows_real_time_) {
     return;
   }
+  int64_t real_time_timer_period_ns = std::max(int64_t(speed_regulator_step_ns_ / 10), int64_t(1e6));  // minimum 1 ms
   real_time_timer_ = node_.create_wall_timer(
-    std::chrono::nanoseconds(speed_regulator_step_ns_),
+    std::chrono::nanoseconds(real_time_timer_period_ns),
     [this]() {
       on_real_time_tick();
     });
