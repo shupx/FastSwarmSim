@@ -1,6 +1,6 @@
 #include "fss_time/executors.hpp"
 #include "fss_time/rate.hpp"
-#include "fss_time/sim_time_broker.hpp"
+#include "fss_time/time_coordinator.hpp"
 #include "fss_time/thread_time_participant.hpp"
 #include "fss_time/sleep.hpp"
 #include "fss_time/time_types.hpp"
@@ -69,13 +69,13 @@ public:
 TEST(ThreadTimeParticipant, SameThreadReturnsSameParticipant)
 {
   const auto endpoint = reserve_test_endpoint();
-  auto broker_node = std::make_shared<rclcpp::Node>("thread_time_same_thread_broker_test");
-  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
-  fss_time::SimTimeBroker broker(*broker_node);
-  broker.start();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("thread_time_same_thread_coordinator_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
 
   rclcpp::Node node("thread_time_same_thread_test");
-  node.declare_parameter("fss_time_broker_endpoint", endpoint);
+  node.declare_parameter("fss_time_coordinator_endpoint", endpoint);
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & first = fss_time::thread_time_participant::for_current_thread(node, "same_thread");
   auto & second = fss_time::thread_time_participant::for_current_thread(node, "same_thread");
@@ -86,13 +86,13 @@ TEST(ThreadTimeParticipant, SameThreadReturnsSameParticipant)
 TEST(ThreadTimeParticipant, DifferentThreadsReturnDifferentParticipants)
 {
   const auto endpoint = reserve_test_endpoint();
-  auto broker_node = std::make_shared<rclcpp::Node>("thread_time_different_thread_broker_test");
-  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
-  fss_time::SimTimeBroker broker(*broker_node);
-  broker.start();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("thread_time_different_thread_coordinator_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
 
   rclcpp::Node node("thread_time_different_thread_test");
-  node.declare_parameter("fss_time_broker_endpoint", endpoint);
+  node.declare_parameter("fss_time_coordinator_endpoint", endpoint);
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & first = fss_time::thread_time_participant::for_current_thread(node, "thread_one");
 
@@ -110,7 +110,7 @@ TEST(ThreadTimeParticipant, DifferentThreadsReturnDifferentParticipants)
   fss_time::thread_time_participant::reset_current_thread_for_testing();
 }
 
-TEST(ThreadTimeParticipant, WaitsForBrokerBeforeReturning)
+TEST(ThreadTimeParticipant, WaitsForCoordinatorBeforeReturning)
 {
   const auto endpoint = reserve_test_endpoint();
   std::promise<void> participant_entered_promise;
@@ -119,11 +119,11 @@ TEST(ThreadTimeParticipant, WaitsForBrokerBeforeReturning)
   auto participant_registered = participant_registered_promise.get_future();
 
   std::thread participant_thread([endpoint, &participant_entered_promise, &participant_registered_promise]() {
-    rclcpp::Node node("thread_time_waits_for_broker_test");
-    node.declare_parameter("fss_time_broker_endpoint", endpoint);
+    rclcpp::Node node("thread_time_waits_for_coordinator_test");
+    node.declare_parameter("fss_time_coordinator_endpoint", endpoint);
     fss_time::thread_time_participant::reset_current_thread_for_testing();
     participant_entered_promise.set_value();
-    auto & participant = fss_time::thread_time_participant::for_current_thread(node, "wait_for_broker");
+    auto & participant = fss_time::thread_time_participant::for_current_thread(node, "wait_for_coordinator");
     participant_registered_promise.set_value();
     participant.unregister_participant();
     fss_time::thread_time_participant::reset_current_thread_for_testing();
@@ -132,51 +132,51 @@ TEST(ThreadTimeParticipant, WaitsForBrokerBeforeReturning)
   ASSERT_EQ(participant_entered.wait_for(std::chrono::seconds(1)), std::future_status::ready);
   EXPECT_EQ(participant_registered.wait_for(std::chrono::milliseconds(150)), std::future_status::timeout);
 
-  auto broker_node = std::make_shared<rclcpp::Node>("thread_time_delayed_broker_test");
-  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
-  fss_time::SimTimeBroker broker(*broker_node);
-  broker.start();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("thread_time_delayed_coordinator_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
 
   EXPECT_EQ(participant_registered.wait_for(std::chrono::seconds(2)), std::future_status::ready);
   participant_thread.join();
 }
 
-TEST(SimTimeBroker, SupportsTcpEndpoint)
+TEST(TimeCoordinator, SupportsTcpEndpoint)
 {
   const auto endpoint = reserve_tcp_test_endpoint();
-  auto broker_node = std::make_shared<rclcpp::Node>("sim_time_broker_tcp_endpoint_test");
-  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
-  fss_time::SimTimeBroker broker(*broker_node);
-  broker.start();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("time_coordinator_tcp_endpoint_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
 
   rclcpp::Node participant_node("sim_time_participant_tcp_endpoint_test");
-  participant_node.declare_parameter("fss_time_broker_endpoint", endpoint);
+  participant_node.declare_parameter("fss_time_coordinator_endpoint", endpoint);
 
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & participant =
     fss_time::thread_time_participant::for_current_thread(participant_node, "tcp_endpoint");
 
-  EXPECT_EQ(broker.status_message().participant_count, 1u);
+  EXPECT_EQ(coordinator.status_message().participant_count, 1u);
 
   participant.unregister_participant();
-  wait_until([&broker]() {
-    return broker.status_message().participant_count == 0;
+  wait_until([&coordinator]() {
+    return coordinator.status_message().participant_count == 0;
   }, std::chrono::seconds(1));
   fss_time::thread_time_participant::reset_current_thread_for_testing();
 }
 
-TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
+TEST(TimeCoordinator, ParticipantAnnouncementAdvancesClockAndStatus)
 {
   const auto endpoint = reserve_test_endpoint();
-  auto broker_node = std::make_shared<rclcpp::Node>("sim_time_broker_status_test");
-  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
-  broker_node->declare_parameter("speed_regulator_step_ns", 1000000);
-  broker_node->declare_parameter("max_real_time_factor", 1.0);
-  broker_node->declare_parameter("auto_start", true);
-  fss_time::SimTimeBroker broker(*broker_node);
-  broker.start();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("time_coordinator_status_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  coordinator_node->declare_parameter("speed_regulator_step_ns", 5000000);
+  coordinator_node->declare_parameter("max_real_time_factor", 1.0);
+  coordinator_node->declare_parameter("auto_start", true);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
   rclcpp::executors::SingleThreadedExecutor executor;
-  executor.add_node(broker_node);
+  executor.add_node(coordinator_node);
   std::atomic<bool> stop_executor{false};
   std::thread spin_thread([&executor, &stop_executor]() {
     while (!stop_executor.load()) {
@@ -186,11 +186,11 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   });
 
   rclcpp::Node participant_node("sim_time_participant_test");
-  participant_node.declare_parameter("fss_time_broker_endpoint", endpoint);
+  participant_node.declare_parameter("fss_time_coordinator_endpoint", endpoint);
 
   fss_time::thread_time_participant::reset_current_thread_for_testing();
   auto & participant =
-    fss_time::thread_time_participant::for_current_thread(participant_node, "broker_test");
+    fss_time::thread_time_participant::for_current_thread(participant_node, "coordinator_test");
   EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), 0);
   participant.announce_next_safe_time(rclcpp::Time(10000000LL, RCL_ROS_TIME));
   EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), 10000000LL);
@@ -201,33 +201,132 @@ TEST(SimTimeBroker, ParticipantAnnouncementAdvancesClockAndStatus)
   participant.announce_next_safe_time(rclcpp::Time(20000000LL, RCL_ROS_TIME));
   EXPECT_EQ(participant.get_last_safe_time().nanoseconds(), 20000000LL);
 
-  wait_until([&broker]() {
-    return broker.status_message().participant_count == 1 &&
-           broker.status_message().sim_time.nanosec > 0;
+  wait_until([&coordinator]() {
+    return coordinator.status_message().participant_count == 1 &&
+           coordinator.status_message().sim_time.nanosec > 0;
   }, std::chrono::seconds(1));
 
-  const auto status = broker.status_message();
+  const auto status = coordinator.status_message();
   EXPECT_TRUE(status.running);
   EXPECT_EQ(status.participant_count, 1u);
   EXPECT_LE(status.new_request_participant_count, status.participant_count);
   EXPECT_GT(status.sim_time.nanosec, 0u);
-  EXPECT_EQ(status.speed_regulator_step_ns, 1000000);
+  EXPECT_EQ(status.speed_regulator_step_ns, 5000000);
   EXPECT_EQ(status.min_operation_walltime, 100000);
 
   participant.unregister_participant();
-  wait_until([&broker]() {
-    return broker.status_message().participant_count == 0;
+  wait_until([&coordinator]() {
+    return coordinator.status_message().participant_count == 0;
   }, std::chrono::seconds(1));
-  EXPECT_EQ(broker.status_message().participant_count, 0u);
-  EXPECT_EQ(broker.status_message().new_request_participant_count, 0u);
+  EXPECT_EQ(coordinator.status_message().participant_count, 0u);
+  EXPECT_EQ(coordinator.status_message().new_request_participant_count, 0u);
   EXPECT_NE(
-    broker.status_message().debug_msg.find("publish_clock_locked skipped"),
+    coordinator.status_message().debug_msg.find("publish_clock_locked skipped"),
     std::string::npos);
   fss_time::thread_time_participant::reset_current_thread_for_testing();
 
   stop_executor = true;
   spin_thread.join();
-  executor.remove_node(broker_node);
+  executor.remove_node(coordinator_node);
+}
+
+TEST(TimeCoordinator, RealTimeParticipantRequestCatchesUpToWallTime)
+{
+  const auto endpoint = reserve_test_endpoint();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("time_coordinator_real_time_catchup_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  coordinator_node->declare_parameter("speed_regulator_step_ns", 5000000);
+  coordinator_node->declare_parameter("max_real_time_factor", 1.0);
+  coordinator_node->declare_parameter("auto_start", true);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(coordinator_node);
+  std::atomic<bool> stop_executor{false};
+  std::thread spin_thread([&executor, &stop_executor]() {
+    while (!stop_executor.load()) {
+      executor.spin_some();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  });
+
+  rclcpp::Node participant_node("sim_time_real_time_catchup_participant_test");
+  participant_node.declare_parameter("fss_time_coordinator_endpoint", endpoint);
+
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+  auto & participant =
+    fss_time::thread_time_participant::for_current_thread(participant_node, "real_time_catchup");
+  wait_until([&coordinator]() {
+    return coordinator.status_message().participant_count == 1;
+  }, std::chrono::seconds(1));
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  participant.announce_next_safe_time(rclcpp::Time(1000000LL, RCL_ROS_TIME));
+  wait_until([&coordinator]() {
+    return fss_time::to_ns(coordinator.status_message().sim_time) > 20000000LL;
+  }, std::chrono::seconds(1));
+
+  EXPECT_GT(fss_time::to_ns(coordinator.status_message().sim_time), 20000000LL);
+
+  participant.unregister_participant();
+  wait_until([&coordinator]() {
+    return coordinator.status_message().participant_count == 0;
+  }, std::chrono::seconds(1));
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+
+  stop_executor = true;
+  spin_thread.join();
+  executor.remove_node(coordinator_node);
+}
+
+TEST(TimeCoordinator, FollowsRealTimeParameterDisablesWallTimeCatchUp)
+{
+  const auto endpoint = reserve_test_endpoint();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("time_coordinator_no_real_time_catchup_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  coordinator_node->declare_parameter("speed_regulator_step_ns", 5000000);
+  coordinator_node->declare_parameter("max_real_time_factor", 1.0);
+  coordinator_node->declare_parameter("auto_start", true);
+  coordinator_node->declare_parameter("follows_real_time", false);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(coordinator_node);
+  std::atomic<bool> stop_executor{false};
+  std::thread spin_thread([&executor, &stop_executor]() {
+    while (!stop_executor.load()) {
+      executor.spin_some();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  });
+
+  rclcpp::Node participant_node("sim_time_no_real_time_catchup_participant_test");
+  participant_node.declare_parameter("fss_time_coordinator_endpoint", endpoint);
+
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+  auto & participant =
+    fss_time::thread_time_participant::for_current_thread(participant_node, "no_real_time_catchup");
+  wait_until([&coordinator]() {
+    return coordinator.status_message().participant_count == 1;
+  }, std::chrono::seconds(1));
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  participant.announce_next_safe_time(rclcpp::Time(1000000LL, RCL_ROS_TIME));
+  wait_until([&coordinator]() {
+    return fss_time::to_ns(coordinator.status_message().sim_time) >= 1000000LL;
+  }, std::chrono::seconds(1));
+
+  EXPECT_LT(fss_time::to_ns(coordinator.status_message().sim_time), 20000000LL);
+
+  participant.unregister_participant();
+  wait_until([&coordinator]() {
+    return coordinator.status_message().participant_count == 0;
+  }, std::chrono::seconds(1));
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+
+  stop_executor = true;
+  spin_thread.join();
+  executor.remove_node(coordinator_node);
 }
 
 TEST(TimeSleep, SleepForWithoutFssSimTimeBehavesLikeClock)
@@ -241,13 +340,13 @@ TEST(TimeSleep, SleepForWithoutFssSimTimeBehavesLikeClock)
 TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
 {
   const auto endpoint = reserve_test_endpoint();
-  auto broker_node = std::make_shared<rclcpp::Node>("fss_sleep_until_broker_node");
-  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
-  broker_node->declare_parameter("auto_start", true);
-  fss_time::SimTimeBroker broker(*broker_node);
-  broker.start();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("fss_sleep_until_coordinator_node");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  coordinator_node->declare_parameter("auto_start", true);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
   rclcpp::executors::SingleThreadedExecutor executor;
-  executor.add_node(broker_node);
+  executor.add_node(coordinator_node);
   std::atomic<bool> stop_executor{false};
   std::thread spin_thread([&executor, &stop_executor]() {
     while (!stop_executor.load()) {
@@ -257,7 +356,7 @@ TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
   });
 
   auto node = std::make_shared<rclcpp::Node>("fss_sleep_until_sim_time_node");
-  node->declare_parameter("fss_time_broker_endpoint", endpoint);
+  node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
   node->declare_parameter("use_fss_sim_time", true);
   const rclcpp::Time until(5000000LL, RCL_ROS_TIME);
 
@@ -269,7 +368,7 @@ TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
 
   stop_executor = true;
   spin_thread.join();
-  executor.remove_node(broker_node);
+  executor.remove_node(coordinator_node);
 }
 
 TEST(TimeSleep, RateSleepUsesFssSleepFor)
@@ -376,14 +475,14 @@ TEST(Executors, FssSimTimeEnablesRosSimTime)
 TEST(Executors, SingleThreadedExecutorSpinsWithFssSimTime)
 {
   const auto endpoint = reserve_test_endpoint();
-  auto broker_node = std::make_shared<rclcpp::Node>("fss_single_executor_broker_node");
-  broker_node->declare_parameter("fss_time_broker_endpoint", endpoint);
-  broker_node->declare_parameter("auto_start", true);
-  fss_time::SimTimeBroker broker(*broker_node);
-  broker.start();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("fss_single_executor_coordinator_node");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  coordinator_node->declare_parameter("auto_start", true);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
 
   auto node = std::make_shared<rclcpp::Node>("fss_single_executor_sim_time_node");
-  node->declare_parameter("fss_time_broker_endpoint", endpoint);
+  node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
   node->declare_parameter("use_fss_sim_time", true);
 
   std::atomic<int> calls{0};

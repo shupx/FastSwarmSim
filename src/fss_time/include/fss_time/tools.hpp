@@ -99,7 +99,7 @@ inline void announce_next_safe_time_infinite(thread_time_participant & participa
 }
 
 /**
- * @brief Announce the participant's current broker simulation time as its safe time.
+ * @brief Announce the participant's current coordinator simulation time as its safe time.
  * @param participant Participant to update.
  */
 inline void announce_current_time(thread_time_participant & participant)

@@ -22,7 +22,7 @@ pkg_check_modules(ZMQ REQUIRED libzmq)
 add_library(${PROJECT_NAME} SHARED
   src/multi_threaded_executor.cpp
   src/rate.cpp
-  src/sim_time_broker.cpp
+  src/time_coordinator.cpp
   src/single_threaded_executor.cpp
   src/thread_time_participant.cpp
   src/sleep.cpp
@@ -45,9 +45,9 @@ ament_target_dependencies(${PROJECT_NAME}
   rosgraph_msgs
 )
 
-add_executable(sim_time_broker src/sim_time_broker_node.cpp)
-target_link_libraries(sim_time_broker ${PROJECT_NAME})
-ament_target_dependencies(sim_time_broker rclcpp fss_time_interfaces)
+add_executable(time_coordinator src/time_coordinator_node.cpp)
+target_link_libraries(time_coordinator ${PROJECT_NAME})
+ament_target_dependencies(time_coordinator rclcpp fss_time_interfaces)
 
 if(BUILD_TESTING)
   add_executable(sim_time_test_load_node test_cases/src/sim_time_test_load_node.cpp)
@@ -105,13 +105,13 @@ endif()
 
 install(TARGETS
   ${PROJECT_NAME}
-  sim_time_broker
+  time_coordinator
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 install(PROGRAMS
-  scripts/sim_time_broker_ui.py
+  scripts/time_coordinator_ui.py
   DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY

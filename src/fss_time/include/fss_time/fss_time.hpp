@@ -3,7 +3,7 @@
 
 #include "fss_time/executors.hpp"
 #include "fss_time/rate.hpp"
-#include "fss_time/sim_time_broker.hpp"
+#include "fss_time/time_coordinator.hpp"
 #include "fss_time/sleep.hpp"
 #include "fss_time/thread_time_participant.hpp"
 #include "fss_time/time_types.hpp"

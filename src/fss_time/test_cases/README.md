@@ -2,19 +2,19 @@
 
 这个目录放 `fss_time` 的联调用测试场景，重点验证两件事：
 
-- broker 能否随 launch 一起启动并发布 `/clock`
+- coordinator 能否随 launch 一起启动并发布 `/clock`
 - 多节点、多线程、不同循环周期下，仿真时间是否真的驱动业务循环推进
 
 ## 场景说明
 
 `launch/multi_node_sim_time_test_case.launch.py` 会启动：
 
-- `sim_time_broker`
+- `time_coordinator`
 - 多个 `sim_time_test_load_node`
 
 每个 `sim_time_test_load_node` 会启动多个线程。每个线程都会：
 
-- 连接到同一个 ZeroMQ IPC broker
+- 连接到同一个 ZeroMQ IPC coordinator
 - 使用 `thread_time_participant` 申请下一个安全仿真时间
 - 在自己的 while 循环里按不同周期推进
 - 周期性发布 `std_msgs/msg/UInt64MultiArray`
@@ -42,15 +42,15 @@ ros2 launch fss_time multi_node_sim_time_test_case.launch.py \
   node.thread_count:=6 \
   node.base_period_ms:=10 \
   node.period_step_ms:=10 \
-  broker.max_real_time_factor:=1.0
+  coordinator.max_real_time_factor:=1.0
 ```
 
 ## 判断仿真时间是否生效
 
 - 终端日志里 `sim_time` 应持续增长，而不是一直停在 `0`
 - `max_real_time_factor:=1.0` 时，仿真时间推进速度应接近真实时间
-- `max_real_time_factor:=0.0` 时，broker 不再周期性推进 regulator request
-- 不同线程发布频率不同，但发布时间戳都应随 broker 授时单调增加
+- `max_real_time_factor:=0.0` 时，coordinator 不再周期性推进 regulator request
+- 不同线程发布频率不同，但发布时间戳都应随 coordinator 授时单调增加
 
 可直接观察：
 
@@ -63,7 +63,7 @@ ros2 topic echo /sim_time_test/node_0/load/thread_0
 
 `launch/executor_time_test_case.launch.py` 会启动：
 
-- `sim_time_broker`
+- `time_coordinator`
 - 使用 `fss_time::spin()` 的节点
 - 使用 `fss_time::executors::SingleThreadedExecutor` 的节点
 - 使用 `fss_time::executors::MultiThreadedExecutor` 的节点
@@ -94,7 +94,7 @@ ros2 launch fss_time executor_time_test_case.launch.py \
   multi.thread_count:=4 \
   node.timer_period_ms:=20 \
   node.timer_count:=4 \
-  broker.max_real_time_factor:=1.0
+  coordinator.max_real_time_factor:=1.0
 ```
 
 可直接观察：

@@ -134,7 +134,7 @@ public:
   /**
    * This function will block until work comes in, execute it, and then repeat
    * the process until canceled. 
-   * If `use_fss_sim_time` is true, fss_time::thread_time_participant will announce infinite safe time while waiting for work, and pin to the broker's current sim time while executing callbacks.
+   * If `use_fss_sim_time` is true, fss_time::thread_time_participant will announce infinite safe time while waiting for work, and pin to the coordinator's current sim time while executing callbacks.
    * \throws std::runtime_error when spin() called while already spinning
    */
   void spin() override;
@@ -177,7 +177,7 @@ public:
    * @brief The inner multi-threaded run() will block until work comes in, execute it, 
    * and then repeat the process until canceled. 
    * If `use_fss_sim_time` is true, fss_time::thread_time_participant will announce infinite safe time while waiting for work, 
-   * and pin to the broker's current sim time while executing callbacks.
+   * and pin to the coordinator's current sim time while executing callbacks.
    * \throws std::runtime_error when spin() called while already spinning
    */
   void spin() override;

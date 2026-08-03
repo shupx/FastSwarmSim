@@ -34,7 +34,7 @@ void ZeroMqTimeParticipantBackend::announce_next_safe_time(int64_t next_safe_tim
   std::lock_guard<std::mutex> lock(mutex_);
   start_locked();
   if (!registered_) {
-    if (!request_broker_locked("REGISTER", true)) {
+    if (!request_coordinator_locked("REGISTER", true)) {
       throw std::runtime_error("failed to register fss_time participant");
     }
     registered_ = true;
@@ -43,7 +43,7 @@ void ZeroMqTimeParticipantBackend::announce_next_safe_time(int64_t next_safe_tim
 
   std::ostringstream message;
   message << "ANNOUNCE " << last_requested_time_ns_;
-  if (!request_broker_locked(message.str(), true)) {
+  if (!request_coordinator_locked(message.str(), true)) {
     throw std::runtime_error("failed to announce fss_time participant request");
   }
 }
@@ -55,7 +55,7 @@ void ZeroMqTimeParticipantBackend::register_participant()
   if (registered_) {
     return;
   }
-  if (!request_broker_locked("REGISTER", true)) {
+  if (!request_coordinator_locked("REGISTER", true)) {
     throw std::runtime_error("failed to register fss_time participant");
   }
   registered_ = true;
@@ -69,7 +69,7 @@ void ZeroMqTimeParticipantBackend::unregister_participant()
   }
 
   start_locked();
-  request_broker_locked("UNREGISTER", false);
+  request_coordinator_locked("UNREGISTER", false);
   registered_ = false;
 }
 
@@ -108,11 +108,11 @@ void ZeroMqTimeParticipantBackend::start_locked()
   impl_->socket.set(zmq::sockopt::sndtimeo, 100);
   impl_->socket.set(zmq::sockopt::rcvtimeo, 100);
   impl_->socket.set(zmq::sockopt::routing_id, options_.participant_id);
-  impl_->socket.connect(options_.ipc_endpoint);
+  impl_->socket.connect(options_.coordinator_endpoint);
   connected_ = true;
 }
 
-bool ZeroMqTimeParticipantBackend::request_broker_locked(
+bool ZeroMqTimeParticipantBackend::request_coordinator_locked(
   const std::string & message,
   bool wait_forever)
 {

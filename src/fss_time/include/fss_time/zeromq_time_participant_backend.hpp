@@ -13,11 +13,11 @@ namespace fss_time
 
 struct ZeroMqTimeParticipantOptions
 {
-  /// Unique participant id sent to the broker.
+  /// Unique participant id sent to the coordinator.
   std::string participant_id;
 
-  /// ZeroMQ endpoint for the broker. Supports any endpoint accepted by zmq::socket_t::connect().
-  std::string ipc_endpoint{"ipc:///tmp/fss_time_broker.ipc"};
+  /// ZeroMQ endpoint for the coordinator. Supports any endpoint accepted by zmq::socket_t::connect().
+  std::string coordinator_endpoint{"ipc:///tmp/fss_time_coordinator.ipc"};
 };
 
 /**
@@ -28,8 +28,8 @@ class ZeroMqTimeParticipantBackend
 public:
   /**
    * @brief Construct a participant backend.
-   * @param options Participant id and broker endpoint options.
-   * @param clock Clock used to track broker time.
+   * @param options Participant id and coordinator endpoint options.
+   * @param clock Clock used to track coordinator time.
    */
   ZeroMqTimeParticipantBackend(
     ZeroMqTimeParticipantOptions options,
@@ -51,35 +51,35 @@ public:
   ZeroMqTimeParticipantBackend & operator=(const ZeroMqTimeParticipantBackend &) = delete;
 
   /**
-   * @brief Send the next safe simulation time request to the broker.
+   * @brief Send the next safe simulation time request to the coordinator.
    * @param next_safe_time_ns Requested next safe time in nanoseconds.
    */
   void announce_next_safe_time(int64_t next_safe_time_ns);
 
   /**
-   * @brief Register this participant with the broker.
+   * @brief Register this participant with the coordinator.
    */
   void register_participant();
 
   /**
-   * @brief Unregister this participant from the broker.
+   * @brief Unregister this participant from the coordinator.
    */
   void unregister_participant();
 
   /**
-   * @brief Return the latest broker time observed by this backend.
+   * @brief Return the latest coordinator time observed by this backend.
    * @return Simulation time in nanoseconds.
    */
   int64_t current_time_ns() const;
 
   /**
-   * @brief Return the last safe time request sent to the broker.
+   * @brief Return the last safe time request sent to the coordinator.
    * @return Last requested simulation time in nanoseconds.
    */
   int64_t last_requested_time_ns() const;
 
   /**
-   * @brief Check whether this backend is registered with the broker.
+   * @brief Check whether this backend is registered with the coordinator.
    * @return true if registered.
    */
   bool is_registered() const;
@@ -92,7 +92,7 @@ public:
 
 private:
   void start_locked();
-  bool request_broker_locked(const std::string & message, bool wait_forever);
+  bool request_coordinator_locked(const std::string & message, bool wait_forever);
 
   struct Impl;
 

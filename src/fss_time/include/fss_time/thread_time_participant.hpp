@@ -17,7 +17,7 @@ class thread_time_participant
 public:
   /**
    * @brief Get or create the fss_time participant associated with this thread.
-   * @param node Node used for participant options, clock access, and broker endpoint parameters.
+   * @param node Node used for participant options, clock access, and coordinator endpoint parameters.
    * @param participant_id_hint Optional stable prefix used when generating the participant id.
    * @return Thread-local participant instance.
    */
@@ -32,24 +32,24 @@ public:
 #endif
 
   /**
-   * @brief Unregister this participant from the broker.
+   * @brief Unregister this participant from the coordinator.
    */
   ~thread_time_participant();
 
   /**
-   * @brief Announce the next simulation time this thread can safely allow. It will register the participant with the broker if not already registered.
+   * @brief Announce the next simulation time this thread can safely allow. It will register the participant with the coordinator if not already registered.
    * @param next_safe_time Safe time request in ROS time.
    */
   void announce_next_safe_time(const rclcpp::Time & next_safe_time);
 
   /**
-   * @brief Unregister the participant from the broker.
+   * @brief Unregister the participant from the coordinator.
    */
   void unregister_participant();
 
   /**
-   * @brief Return the latest broker simulation time observed by this participant.
-   * @return Current broker simulation time as RCL_ROS_TIME.
+   * @brief Return the latest coordinator simulation time observed by this participant.
+   * @return Current coordinator simulation time as RCL_ROS_TIME.
    */
   rclcpp::Time get_sim_time() const;
 

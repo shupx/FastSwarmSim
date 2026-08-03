@@ -50,7 +50,7 @@ SingleThreadedExecutor::spin()
       // get_next_executable(x, -1) blocks until the next timer triggering walltime. If sim time is paused, this will return with false (no work ready). So a while loop is needed to keep waiting for work in sim time paused state.
     }
 
-    // Before executing any_executable callbacks, pin this thread_time_participant to the broker's current sim time, so that the sim time does not advance while callbacks are running. 
+    // Before executing any_executable callbacks, pin this thread_time_participant to the coordinator's current sim time, so that the sim time does not advance while callbacks are running. 
     fss_time_tools::announce_current_time(participant);
 
     /* Execute the available callbacks */
@@ -64,7 +64,7 @@ SingleThreadedExecutor::spin()
       if (!get_next_executable(next_executable, std::chrono::nanoseconds(0))) {
         // No immediately-ready work remains, so release this worker's sim-time constraint.
         break;
-        // The speed_regulator in sim_time_broker will push one time step forward if all thread_time_participants have released their safe-time constraints. So the step of the speed_regulator determines the sim time step in this case, and a small step is preferred and more accurated.
+        // The speed_regulator in time_coordinator will push one time step forward if all thread_time_participants have released their safe-time constraints. So the step of the speed_regulator determines the sim time step in this case, and a small step is preferred and more accurated.
       }
       any_executable = next_executable;
     }

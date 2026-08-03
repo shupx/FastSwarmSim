@@ -58,7 +58,7 @@ def parse_initial_rtf(argv):
     return 1.0
 
 
-class BrokerBridge(QObject):
+class CoordinatorBridge(QObject):
     status_signal = pyqtSignal(dict)
     clock_signal = pyqtSignal(float)
     progress_signal = pyqtSignal(dict)
@@ -77,7 +77,7 @@ class BrokerBridge(QObject):
 
     def _spin(self):
         rclpy.init(args=None, context=self._context)
-        self.node = Node("fss_sim_time_broker_ui", context=self._context)
+        self.node = Node("fss_time_coordinator_ui", context=self._context)
         self.status_sub = self.node.create_subscription(
             SimClockStatus, "/fss/sim_clock_status", self._on_status, 10
         )
@@ -179,9 +179,9 @@ class BrokerBridge(QObject):
             self.message_signal.emit("control failed: {}".format(exc))
             return
         if response.success:
-            self.message_signal.emit(response.message or "broker updated")
+            self.message_signal.emit(response.message or "coordinator updated")
         else:
-            self.message_signal.emit(response.message or "broker rejected request")
+            self.message_signal.emit(response.message or "coordinator rejected request")
 
 
 class MainWindow(QMainWindow):
@@ -190,7 +190,7 @@ class MainWindow(QMainWindow):
         self._time_display_seconds = False
         self._last_sim_time = 0.0
         self._slider_max_rtf = 10.0
-        ui_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "sim_time_broker.ui")
+        ui_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "time_coordinator.ui")
         uic.loadUi(ui_path, self)
         self._configure_compact_layout()
         validator = QDoubleValidator(self)
@@ -218,7 +218,7 @@ class MainWindow(QMainWindow):
         ]
         self.status_toggle_button.toggled.connect(self.set_status_details_visible)
         self.set_status_details_visible(False)
-        self.statusBar().showMessage("waiting for broker status")
+        self.statusBar().showMessage("waiting for coordinator status")
 
     def _configure_compact_layout(self):
         for layout in (
@@ -249,7 +249,7 @@ class MainWindow(QMainWindow):
         self.status_toggle_button.setArrowType(Qt.DownArrow if visible else Qt.RightArrow)
         self.status_toggle_button.setText("Hide details" if visible else "Show details")
         self.status_toggle_button.setToolTip(
-            "Hide broker status details" if visible else "Show broker status details")
+            "Hide coordinator status details" if visible else "Show coordinator status details")
         self.status_group.adjustSize()
         self.centralwidget.adjustSize()
         self.adjustSize()
@@ -386,7 +386,7 @@ def rtf_to_dial(speed: float, slider_max_rtf: float) -> int:
         RTF_SLIDER_MAX - RTF_SLIDER_TEN_X)))
 
 
-class SimTimeBrokerUi(QObject):
+class TimeCoordinatorUi(QObject):
     def __init__(self, initial_rtf: float):
         super().__init__()
         self.app = QApplication([sys.argv[0]])
@@ -399,7 +399,7 @@ class SimTimeBrokerUi(QObject):
         icon.addPixmap(QPixmap(workspace+"/ui/clock.png"), QIcon.Normal, QIcon.Off)
         self.window.setWindowIcon(icon)
         
-        self.bridge = BrokerBridge(initial_rtf)
+        self.bridge = CoordinatorBridge(initial_rtf)
         self.window.set_dial_value(rtf_to_dial(initial_rtf, self.window.slider_max_rtf()))
         self.window.set_target_rtf(initial_rtf)
 
@@ -475,4 +475,4 @@ class SimTimeBrokerUi(QObject):
 
 if __name__ == "__main__":
     initial_rtf = parse_initial_rtf(sys.argv)
-    SimTimeBrokerUi(initial_rtf).run()
+    TimeCoordinatorUi(initial_rtf).run()

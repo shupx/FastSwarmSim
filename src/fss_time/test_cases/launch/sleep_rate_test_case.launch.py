@@ -8,8 +8,8 @@ from launch.actions import SetEnvironmentVariable
 
 
 def generate_launch_description():
-    sim_time_broker_launch = PathJoinSubstitution(
-        [FindPackageShare("fss_time"), "launch", "sim_time_broker.launch.py"]
+    time_coordinator_launch = PathJoinSubstitution(
+        [FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"]
     )
 
     return LaunchDescription([
@@ -22,11 +22,11 @@ def generate_launch_description():
         DeclareLaunchArgument("timer.period_ms", default_value="10"),
         DeclareLaunchArgument("timer.callback_sleep_for_ms", default_value="5"),
         DeclareLaunchArgument("node.log_every_n", default_value="100"),
-        DeclareLaunchArgument("broker.max_real_time_factor", default_value="1.0"),
-        DeclareLaunchArgument("broker.auto_start", default_value="true"),
+        DeclareLaunchArgument("coordinator.max_real_time_factor", default_value="1.0"),
+        DeclareLaunchArgument("coordinator.auto_start", default_value="true"),
         
-        DeclareLaunchArgument("fss_time_broker_endpoint", default_value="ipc:///tmp/fss_time_broker.ipc"),
-        SetParameter(name="fss_time_broker_endpoint", value=LaunchConfiguration("fss_time_broker_endpoint")),
+        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
+        SetParameter(name="fss_time_coordinator_endpoint", value=LaunchConfiguration("fss_time_coordinator_endpoint")),
 
         DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
@@ -36,10 +36,10 @@ def generate_launch_description():
             period=0.2,
             actions=[
                 IncludeLaunchDescription(
-                    PythonLaunchDescriptionSource(sim_time_broker_launch),
+                    PythonLaunchDescriptionSource(time_coordinator_launch),
                     launch_arguments={
-                        "max_real_time_factor": LaunchConfiguration("broker.max_real_time_factor"),
-                        "auto_start": LaunchConfiguration("broker.auto_start"),
+                        "max_real_time_factor": LaunchConfiguration("coordinator.max_real_time_factor"),
+                        "auto_start": LaunchConfiguration("coordinator.auto_start"),
                     }.items(),
                 ),
             ],
