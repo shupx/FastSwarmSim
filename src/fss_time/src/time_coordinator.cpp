@@ -1,6 +1,7 @@
 #include "fss_time/time_coordinator.hpp"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -51,13 +52,23 @@ struct TimeCoordinator::Impl
 {
   zmq::context_t context{1};
   zmq::socket_t socket{context, zmq::socket_type::router};
+  zmq::socket_t pub_socket{context, zmq::socket_type::pub};
+  zmq::socket_t parent_lookup_socket{context, zmq::socket_type::dealer};
+  zmq::socket_t parent_sub_socket{context, zmq::socket_type::sub};
 };
 
 TimeCoordinator::TimeCoordinator(rclcpp::Node & node)
 : node_(node), impl_(std::make_unique<Impl>())
 {
-  endpoint_ = normalize_zmq_endpoint(
-    declare_or_get_parameter<std::string>(node_, "fss_time_coordinator_endpoint", "ipc:///tmp/fss_time_coordinator.ipc"));
+  endpoint_ =
+    declare_or_get_parameter<std::string>(
+      node_, "fss_time_coordinator_endpoint", "ipc:///tmp/fss_time_coordinator.ipc");
+  pub_endpoint_ =
+    declare_or_get_parameter<std::string>(
+      node_, "fss_time_coordinator_pub_endpoint", "ipc:///tmp/fss_time_coordinator_pub.ipc");
+  parent_endpoint_ =
+    declare_or_get_parameter<std::string>(node_, "fss_time_parent_coordinator_endpoint", "");
+  has_parent_coordinator_ = !parent_endpoint_.empty();
   min_operation_walltime_ = kMinOperationWalltime_ns;
   const auto configured_speed_regulator_step_ns =
     declare_or_get_parameter<int64_t>(node_, "speed_regulator_step_ns", 5000000);
@@ -105,6 +116,9 @@ TimeCoordinator::~TimeCoordinator()
   if (impl_) {
     try {
       impl_->socket.close();
+      impl_->pub_socket.close();
+      impl_->parent_lookup_socket.close();
+      impl_->parent_sub_socket.close();
       impl_->context.close();
     } catch (const zmq::error_t &) {
     }
@@ -112,6 +126,9 @@ TimeCoordinator::~TimeCoordinator()
 
   std::string ipc_path;
   if (is_ipc_endpoint_path(endpoint_, ipc_path)) {
+    std::remove(ipc_path.c_str());
+  }
+  if (is_ipc_endpoint_path(pub_endpoint_, ipc_path)) {
     std::remove(ipc_path.c_str());
   }
 }
@@ -122,11 +139,31 @@ void TimeCoordinator::start()
   if (is_ipc_endpoint_path(endpoint_, ipc_path)) {
     std::remove(ipc_path.c_str());
   }
+  if (is_ipc_endpoint_path(pub_endpoint_, ipc_path)) {
+    std::remove(ipc_path.c_str());
+  }
 
   impl_->socket.set(zmq::sockopt::linger, 0);
   impl_->socket.set(zmq::sockopt::rcvhwm, 100000);
-  impl_->socket.set(zmq::sockopt::rcvtimeo, 100);
+  impl_->socket.set(zmq::sockopt::rcvtimeo, 0);
   impl_->socket.bind(endpoint_);
+  impl_->pub_socket.set(zmq::sockopt::linger, 0);
+  impl_->pub_socket.set(zmq::sockopt::sndhwm, 100000);
+  impl_->pub_socket.bind(pub_endpoint_);
+
+  if (has_parent_coordinator_) {
+    parent_pub_endpoint_ = request_parent_pub_endpoint();
+    impl_->parent_sub_socket.set(zmq::sockopt::linger, 0);
+    impl_->parent_sub_socket.set(zmq::sockopt::subscribe, "");
+    impl_->parent_sub_socket.connect(parent_pub_endpoint_);
+
+    ZeroMqTimeParticipantOptions parent_options;
+    parent_options.participant_id = std::string(node_.get_name()) + "_coordinator_parent_participant";
+    parent_options.coordinator_endpoint = parent_endpoint_;
+    parent_participant_ =
+      std::make_unique<ZeroMqTimeParticipantBackend>(std::move(parent_options), node_.get_clock());
+    parent_participant_->register_participant();
+  }
 
   {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -135,7 +172,7 @@ void TimeCoordinator::start()
     real_time_last_wall_time_ = std::chrono::steady_clock::now();
     observed_rtf_last_sim_time_ns_ = sim_time_ns_;
     observed_rtf_last_wall_time_ = std::chrono::steady_clock::now();
-    publish_clock_locked();
+    advance_time_locked(sim_time_ns_);
   }
 
   receive_thread_ = std::thread([this]() { receive_loop(); });
@@ -201,30 +238,122 @@ fss_time_interfaces::msg::SimClockStatus TimeCoordinator::status_message() const
 
 void TimeCoordinator::receive_loop()
 {
-  while (!stop_receive_.load()) {
-    zmq::message_t identity_frame;
-    zmq::message_t message_frame;
-    try {
-      const auto received = impl_->socket.recv(identity_frame, zmq::recv_flags::none);
-      if (!received) {
-        continue;
-      }
-      const auto received_message = impl_->socket.recv(message_frame, zmq::recv_flags::none);
-      if (!received_message) {
-        continue;
-      }
+  std::array<zmq::pollitem_t, 2> poll_items{
+    zmq::pollitem_t{static_cast<void *>(impl_->socket), 0, ZMQ_POLLIN, 0},
+    zmq::pollitem_t{static_cast<void *>(impl_->parent_sub_socket), 0, ZMQ_POLLIN, 0},
+  };
+  const auto poll_item_count = has_parent_coordinator_ ? 2u : 1u;
 
-      const auto reply_text = handle_message(identity_frame.to_string(), message_frame.to_string());
-      zmq::message_t identity(identity_frame.data(), identity_frame.size());
-      zmq::message_t reply(reply_text.begin(), reply_text.end());
-      impl_->socket.send(identity, zmq::send_flags::sndmore);
-      impl_->socket.send(reply, zmq::send_flags::none);
+  while (!stop_receive_.load()) {
+    try {
+      poll_items[0].revents = 0;
+      poll_items[1].revents = 0;
+      zmq::poll(poll_items.data(), poll_item_count, std::chrono::milliseconds(100));
+      if ((poll_items[0].revents & ZMQ_POLLIN) != 0) {
+        receive_router_message();
+      }
+      if (has_parent_coordinator_ && (poll_items[1].revents & ZMQ_POLLIN) != 0) {
+        receive_parent_grant();
+      }
     } catch (const zmq::error_t &) {
       if (!stop_receive_.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
       continue;
     }
+  }
+}
+
+void TimeCoordinator::receive_router_message()
+{
+  zmq::message_t identity_frame;
+  zmq::message_t message_frame;
+  const auto received = impl_->socket.recv(identity_frame, zmq::recv_flags::dontwait);
+  if (!received) {
+    return;
+  }
+  const auto received_message = impl_->socket.recv(message_frame, zmq::recv_flags::none);
+  if (!received_message) {
+    return;
+  }
+
+  const auto reply_text = handle_message(identity_frame.to_string(), message_frame.to_string());
+  zmq::message_t identity(identity_frame.data(), identity_frame.size());
+  zmq::message_t reply(reply_text.begin(), reply_text.end());
+  impl_->socket.send(identity, zmq::send_flags::sndmore);
+  impl_->socket.send(reply, zmq::send_flags::none);
+}
+
+void TimeCoordinator::receive_parent_grant()
+{
+  zmq::message_t grant_frame;
+  const auto received = impl_->parent_sub_socket.recv(grant_frame, zmq::recv_flags::dontwait);
+  if (!received) {
+    return;
+  }
+
+  std::istringstream input(grant_frame.to_string());
+  std::string command;
+  int64_t granted_time_ns = 0;
+  input >> command >> granted_time_ns;
+  if (command != "GRANT" || !input) {
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (granted_time_ns <= sim_time_ns_) {
+    return;
+  }
+  const auto previous_sim_time_ns = sim_time_ns_;
+  sim_time_ns_ = granted_time_ns;
+  publish_clock_locked();
+  debug_msg_ =
+    "receive_parent_grant: publish_clock_locked published: sim time advanced from " +
+    std::to_string(previous_sim_time_ns) + " ns to " + std::to_string(sim_time_ns_) + " ns";
+
+  for (auto & entry : participants_) {
+    auto & participant = entry.second;
+    if (participant.request_time_ns <= sim_time_ns_) {
+      participant.has_new_request = false;
+    }
+  }
+}
+
+std::string TimeCoordinator::request_parent_pub_endpoint()
+{
+  constexpr auto retry_period = std::chrono::milliseconds(200);
+  impl_->parent_lookup_socket.set(zmq::sockopt::linger, 0);
+  impl_->parent_lookup_socket.set(zmq::sockopt::sndtimeo, 100);
+  impl_->parent_lookup_socket.set(zmq::sockopt::rcvtimeo, 100);
+  impl_->parent_lookup_socket.set(
+    zmq::sockopt::routing_id,
+    std::string(node_.get_name()) + "_coordinator_pub_lookup");
+  impl_->parent_lookup_socket.connect(parent_endpoint_);
+
+  while (true) {
+    try {
+      const std::string request_text = "GET_PUB_ENDPOINT";
+      zmq::message_t request(request_text.begin(), request_text.end());
+      const auto sent = impl_->parent_lookup_socket.send(request, zmq::send_flags::none);
+      if (!sent) {
+        std::this_thread::sleep_for(retry_period);
+        continue;
+      }
+
+      zmq::message_t reply;
+      const auto received = impl_->parent_lookup_socket.recv(reply, zmq::recv_flags::none);
+      if (received) {
+        std::istringstream input(reply.to_string());
+        std::string status;
+        std::string endpoint;
+        input >> status >> endpoint;
+        if (status == "PUB_ENDPOINT" && !endpoint.empty()) {
+          return endpoint;
+        }
+      }
+    } catch (const zmq::error_t &) {
+    }
+    std::this_thread::sleep_for(retry_period);
   }
 }
 
@@ -238,6 +367,10 @@ std::string TimeCoordinator::handle_message(const std::string & identity, const 
   if (command == "REGISTER") {
     participants_.try_emplace(identity);
     return "OK";
+  }
+
+  if (command == "GET_PUB_ENDPOINT") {
+    return "PUB_ENDPOINT " + pub_endpoint_;
   }
 
   if (command == "ANNOUNCE") {
@@ -389,19 +522,35 @@ void TimeCoordinator::try_update_clock_locked()
     return;
   }
 
-  const auto previous_sim_time_ns = sim_time_ns_;
-  sim_time_ns_ = min_request_ns;
-  publish_clock_locked();
-  debug_msg_ =
-    "try_update_clock_locked: publish_clock_locked published: sim time advanced from " +
-    std::to_string(previous_sim_time_ns) + " ns to " + std::to_string(sim_time_ns_) + " ns";
+  advance_time_locked(min_request_ns);
+  if (has_parent_coordinator_) {
+    debug_msg_ =
+      "try_update_clock_locked: advance_time requested parent grant from " +
+      std::to_string(sim_time_ns_) + " ns to " + std::to_string(min_request_ns) + " ns";
+  } else {
+    debug_msg_ =
+      "try_update_clock_locked: publish_clock_locked published: sim time advanced to " +
+      std::to_string(sim_time_ns_) + " ns";
 
-  for (auto & entry : participants_) {
-    auto & participant = entry.second;
-    if (participant.request_time_ns <= sim_time_ns_) {
-      participant.has_new_request = false;
+    for (auto & entry : participants_) {
+      auto & participant = entry.second;
+      if (participant.request_time_ns <= sim_time_ns_) {
+        participant.has_new_request = false;
+      }
     }
   }
+}
+
+void TimeCoordinator::advance_time_locked(int64_t target_time_ns)
+{
+  if (has_parent_coordinator_) {
+    if (parent_participant_) {
+      parent_participant_->announce_next_safe_time(target_time_ns);
+    }
+    return;
+  }
+  sim_time_ns_ = target_time_ns;
+  publish_clock_locked();
 }
 
 void TimeCoordinator::publish_clock_locked()
@@ -409,6 +558,20 @@ void TimeCoordinator::publish_clock_locked()
   rosgraph_msgs::msg::Clock clock;
   clock.clock = from_ns(sim_time_ns_);
   clock_pub_->publish(clock);
+  publish_granted_time_locked();
+}
+
+void TimeCoordinator::publish_granted_time_locked()
+{
+  if (!impl_) {
+    return;
+  }
+  std::ostringstream message;
+  message << "GRANT " << sim_time_ns_;
+  try {
+    impl_->pub_socket.send(zmq::buffer(message.str()), zmq::send_flags::dontwait);
+  } catch (const zmq::error_t &) {
+  }
 }
 
 void TimeCoordinator::publish_status()
@@ -472,14 +635,6 @@ std::chrono::nanoseconds TimeCoordinator::regulator_wall_period() const
   const auto period_ns = static_cast<int64_t>(std::ceil(
       static_cast<double>(speed_regulator_step_ns_) / max_real_time_factor_));
   return std::chrono::nanoseconds(std::max<int64_t>(min_operation_walltime_, period_ns));
-}
-
-std::string TimeCoordinator::normalize_zmq_endpoint(const std::string & endpoint) const
-{
-  if (!endpoint.empty()) {
-    return endpoint;
-  }
-  return "ipc:///tmp/fss_time_coordinator.ipc";
 }
 
 }  // namespace fss_time

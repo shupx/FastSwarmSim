@@ -165,6 +165,74 @@ TEST(TimeCoordinator, SupportsTcpEndpoint)
   fss_time::thread_time_participant::reset_current_thread_for_testing();
 }
 
+TEST(TimeCoordinator, ChildCoordinatorAdvancesFromParentGrant)
+{
+  const auto parent_endpoint = reserve_test_endpoint();
+  const auto parent_pub_endpoint = reserve_test_endpoint();
+  const auto child_endpoint = reserve_test_endpoint();
+  const auto child_pub_endpoint = reserve_test_endpoint();
+
+  auto parent_node = std::make_shared<rclcpp::Node>("time_coordinator_cascade_parent_test");
+  parent_node->declare_parameter("fss_time_coordinator_endpoint", parent_endpoint);
+  parent_node->declare_parameter("fss_time_coordinator_pub_endpoint", parent_pub_endpoint);
+  parent_node->declare_parameter("speed_regulator_step_ns", 1000000);
+  parent_node->declare_parameter("auto_start", true);
+  parent_node->declare_parameter("follows_real_time", false);
+  fss_time::TimeCoordinator parent_coordinator(*parent_node);
+  parent_coordinator.start();
+
+  auto child_node = std::make_shared<rclcpp::Node>("time_coordinator_cascade_child_test");
+  child_node->declare_parameter("fss_time_coordinator_endpoint", child_endpoint);
+  child_node->declare_parameter("fss_time_coordinator_pub_endpoint", child_pub_endpoint);
+  child_node->declare_parameter("fss_time_parent_coordinator_endpoint", parent_endpoint);
+  child_node->declare_parameter("speed_regulator_step_ns", 1000000);
+  child_node->declare_parameter("auto_start", true);
+  child_node->declare_parameter("follows_real_time", false);
+  fss_time::TimeCoordinator child_coordinator(*child_node);
+  child_coordinator.start();
+
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(parent_node);
+  executor.add_node(child_node);
+  std::atomic<bool> stop_executor{false};
+  std::thread spin_thread([&executor, &stop_executor]() {
+    while (!stop_executor.load()) {
+      executor.spin_some();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  });
+
+  rclcpp::Node participant_node("time_coordinator_cascade_participant_test");
+  participant_node.declare_parameter("fss_time_coordinator_endpoint", child_endpoint);
+
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+  auto & participant =
+    fss_time::thread_time_participant::for_current_thread(participant_node, "cascade_child");
+  wait_until([&child_coordinator]() {
+    return child_coordinator.status_message().participant_count == 1;
+  }, std::chrono::seconds(1));
+
+  participant.announce_next_safe_time(rclcpp::Time(5000000LL, RCL_ROS_TIME));
+  wait_until([&child_coordinator]() {
+    return fss_time::to_ns(child_coordinator.status_message().sim_time) > 0;
+  }, std::chrono::seconds(2));
+
+  EXPECT_GT(fss_time::to_ns(child_coordinator.status_message().sim_time), 0);
+  EXPECT_LE(fss_time::to_ns(child_coordinator.status_message().sim_time), 5000000LL);
+  EXPECT_EQ(parent_coordinator.status_message().participant_count, 1u);
+
+  participant.unregister_participant();
+  wait_until([&child_coordinator]() {
+    return child_coordinator.status_message().participant_count == 0;
+  }, std::chrono::seconds(1));
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+
+  stop_executor = true;
+  spin_thread.join();
+  executor.remove_node(child_node);
+  executor.remove_node(parent_node);
+}
+
 TEST(TimeCoordinator, ParticipantAnnouncementAdvancesClockAndStatus)
 {
   const auto endpoint = reserve_test_endpoint();
@@ -347,6 +415,11 @@ TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
   coordinator.start();
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(coordinator_node);
+  auto node = std::make_shared<rclcpp::Node>("fss_sleep_until_sim_time_node");
+  node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  node->declare_parameter("use_fss_sim_time", true);
+  node->set_parameter(rclcpp::Parameter("use_sim_time", true));
+  executor.add_node(node);
   std::atomic<bool> stop_executor{false};
   std::thread spin_thread([&executor, &stop_executor]() {
     while (!stop_executor.load()) {
@@ -355,9 +428,6 @@ TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
     }
   });
 
-  auto node = std::make_shared<rclcpp::Node>("fss_sleep_until_sim_time_node");
-  node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
-  node->declare_parameter("use_fss_sim_time", true);
   const rclcpp::Time until(5000000LL, RCL_ROS_TIME);
 
   fss_time::thread_time_participant::reset_current_thread_for_testing();
@@ -368,6 +438,7 @@ TEST(TimeSleep, SleepUntilWithFssSimTimeAnnouncesEndTime)
 
   stop_executor = true;
   spin_thread.join();
+  executor.remove_node(node);
   executor.remove_node(coordinator_node);
 }
 

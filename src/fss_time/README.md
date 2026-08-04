@@ -3,6 +3,12 @@
 `fss_time` now uses a local ZeroMQ ROUTER/DEALER channel instead of HELICS.
 
 - `time_coordinator` binds a ROUTER socket to `fss_time_coordinator_endpoint` and publishes ROS `/clock`.
+- `time_coordinator` also binds a PUB socket to `fss_time_coordinator_pub_endpoint` and sends
+  ZeroMQ `GRANT <time_ns>` messages whenever it publishes `/clock`.
+- A child coordinator can set `fss_time_parent_coordinator_endpoint` to a parent coordinator's
+  ROUTER endpoint. It requests the parent's PUB endpoint with `GET_PUB_ENDPOINT`, subscribes to
+  parent grants, and announces its local next safe time to the parent before publishing local
+  `/clock`.
 - `thread_time_participant` creates one DEALER participant per thread.
 - Participant construction waits until the coordinator acknowledges registration.
 - `announce_next_safe_time()` sends a time request and waits for coordinator acknowledgement.
@@ -24,6 +30,12 @@ Default endpoint:
 
 ```bash
 ipc:///tmp/fss_time_coordinator.ipc
+```
+
+Default PUB endpoint:
+
+```bash
+ipc:///tmp/fss_time_coordinator_pub.ipc
 ```
 
 Launch:

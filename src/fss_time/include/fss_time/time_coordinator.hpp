@@ -10,6 +10,7 @@
 #include <thread>
 #include <unordered_map>
 
+#include "fss_time/zeromq_time_participant_backend.hpp"
 #include "fss_time_interfaces/msg/sim_clock_status.hpp"
 #include "fss_time_interfaces/srv/sim_clock_control.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -80,13 +81,17 @@ private:
   void update_real_time_request_locked();
   void update_observed_real_time_factor_locked();
   void try_update_clock_locked();
+  void advance_time_locked(int64_t target_time_ns);
   void publish_clock_locked();
+  void publish_granted_time_locked();
+  void receive_router_message();
+  void receive_parent_grant();
+  std::string request_parent_pub_endpoint();
   void publish_status();
   int64_t compute_regulator_target_ns_locked() const;
   void reset_regulator_timer();
   void reset_real_time_timer();
   std::chrono::nanoseconds regulator_wall_period() const;
-  std::string normalize_zmq_endpoint(const std::string & endpoint) const;
 
   struct Impl;
 
@@ -115,6 +120,11 @@ private:
   bool follows_real_time_{true};
   std::string debug_msg_{"try_update_clock_locked has not run yet"};
   std::string endpoint_;
+  std::string pub_endpoint_;
+  std::string parent_endpoint_;
+  std::string parent_pub_endpoint_;
+  std::unique_ptr<ZeroMqTimeParticipantBackend> parent_participant_;
+  bool has_parent_coordinator_{false};
   std::thread receive_thread_;
   std::atomic<bool> stop_receive_{false};
 };

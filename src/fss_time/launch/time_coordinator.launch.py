@@ -18,6 +18,8 @@ def generate_launch_description():
         DeclareLaunchArgument("follows_real_time", default_value="true"), # If true, the coordinator applies a wall-time catch-up floor to participant requests so long-running callbacks do not leave observed RTF below 1x when max_real_time_factor allows it. Set false to use only participant requests and the speed regulator.
 
         # DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),  # leave for other launch file that includes this one to set, so that time coordinator and time participants can be launched using the same fss_time_coordinator_endpoint.
+        DeclareLaunchArgument("fss_time_coordinator_pub_endpoint", default_value="ipc:///tmp/fss_time_coordinator_pub.ipc"),
+        DeclareLaunchArgument("fss_time_parent_coordinator_endpoint", default_value=""),
         
         SetParameter(name="use_sim_time", value=True),
         Node(
@@ -30,6 +32,8 @@ def generate_launch_description():
                 "auto_start": LaunchConfiguration("auto_start"),
                 "speed_regulator_step_ns": LaunchConfiguration("speed_regulator_step_ns"),
                 "follows_real_time": LaunchConfiguration("follows_real_time"),
+                "fss_time_coordinator_pub_endpoint": LaunchConfiguration("fss_time_coordinator_pub_endpoint"),
+                "fss_time_parent_coordinator_endpoint": LaunchConfiguration("fss_time_parent_coordinator_endpoint"),
                 # "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
             }],
         ),
