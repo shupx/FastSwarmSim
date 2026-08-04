@@ -86,7 +86,6 @@ private:
   void publish_granted_time_locked();
   void receive_router_message();
   void receive_parent_grant();
-  std::string request_parent_pub_endpoint();
   void publish_status();
   int64_t compute_regulator_target_ns_locked() const;
   void reset_regulator_timer();
@@ -118,7 +117,8 @@ private:
   std::chrono::steady_clock::time_point real_time_last_wall_time_{};
   bool running_{true};
   bool follows_real_time_{true};
-  std::string debug_msg_{"try_update_clock_locked has not run yet"};
+  bool publish_clock_{true};
+  std::string debug_msg_{"Initializing..."};
   std::string endpoint_;
   std::string pub_endpoint_;
   std::string parent_endpoint_;

@@ -2,26 +2,35 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node, SetParameter
+from launch_ros.actions import Node, SetParameter, PushRosNamespace
 from launch.actions import SetEnvironmentVariable
 
 
 def generate_launch_description():
     return LaunchDescription([
         SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
+
         DeclareLaunchArgument("max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("auto_start", default_value="true"),
         DeclareLaunchArgument("start_coordinator_ui", default_value="true"),
+        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"), # The bind endpoint for the time coordinator's ROUTER socket, which is used by time participants to connect to the coordinator. 
+
+        DeclareLaunchArgument("fss_time_coordinator_pub_endpoint", default_value="ipc:///tmp/fss_time_coordinator_pub.ipc"), # The bind endpoint for the time coordinator's time zeromq PUB socket, only used when it is a parent coordinator. This endpoint is automatically aquired by the child coordinator and needs not be set by the child. Only make sure it is accessible by the child coordinator.
+
+        DeclareLaunchArgument("fss_time_parent_coordinator_endpoint", default_value=""), # The fss_time_coordinator_endpoint of the parent coordinator, only used when it is a child coordinator and connects to it. If set, the coordinator will connect to a parent coordinator and follow its time. If not set as an empty string, the coordinator will be a root coordinator and will control time itself.
+
+        DeclareLaunchArgument("publish_clock", default_value="true"), # If true, the coordinator will publish the /clock topic, which is required for time participants to use sim time.
 
         DeclareLaunchArgument("speed_regulator_step_ns", default_value="5000000"), # Set between [1e5, min step of all time participants], and a larger value improves RTF. REASON: If all time participants announce infinite safe time (a possible case when using fss_time::executors), the step of the coordinator /clock will be equal to this value. Set to the minimum step of all time participants to avoid time jumps. And do not set it too low to avoid high CPU usage of the coordinator, which may lower the real time factor (RTF). A reasonable value is 5ms (5000000ns) for a coordinator, which supports time participants with a maximum frequency of 200Hz, and a RTF of 50x.
 
         DeclareLaunchArgument("follows_real_time", default_value="true"), # If true, the coordinator applies a wall-time catch-up floor to participant requests so long-running callbacks do not leave observed RTF below 1x when max_real_time_factor allows it. Set false to use only participant requests and the speed regulator.
 
-        # DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),  # leave for other launch file that includes this one to set, so that time coordinator and time participants can be launched using the same fss_time_coordinator_endpoint.
-        DeclareLaunchArgument("fss_time_coordinator_pub_endpoint", default_value="ipc:///tmp/fss_time_coordinator_pub.ipc"),
-        DeclareLaunchArgument("fss_time_parent_coordinator_endpoint", default_value=""),
-        
+        DeclareLaunchArgument("namespace", default_value=""),
+
+        PushRosNamespace(namespace=LaunchConfiguration("namespace")), # set the namespace for the coordinator and its UI, if any.
+
         SetParameter(name="use_sim_time", value=True),
+        
         Node(
             package="fss_time",
             executable="time_coordinator",
@@ -30,11 +39,12 @@ def generate_launch_description():
             parameters=[{
                 "max_real_time_factor": LaunchConfiguration("max_real_time_factor"),
                 "auto_start": LaunchConfiguration("auto_start"),
+                "publish_clock": LaunchConfiguration("publish_clock"),
                 "speed_regulator_step_ns": LaunchConfiguration("speed_regulator_step_ns"),
                 "follows_real_time": LaunchConfiguration("follows_real_time"),
+                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
                 "fss_time_coordinator_pub_endpoint": LaunchConfiguration("fss_time_coordinator_pub_endpoint"),
                 "fss_time_parent_coordinator_endpoint": LaunchConfiguration("fss_time_parent_coordinator_endpoint"),
-                # "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
             }],
         ),
         Node(

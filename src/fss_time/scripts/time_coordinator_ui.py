@@ -79,10 +79,10 @@ class CoordinatorBridge(QObject):
         rclpy.init(args=None, context=self._context)
         self.node = Node("fss_time_coordinator_ui", context=self._context)
         self.status_sub = self.node.create_subscription(
-            SimClockStatus, "/fss/sim_clock_status", self._on_status, 10
+            SimClockStatus, "fss/sim_clock_status", self._on_status, 10
         )
         self.clock_sub = self.node.create_subscription(Clock, "/clock", self._on_clock, 10)
-        self.control_client = self.node.create_client(SimClockControl, "/fss/clock_control")
+        self.control_client = self.node.create_client(SimClockControl, "fss/clock_control")
         self.executor = SingleThreadedExecutor(context=self._context)
         self.executor.add_node(self.node)
         self._ros_ready.set()

@@ -15,6 +15,7 @@
 #include <zmq.hpp>
 
 #include "fss_time/time_types.hpp"
+#include "fss_time/tools.hpp"
 
 namespace fss_time
 {
@@ -53,7 +54,6 @@ struct TimeCoordinator::Impl
   zmq::context_t context{1};
   zmq::socket_t socket{context, zmq::socket_type::router};
   zmq::socket_t pub_socket{context, zmq::socket_type::pub};
-  zmq::socket_t parent_lookup_socket{context, zmq::socket_type::dealer};
   zmq::socket_t parent_sub_socket{context, zmq::socket_type::sub};
 };
 
@@ -86,14 +86,17 @@ TimeCoordinator::TimeCoordinator(rclcpp::Node & node)
   const auto max_rtf = declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0);
   running_ = declare_or_get_parameter<bool>(node_, "auto_start", true);
   follows_real_time_ = declare_or_get_parameter<bool>(node_, "follows_real_time", true);
+  publish_clock_ = declare_or_get_parameter<bool>(node_, "publish_clock", true);
   max_real_time_factor_ = max_rtf;
 
-  clock_pub_ = node_.create_publisher<rosgraph_msgs::msg::Clock>(
-    "/clock", rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local());
+  if (publish_clock_) {
+    clock_pub_ = node_.create_publisher<rosgraph_msgs::msg::Clock>(
+      "/clock", rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local());
+  }
   status_pub_ = node_.create_publisher<fss_time_interfaces::msg::SimClockStatus>(
-    "/fss/sim_clock_status", rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local());
+    "fss/sim_clock_status", rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local());
   control_srv_ = node_.create_service<fss_time_interfaces::srv::SimClockControl>(
-    "/fss/clock_control",
+    "fss/clock_control",
     [this](
       const std::shared_ptr<fss_time_interfaces::srv::SimClockControl::Request> request,
       std::shared_ptr<fss_time_interfaces::srv::SimClockControl::Response> response) {
@@ -117,7 +120,6 @@ TimeCoordinator::~TimeCoordinator()
     try {
       impl_->socket.close();
       impl_->pub_socket.close();
-      impl_->parent_lookup_socket.close();
       impl_->parent_sub_socket.close();
       impl_->context.close();
     } catch (const zmq::error_t &) {
@@ -143,26 +145,43 @@ void TimeCoordinator::start()
     std::remove(ipc_path.c_str());
   }
 
+  // bind the ROUTER socket for receiving requests from participants
   impl_->socket.set(zmq::sockopt::linger, 0);
   impl_->socket.set(zmq::sockopt::rcvhwm, 100000);
   impl_->socket.set(zmq::sockopt::rcvtimeo, 0);
   impl_->socket.bind(endpoint_);
+
+  // bind the PUB socket for publishing granted time to participants
   impl_->pub_socket.set(zmq::sockopt::linger, 0);
   impl_->pub_socket.set(zmq::sockopt::sndhwm, 100000);
   impl_->pub_socket.bind(pub_endpoint_);
 
+  // connect to the parent coordinator if specified
   if (has_parent_coordinator_) {
-    parent_pub_endpoint_ = request_parent_pub_endpoint();
-    impl_->parent_sub_socket.set(zmq::sockopt::linger, 0);
-    impl_->parent_sub_socket.set(zmq::sockopt::subscribe, "");
-    impl_->parent_sub_socket.connect(parent_pub_endpoint_);
-
+    // Create a participant backend to communicate with the parent coordinator (It auto connects to the parent coordinator's ROUTER socket when request_coordinator or register_participant or announce_next_safe_time is called).
     ZeroMqTimeParticipantOptions parent_options;
-    parent_options.participant_id = std::string(node_.get_name()) + "_coordinator_parent_participant";
+    parent_options.participant_id =
+      std::string(node_.get_name()) + "_coordinator_participant_" +
+      fss_time_tools::make_uuid();
     parent_options.coordinator_endpoint = parent_endpoint_;
     parent_participant_ =
       std::make_unique<ZeroMqTimeParticipantBackend>(std::move(parent_options), node_.get_clock());
     parent_participant_->register_participant();
+
+    // Get the parent coordinator's PUB endpoint so we can subscribe to it (for granted clock messages).
+    const auto parent_pub_reply =
+      parent_participant_->request_coordinator("GET_PUB_ENDPOINT", true);
+    std::istringstream input(parent_pub_reply);
+    std::string status;
+    input >> status >> parent_pub_endpoint_;
+    if (status != "PUB_ENDPOINT" || parent_pub_endpoint_.empty()) {
+      throw std::runtime_error(
+              "failed to get parent coordinator PUB endpoint from " + parent_endpoint_ +
+              ": " + parent_pub_reply);
+    }
+    impl_->parent_sub_socket.set(zmq::sockopt::linger, 0);
+    impl_->parent_sub_socket.set(zmq::sockopt::subscribe, "");
+    impl_->parent_sub_socket.connect(parent_pub_endpoint_);
   }
 
   {
@@ -175,11 +194,18 @@ void TimeCoordinator::start()
     advance_time_locked(sim_time_ns_);
   }
 
+  // this thread handles receiving messages from participants (ROUTER recv) and the parent coordinator (SUB recv) (if any)
   receive_thread_ = std::thread([this]() { receive_loop(); });
+
+  // create a wall timer for regulating the simulation clock
   reset_regulator_timer();
+
+  // create a wall timer for real time pacing
   if (follows_real_time_) {
     reset_real_time_timer();
   }
+
+  // create a wall timer for publishing the clock status
   clock_status_timer_ = node_.create_wall_timer(std::chrono::milliseconds(200), [this]() {
     on_clock_status_tick();
   });
@@ -244,7 +270,7 @@ void TimeCoordinator::receive_loop()
   };
   const auto poll_item_count = has_parent_coordinator_ ? 2u : 1u;
 
-  while (!stop_receive_.load()) {
+  while (!stop_receive_.load() && rclcpp::ok()) {
     try {
       poll_items[0].revents = 0;
       poll_items[1].revents = 0;
@@ -316,44 +342,6 @@ void TimeCoordinator::receive_parent_grant()
     if (participant.request_time_ns <= sim_time_ns_) {
       participant.has_new_request = false;
     }
-  }
-}
-
-std::string TimeCoordinator::request_parent_pub_endpoint()
-{
-  constexpr auto retry_period = std::chrono::milliseconds(200);
-  impl_->parent_lookup_socket.set(zmq::sockopt::linger, 0);
-  impl_->parent_lookup_socket.set(zmq::sockopt::sndtimeo, 100);
-  impl_->parent_lookup_socket.set(zmq::sockopt::rcvtimeo, 100);
-  impl_->parent_lookup_socket.set(
-    zmq::sockopt::routing_id,
-    std::string(node_.get_name()) + "_coordinator_pub_lookup");
-  impl_->parent_lookup_socket.connect(parent_endpoint_);
-
-  while (true) {
-    try {
-      const std::string request_text = "GET_PUB_ENDPOINT";
-      zmq::message_t request(request_text.begin(), request_text.end());
-      const auto sent = impl_->parent_lookup_socket.send(request, zmq::send_flags::none);
-      if (!sent) {
-        std::this_thread::sleep_for(retry_period);
-        continue;
-      }
-
-      zmq::message_t reply;
-      const auto received = impl_->parent_lookup_socket.recv(reply, zmq::recv_flags::none);
-      if (received) {
-        std::istringstream input(reply.to_string());
-        std::string status;
-        std::string endpoint;
-        input >> status >> endpoint;
-        if (status == "PUB_ENDPOINT" && !endpoint.empty()) {
-          return endpoint;
-        }
-      }
-    } catch (const zmq::error_t &) {
-    }
-    std::this_thread::sleep_for(retry_period);
   }
 }
 
@@ -544,20 +532,25 @@ void TimeCoordinator::try_update_clock_locked()
 void TimeCoordinator::advance_time_locked(int64_t target_time_ns)
 {
   if (has_parent_coordinator_) {
+    // If we have a parent coordinator, we don't advance the time directly. Instead, we announce the next safe time to the parent coordinator and wait for a grant.
     if (parent_participant_) {
       parent_participant_->announce_next_safe_time(target_time_ns);
     }
-    return;
   }
-  sim_time_ns_ = target_time_ns;
-  publish_clock_locked();
+  else {
+    // If we don't have a parent coordinator, we can advance the time directly.
+    sim_time_ns_ = target_time_ns;
+    publish_clock_locked();
+  }
 }
 
 void TimeCoordinator::publish_clock_locked()
 {
-  rosgraph_msgs::msg::Clock clock;
-  clock.clock = from_ns(sim_time_ns_);
-  clock_pub_->publish(clock);
+  if (publish_clock_ && clock_pub_) {
+    rosgraph_msgs::msg::Clock clock;
+    clock.clock = from_ns(sim_time_ns_);
+    clock_pub_->publish(clock);
+  }
   publish_granted_time_locked();
 }
 

@@ -1,8 +1,15 @@
 #ifndef FSS_TIME_TOOLS_HPP_
 #define FSS_TIME_TOOLS_HPP_
 
+#include <array>
+#include <chrono>
+#include <cstddef>
+#include <iomanip>
+#include <random>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 #include "fss_time/thread_time_participant.hpp"
 #include "fss_time/time_types.hpp"
@@ -87,6 +94,32 @@ inline void wait_until_ros_time_is_active(rclcpp::Node & node, bool verbose = fa
       node.get_logger(),
       "ros time is active.");
   }
+}
+
+/**
+ * @brief Generate a random UUID string.
+ * @return Random UUID string.
+ */
+inline std::string make_uuid()
+{
+  std::random_device random_device;
+  std::uniform_int_distribution<int> byte_distribution(0, 255);
+  std::array<unsigned char, 16> bytes{};
+  for (auto & byte : bytes) {
+    byte = static_cast<unsigned char>(byte_distribution(random_device));
+  }
+  bytes[6] = static_cast<unsigned char>((bytes[6] & 0x0f) | 0x40);
+  bytes[8] = static_cast<unsigned char>((bytes[8] & 0x3f) | 0x80);
+
+  std::ostringstream output;
+  output << std::hex << std::setfill('0');
+  for (std::size_t i = 0; i < bytes.size(); ++i) {
+    if (i == 4 || i == 6 || i == 8 || i == 10) {
+      output << '-';
+    }
+    output << std::setw(2) << static_cast<int>(bytes[i]);
+  }
+  return output.str();
 }
 
 /**

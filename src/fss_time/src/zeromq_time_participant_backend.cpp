@@ -1,6 +1,7 @@
 #include "fss_time/zeromq_time_participant_backend.hpp"
 
 #include <chrono>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <thread>
@@ -34,7 +35,7 @@ void ZeroMqTimeParticipantBackend::announce_next_safe_time(int64_t next_safe_tim
   std::lock_guard<std::mutex> lock(mutex_);
   start_locked();
   if (!registered_) {
-    if (!request_coordinator_locked("REGISTER", true)) {
+    if (request_coordinator_locked("REGISTER", true) != "OK") {
       throw std::runtime_error("failed to register fss_time participant");
     }
     registered_ = true;
@@ -43,7 +44,7 @@ void ZeroMqTimeParticipantBackend::announce_next_safe_time(int64_t next_safe_tim
 
   std::ostringstream message;
   message << "ANNOUNCE " << last_requested_time_ns_;
-  if (!request_coordinator_locked(message.str(), true)) {
+  if (request_coordinator_locked(message.str(), true) != "OK") {
     throw std::runtime_error("failed to announce fss_time participant request");
   }
 }
@@ -55,7 +56,7 @@ void ZeroMqTimeParticipantBackend::register_participant()
   if (registered_) {
     return;
   }
-  if (!request_coordinator_locked("REGISTER", true)) {
+  if (request_coordinator_locked("REGISTER", true) != "OK") {
     throw std::runtime_error("failed to register fss_time participant");
   }
   registered_ = true;
@@ -98,6 +99,15 @@ const std::string & ZeroMqTimeParticipantBackend::participant_id() const
   return options_.participant_id;
 }
 
+std::string ZeroMqTimeParticipantBackend::request_coordinator(
+  const std::string & message,
+  bool wait_forever)
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  start_locked();
+  return request_coordinator_locked(message, wait_forever);
+}
+
 void ZeroMqTimeParticipantBackend::start_locked()
 {
   if (connected_) {
@@ -112,13 +122,13 @@ void ZeroMqTimeParticipantBackend::start_locked()
   connected_ = true;
 }
 
-bool ZeroMqTimeParticipantBackend::request_coordinator_locked(
+std::string ZeroMqTimeParticipantBackend::request_coordinator_locked(
   const std::string & message,
   bool wait_forever)
 {
   constexpr auto retry_period = std::chrono::milliseconds(200);
   int attempts = 0;
-  while (wait_forever || attempts < 3) {
+  while ((wait_forever || attempts < 3) && rclcpp::ok()) {
     ++attempts;
     try {
       zmq::message_t request(message.begin(), message.end());
@@ -130,15 +140,21 @@ bool ZeroMqTimeParticipantBackend::request_coordinator_locked(
 
       zmq::message_t reply;
       const auto received = impl_->socket.recv(reply, zmq::recv_flags::none);
-      if (received && reply.to_string() == "OK") {
-        return true;
+      if (received) {
+        return reply.to_string();
       }
     } catch (const zmq::error_t &) {
+    }
+    if (attempts >= 5 && attempts % 5 == 0) {
+      std::cerr
+        << "\033[33m[fss_time::ZeroMqTimeParticipantBackend] waiting "
+        << attempts * retry_period.count() / 1000 << " s for coordinator response to \"" << message
+        << "\" from " << options_.coordinator_endpoint << ".\033[0m" << std::endl;
     }
     std::this_thread::sleep_for(retry_period);
   }
 
-  return false;
+  return "";
 }
 
 }  // namespace fss_time

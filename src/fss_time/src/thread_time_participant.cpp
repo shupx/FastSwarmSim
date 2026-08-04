@@ -1,6 +1,7 @@
 #include "fss_time/thread_time_participant.hpp"
 
 #include "fss_time/time_types.hpp"
+#include "fss_time/tools.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -66,7 +67,8 @@ ZeroMqTimeParticipantOptions make_options(
   options.participant_id = sanitize_name(
     base_name + "_" +
     std::to_string(static_cast<long long>(getpid())) + "_" +
-    std::to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())));
+    std::to_string(std::hash<std::thread::id>{}(std::this_thread::get_id())) + "_" +
+    fss_time_tools::make_uuid());
   options.coordinator_endpoint =
     declare_or_get_parameter_locked<std::string>(node, "fss_time_coordinator_endpoint", options.coordinator_endpoint);
   return options;

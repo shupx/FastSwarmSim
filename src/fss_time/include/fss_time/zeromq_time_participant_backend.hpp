@@ -90,9 +90,17 @@ public:
    */
   const std::string & participant_id() const;
 
+  /**
+   * @brief Send a raw coordinator request and return its reply.
+   * @param message Request message.
+   * @param wait_forever true to retry until a reply is received.
+   * @return Coordinator reply text, or an empty string if no reply was received.
+   */
+  std::string request_coordinator(const std::string & message, bool wait_forever);
+
 private:
   void start_locked();
-  bool request_coordinator_locked(const std::string & message, bool wait_forever);
+  std::string request_coordinator_locked(const std::string & message, bool wait_forever);
 
   struct Impl;
 

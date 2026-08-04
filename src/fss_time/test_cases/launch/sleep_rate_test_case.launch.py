@@ -40,6 +40,7 @@ def generate_launch_description():
                     launch_arguments={
                         "max_real_time_factor": LaunchConfiguration("coordinator.max_real_time_factor"),
                         "auto_start": LaunchConfiguration("coordinator.auto_start"),
+                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
                     }.items(),
                 ),
             ],

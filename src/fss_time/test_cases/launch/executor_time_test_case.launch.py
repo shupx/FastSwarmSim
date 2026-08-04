@@ -64,11 +64,15 @@ def generate_launch_description():
         DeclareLaunchArgument("coordinator.auto_start", default_value="true"),
         
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
-        SetParameter(name="fss_time_coordinator_endpoint", value=LaunchConfiguration("fss_time_coordinator_endpoint")),
+
+        DeclareLaunchArgument("fss_time_parent_coordinator_endpoint", default_value=""),
 
         DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+
+        # for all time participants
+        SetParameter(name="fss_time_coordinator_endpoint", value=LaunchConfiguration("fss_time_coordinator_endpoint")),
 
         TimerAction(
             period=0.2,
@@ -78,6 +82,8 @@ def generate_launch_description():
                     launch_arguments={
                         "max_real_time_factor": LaunchConfiguration("coordinator.max_real_time_factor"),
                         "auto_start": LaunchConfiguration("coordinator.auto_start"),
+                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                        "fss_time_parent_coordinator_endpoint": LaunchConfiguration("fss_time_parent_coordinator_endpoint"),
                     }.items(),
                 ),
             ],
