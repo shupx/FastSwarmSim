@@ -1,0 +1,182 @@
+<?xml version="1.0" ?>
+<robot name="iris">
+
+  <material name="grey">
+    <color rgba=".7 .7 .7 1"/>
+  </material> 
+
+  <material name="green">
+    <color rgba=".1 .8 .1 1"/>
+  </material> 
+
+  <material name="blue">
+    <color rgba=".3 .5 .8 1"/>
+  </material> 
+
+  <material name="red">
+    <color rgba=".9 .1 .1 1"/>
+  </material> 
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="0.0" upper="0.0" effort="0.0" velocity="0.0"/>
+  </joint>
+  <joint name="rotor_0_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="rotor_0"/>
+    <origin xyz="0.13  -0.22   0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1e+16" upper="1e+16" effort="0.0" velocity="0.0"/>
+  </joint>
+  <joint name="rotor_1_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="rotor_1"/>
+    <origin xyz="-0.13   0.2    0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1e+16" upper="1e+16" effort="0.0" velocity="0.0"/>
+  </joint>
+  <joint name="rotor_2_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="rotor_2"/>
+    <origin xyz="0.13  0.22  0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1e+16" upper="1e+16" effort="0.0" velocity="0.0"/>
+  </joint>
+  <joint name="rotor_3_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="rotor_3"/>
+    <origin xyz="-0.13  -0.2    0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1e+16" upper="1e+16" effort="0.0" velocity="0.0"/>
+  </joint>
+  <joint name="gps0_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="gps0__link"/>
+    <origin xyz="0.1 0  0" rpy="0 0 0"/>
+    <axis xyz="0 0 0"/>
+    <limit lower="0" upper="0" effort="0" velocity="0"/>
+  </joint>
+  <link name="base_link">
+    <!-- <inertial>
+      <mass value="1.5"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.029125" ixy="0" ixz="0" iyy="0.029125" iyz="0" izz="0.055225"/>
+    </inertial> -->
+    <collision name="base_link_inertia_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.47 0.47 0.11"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://px4_rotor_sim/model/meshes/iris.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="red"/> <!-- Added by Peixuan Shu -->
+    </visual>
+  </link>
+  <link name="imu_link">
+    <inertial>
+      <mass value="0.015"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="1e-05" ixy="0" ixz="0" iyy="1e-05" iyz="0" izz="1e-05"/>
+    </inertial>
+  </link>
+  <link name="rotor_0">
+    <inertial>
+      <mass value="0.005"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="9.75e-07" ixy="0" ixz="0" iyy="0.000273104" iyz="0" izz="0.000274004"/>
+    </inertial>
+    <collision name="rotor_0_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.128" length="0.005"/>
+      </geometry>
+    </collision>
+    <visual name="rotor_0_visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://px4_rotor_sim/model/meshes/iris_prop_ccw.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="red"/> <!-- Added by Peixuan Shu -->
+    </visual>
+  </link>
+  <link name="rotor_1">
+    <inertial>
+      <mass value="0.005"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="9.75e-07" ixy="0" ixz="0" iyy="0.000273104" iyz="0" izz="0.000274004"/>
+    </inertial>
+    <collision name="rotor_1_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.128" length="0.005"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://px4_rotor_sim/model/meshes/iris_prop_ccw.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="grey"/> <!-- Added by Peixuan Shu -->
+    </visual>
+  </link>
+  <link name="rotor_2">
+    <inertial>
+      <mass value="0.005"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="9.75e-07" ixy="0" ixz="0" iyy="0.000273104" iyz="0" izz="0.000274004"/>
+    </inertial>
+    <collision name="rotor_2_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.128" length="0.005"/>
+      </geometry>
+    </collision>
+    <visual name="rotor_2_visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://px4_rotor_sim/model/meshes/iris_prop_cw.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="red"/> <!-- Added by Peixuan Shu -->
+    </visual>
+  </link>
+  <link name="rotor_3">
+    <inertial>
+      <mass value="0.005"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="9.75e-07" ixy="0" ixz="0" iyy="0.000273104" iyz="0" izz="0.000274004"/>
+    </inertial>
+    <collision name="rotor_3_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.128" length="0.005"/>
+      </geometry>
+    </collision>
+    <visual name="rotor_3_visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://px4_rotor_sim/model/meshes/iris_prop_cw.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="grey"/> <!-- Added by Peixuan Shu -->
+    </visual>
+  </link>
+  <link name="gps0__link">
+    <inertial>
+      <mass value="0.015"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="1e-05" ixy="0" ixz="0" iyy="1e-05" iyz="0" izz="1e-05"/>
+    </inertial>
+    <!-- <visual name="gps0__visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.01" length="0.002"/>
+      </geometry>
+    </visual> -->
+  </link>
+</robot>

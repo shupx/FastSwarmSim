@@ -13,10 +13,9 @@ namespace fss_time
  * @brief Fixed-period loop helper that uses fss_time::sleep_for().
  *
  * The rate uses the supplied node's clock for interval accounting. During
- * construction, if the node parameter `use_fss_sim_time` is true, the node's
- * `use_sim_time` parameter is enabled and the node clock is confirmed to be in
- * active ROS time before the initial interval time is read. Each sleep cycle
- * uses a cached fss_time setting and avoids repeated parameter lookups.
+ * construction, if the node parameter `use_fss_sim_time` is true, the node
+ * announces next_safe_time to the fss_time coordinator before sleep. 
+ * Otherwise, it is equal to the rclcpp::Rate(period, node.get_clock()) behavior.
  */
 class Rate
 {

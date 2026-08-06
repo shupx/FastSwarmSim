@@ -28,8 +28,9 @@ def make_drones(context):
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("num_drones", default_value="3"),
-        DeclareLaunchArgument("use_sim_time", default_value="true"),
+        DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
-        SetParameter(name="use_sim_time", value=LaunchConfiguration("use_sim_time")),
+        SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+        SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         OpaqueFunction(function=make_drones),
     ])

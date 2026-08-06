@@ -1,0 +1,36 @@
+/**:
+  ros__parameters:
+    # Parameters retained from the ROS 1 px4_rotor_sim launch files.
+    mavros_use_egm96: false
+    visualize_max_freq: 20.0
+    enable_history_path: true
+    visualize_path_time: 30.0
+    visualize_tf_frame: map
+    visualize_marker_name: uav
+    base_link_name: base_link
+    base_link_tf_prefix: ''
+    rotor_0_joint_name: rotor_0_joint
+    rotor_1_joint_name: rotor_1_joint
+    rotor_2_joint_name: rotor_2_joint
+    rotor_3_joint_name: rotor_3_joint
+    local_pos_source: 0
+    world_origin_latitude_deg: 39.978861
+    world_origin_longitude_deg: 116.339803
+    world_origin_AMSL_alt_metre: 53.0
+    init_x_East_metre: 0.0
+    init_y_North_metre: 0.0
+    init_z_Up_metre: 0.0
+    init_roll_deg: 0.0
+    init_pitch_deg: 0.0
+    init_yaw_deg: 0.0
+    local_position.frame_id: map
+    local_position.tf.send: false
+    local_position.tf.frame_id: map
+    local_position.tf.child_frame_id: base_link
+    global_position.frame_id: map
+    global_position.tf.global_frame_id: earth
+    global_position.tf.child_frame_id: base_link
+    imu.frame_id: base_link
+    setpoint_raw.thrust_scaling: 1.0
+    use_fss_sim_time: true
+    fss_time_coordinator_endpoint: ipc:///tmp/fss_time_coordinator.ipc

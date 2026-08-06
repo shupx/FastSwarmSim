@@ -1,0 +1,460 @@
+/**:
+  ros__parameters:
+    # mavros_sim settings
+    
+    mavros_use_egm96: false # Enable transforming from AMSL to Ellipsoid(WGS84) altitude of mavros/global_position/global using egm96 lib. Loading egm96_5 library needs extra 18MB RAM per node!
+    
+    
+    
+    
+    # Visualizer parameters
+    
+    # visualize_max_freq: 30 # (Hz) Maximum base_link tf publishing rate 
+    # enable_history_path: true # Enable visualizing history path (long history path slows the simulation speed significantly).
+    # visualize_path_time: 30 # (s) Visualizing history path time (long history path slows the simulation speed significantly).
+    visualize_tf_frame: map # tf world frame name
+    base_link_name: base_link # base link name in the robot urdf
+    # base_link_tf_prefix: uav1 # tf prefix added to the base_link_name
+    rotor_0_joint_name: rotor_0_joint # rotor revolute joint name in the robot urdf
+    rotor_1_joint_name: rotor_1_joint # rotor revolute joint name in the robot urdf
+    rotor_2_joint_name: rotor_2_joint # rotor revolute joint name in the robot urdf
+    rotor_3_joint_name: rotor_3_joint # rotor revolute joint name in the robot urdf
+    
+    ## 0 for mocap (use local_position/pose for visualization directly)
+    ## 1 for GPS (use global_position/global relative to the world_origin_gps for x,y visualization, use local_position/pose for z and attitude visualization)
+    # local_pos_source: 0  # mavros/local_position/pose source
+    
+    ## world origin gps values as the ref of visualizing the local position if local_pos_source = 1
+    # world_origin_latitude_deg: 39.978861  # degree
+    # world_origin_longitude_deg: 116.339803  # degree
+    # world_origin_AMSL_alt_metre: 53.0  # metre (Above Mean Sea Level) (not WGS84/ELlipsoid of GPS)
+    
+    
+    
+    
+    # Dynamics parameters
+    
+    ## initial position in the world
+    # init_x_East_metre: 0.0
+    # init_y_North_metre: 0.0
+    # init_z_Up_metre: 0.0
+    
+    
+    
+    
+    # PX4_SITL parameters 
+    
+    ## 0 (mocap/uwb): mavros/local_position/pose will output the world coordinates of the drone
+    ## 1 (gps): mavros/local_position/pose will output the coordinates relative to the initial point or gp_origin which can be changed by mavros/globa_position/set_gp_origin
+    # local_pos_source: 0  # simulated local_position/pose source
+    
+    ## world origin gps values as the ref of calculting the simulated gps coordinates
+    # world_origin_latitude_deg: 39.978861  # degree
+    # world_origin_longitude_deg: 116.339803  # degree
+    # world_origin_AMSL_alt_metre: 53.0  # metre (Above Mean Sea Level) (not WGS84/ELlipsoid of GPS)
+    
+    ## For px4 parameters, refer to https://docs.px4.io/v1.13/en/advanced_config/parameter_reference.html
+    
+    # /**
+    #  * Hover thrust
+    #  *
+    #  * Vertical thrust required to hover.
+    #  * This value is mapped to center stick for manual throttle control.
+    #  * With this value set to the thrust required to hover, transition
+    #  * from manual to Altitude or Position mode while hovering will occur with the
+    #  * throttle stick near center, which is then interpreted as (near)
+    #  * zero demand for vertical speed.
+    #  *
+    #  * This parameter is also important for the landing detection to work correctly.
+    #  *
+    #  * @unit norm
+    #  * @min 0.1
+    #  * @max 0.8
+    #  * @decimal 2
+    #  * @increment 0.01
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_THR_HOVER: 0.5
+    
+    # /**
+    #  * Thrust to motor control signal model parameter
+    #  *
+    #  * Parameter used to model the nonlinear relationship between
+    #  * motor control signal (e.g. PWM) and static thrust.
+    #  *
+    #  * The model is: rel_thrust = factor * rel_signal^2 + (1-factor) * rel_signal,
+    #  * where rel_thrust is the normalized thrust between 0 and 1, and
+    #  * rel_signal is the relative motor control signal between 0 and 1.
+    #  *
+    #  * @min 0.0
+    #  * @max 1.0
+    #  * @decimal 1
+    #  * @increment 0.1
+    #  * @group PWM Outputs
+    #  */
+    THR_MDL_FAC: 0.3 # default 0.0
+    
+    # /**
+    #  * Minimum collective thrust in auto thrust control
+    #  *
+    #  * It's recommended to set it > 0 to avoid free fall with zero thrust.
+    #  * Note: Without airmode zero thrust leads to zero roll/pitch control authority. (see MC_AIRMODE)
+    #  *
+    #  * @unit norm
+    #  * @min 0.05
+    #  * @max 1.0
+    #  * @decimal 2
+    #  * @increment 0.01
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_THR_MIN: 0.12
+    
+    # /**
+    #  * Maximum thrust in auto thrust control
+    #  *
+    #  * Limit max allowed thrust
+    #  *
+    #  * @unit norm
+    #  * @min 0.0
+    #  * @max 1.0
+    #  * @decimal 2
+    #  * @increment 0.01
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_THR_MAX: 1.0
+    
+    # /**
+    #  * Proportional gain for vertical position error
+    #  *
+    #  * @min 0.0
+    #  * @max 1.5
+    #  * @decimal 2
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_Z_P: 1.0
+    
+    # /**
+    #  * Proportional gain for vertical velocity error
+    #  *
+    #  * defined as correction acceleration in m/s^2 per m/s velocity error
+    #  *
+    #  * @min 2.0
+    #  * @max 15.0
+    #  * @decimal 2
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_Z_VEL_P_ACC: 4.0
+    
+    # /**
+    #  * Integral gain for vertical velocity error
+    #  *
+    #  * defined as correction acceleration in m/s^2 per m velocity integral
+    #  *
+    #  * Non zero value allows hovering thrust estimation on stabilized or autonomous takeoff.
+    #  *
+    #  * @min 0.2
+    #  * @max 3.0
+    #  * @decimal 3
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_Z_VEL_I_ACC: 2.0
+    
+    # /**
+    #  * Differential gain for vertical velocity error
+    #  *
+    #  * defined as correction acceleration in m/s^2 per m/s^2 velocity derivative
+    #  *
+    #  * @min 0.0
+    #  * @max 2.0
+    #  * @decimal 3
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_Z_VEL_D_ACC: 0.0
+    
+    # /**
+    #  * Proportional gain for horizontal position error
+    #  *
+    #  * @min 0.0
+    #  * @max 2.0
+    #  * @decimal 2
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_XY_P: 0.95
+    
+    # /**
+    #  * Proportional gain for horizontal velocity error
+    #  *
+    #  * defined as correction acceleration in m/s^2 per m/s velocity error
+    #  *
+    #  * @min 1.2
+    #  * @max 5.0
+    #  * @decimal 2
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_XY_VEL_P_ACC: 1.8
+    
+    # /**
+    #  * Integral gain for horizontal velocity error
+    #  *
+    #  * defined as correction acceleration in m/s^2 per m velocity integral
+    #  * Non-zero value allows to eliminate steady state errors in the presence of disturbances like wind.
+    #  *
+    #  * @min 0.0
+    #  * @max 60.0
+    #  * @decimal 3
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_XY_VEL_I_ACC: 0.4
+    
+    # /**
+    #  * Differential gain for horizontal velocity error. Small values help reduce fast oscillations. If value is too big oscillations will appear again.
+    #  *
+    #  * defined as correction acceleration in m/s^2 per m/s^2 velocity derivative
+    #  *
+    #  * @min 0.1
+    #  * @max 2.0
+    #  * @decimal 3
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_XY_VEL_D_ACC: 0.2
+    
+    # /**
+    #  * Roll P gain
+    #  *
+    #  * Roll proportional gain, i.e. desired angular speed in rad/s for error 1 rad.
+    #  *
+    #  * @min 0.0
+    #  * @max 12
+    #  * @decimal 2
+    #  * @increment 0.1
+    #  * @group Multicopter Attitude Control
+    #  */
+    MC_ROLL_P: 6.5
+    
+    # /**
+    #  * Pitch P gain
+    #  *
+    #  * Pitch proportional gain, i.e. desired angular speed in rad/s for error 1 rad.
+    #  *
+    #  * @min 0.0
+    #  * @max 12
+    #  * @decimal 2
+    #  * @increment 0.1
+    #  * @group Multicopter Attitude Control
+    #  */
+    MC_PITCH_P: 6.5
+    
+    # /**
+    #  * Yaw P gain
+    #  *
+    #  * Yaw proportional gain, i.e. desired angular speed in rad/s for error 1 rad.
+    #  *
+    #  * @min 0.0
+    #  * @max 5
+    #  * @decimal 2
+    #  * @increment 0.1
+    #  * @group Multicopter Attitude Control
+    #  */
+    MC_YAW_P: 2.8
+    
+    # /**
+    #  * Yaw weight
+    #  *
+    #  * A fraction [0,1] deprioritizing yaw compared to roll and pitch in non-linear attitude control.
+    #  * Deprioritizing yaw is necessary because multicopters have much less control authority
+    #  * in yaw compared to the other axes and it makes sense because yaw is not critical for
+    #  * stable hovering or 3D navigation.
+    #  *
+    #  * For yaw control tuning use MC_YAW_P. This ratio has no inpact on the yaw gain.
+    #  *
+    #  * @min 0.0
+    #  * @max 1.0
+    #  * @decimal 2
+    #  * @increment 0.1
+    #  * @group Multicopter Attitude Control
+    #  */
+    MC_YAW_WEIGHT: 0.4
+    
+    # /**
+    #  * Max roll rate
+    #  *
+    #  * Limit for roll rate in manual and auto modes (except acro).
+    #  * Has effect for large rotations in autonomous mode, to avoid large control
+    #  * output and mixer saturation.
+    #  *
+    #  * This is not only limited by the vehicle's properties, but also by the maximum
+    #  * measurement rate of the gyro.
+    #  *
+    #  * @unit deg/s
+    #  * @min 0.0
+    #  * @max 1800.0
+    #  * @decimal 1
+    #  * @increment 5
+    #  * @group Multicopter Attitude Control
+    #  */
+    MC_ROLLRATE_MAX: 220.0
+    
+    # /**
+    #  * Max pitch rate
+    #  *
+    #  * Limit for pitch rate in manual and auto modes (except acro).
+    #  * Has effect for large rotations in autonomous mode, to avoid large control
+    #  * output and mixer saturation.
+    #  *
+    #  * This is not only limited by the vehicle's properties, but also by the maximum
+    #  * measurement rate of the gyro.
+    #  *
+    #  * @unit deg/s
+    #  * @min 0.0
+    #  * @max 1800.0
+    #  * @decimal 1
+    #  * @increment 5
+    #  * @group Multicopter Attitude Control
+    #  */
+    MC_PITCHRATE_MAX: 220.0
+    
+    # /**
+    #  * Max yaw rate
+    #  *
+    #  * @unit deg/s
+    #  * @min 0.0
+    #  * @max 1800.0
+    #  * @decimal 1
+    #  * @increment 5
+    #  * @group Multicopter Attitude Control
+    #  */
+    MC_YAWRATE_MAX: 50.0 # default 200.0
+    
+    
+    # /**
+    #  * Maximum horizontal velocity
+    #  *
+    #  * Maximum horizontal velocity in AUTO mode. If higher speeds
+    #  * are commanded in a mission they will be capped to this velocity.
+    #  *
+    #  * @unit m/s
+    #  * @min 0.0
+    #  * @max 20.0
+    #  * @increment 1
+    #  * @decimal 2
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_XY_VEL_MAX: 12.0
+    
+    
+    # /**
+    #  * Maximum ascent velocity
+    #  *
+    #  * Ascent velocity in manual modes and offboard.
+    #  * For auto modes, see MPC_Z_V_AUTO_UP
+    #  *
+    #  * @unit m/s
+    #  * @min 0.5
+    #  * @max 8.0
+    #  * @increment 0.1
+    #  * @decimal 1
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_Z_VEL_MAX_UP: 3.0
+    
+    # /**
+    #  * Maximum descent velocity
+    #  *
+    #  * Descent velocity in manual modes and offboard.
+    #  * For auto modes, see MPC_Z_V_AUTO_DN
+    #  *
+    #  * @unit m/s
+    #  * @min 0.5
+    #  * @max 4.0
+    #  * @increment 0.1
+    #  * @decimal 1
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_Z_VEL_MAX_DN: 1.0
+    
+    # /**
+    #  * Maximum vertical acceleration in velocity controlled modes down
+    #  *
+    #  * @unit m/s^2
+    #  * @min 2.0
+    #  * @max 15.0
+    #  * @increment 1
+    #  * @decimal 2
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_ACC_DOWN_MAX: 3.0
+    
+    # /**
+    #  * Position control smooth takeoff ramp time constant
+    #  *
+    #  * Increasing this value will make automatic and manual takeoff slower.
+    #  * If it's too slow the drone might scratch the ground and tip over.
+    #  * A time constant of 0 disables the ramp
+    #  *
+    #  * @min 0
+    #  * @max 5
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_TKO_RAMP_T: 3.0 # s
+    
+    # /**
+    #  * Enforced delay between arming and takeoff
+    #  *
+    #  * For altitude controlled modes the time from arming the motors until
+    #  * a takeoff is possible gets forced to be at least MPC_SPOOLUP_TIME seconds
+    #  * to ensure the motors and propellers can sppol up and reach idle speed before
+    #  * getting commanded to spin faster. This delay is particularly useful for vehicles
+    #  * with slow motor spin-up e.g. because of large propellers.
+    #  *
+    #  * @min 0
+    #  * @max 10
+    #  * @unit s
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_SPOOLUP_TIME: 1.0
+    
+    # /**
+    #  * Overall Horizonal Velocity Limit
+    #  *
+    #  * If set to a value greater than zero, other parameters are automatically set (such as
+    #  * MPC_XY_VEL_MAX or MPC_VEL_MANUAL).
+    #  * If set to a negative value, the existing individual parameters are used.
+    #  *
+    #  * @min -20
+    #  * @max 20
+    #  * @decimal 1
+    #  * @increment 1
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_XY_VEL_ALL: -10.0
+    
+    # /**
+    #  * Overall Vertical Velocity Limit
+    #  *
+    #  * If set to a value greater than zero, other parameters are automatically set (such as
+    #  * MPC_Z_VEL_MAX_UP or MPC_LAND_SPEED).
+    #  * If set to a negative value, the existing individual parameters are used.
+    #  *
+    #  * @min -3
+    #  * @max 8
+    #  * @decimal 1
+    #  * @increment 0.5
+    #  * @group Multicopter Position Control
+    #  */
+    MPC_Z_VEL_ALL: -3.0
+    
+    # /**
+    #  * Multicopter land detection trigger time
+    #  *
+    #  * Total time it takes to go through all three land detection stages:
+    #  * ground contact, maybe landed, landed
+    #  * when all necessary conditions are constantly met.
+    #  *
+    #  * @unit s
+    #  * @min 0.1
+    #  * @max 10.0
+    #  * @decimal 1
+    #  *
+    #  * @group Land Detector
+    #  */
+    LNDMC_TRIG_TIME: 1.0

@@ -11,6 +11,7 @@ namespace fss_time
  *
  * If the node parameter `use_fss_sim_time` is true, the current thread's
  * fss_time participant announces `until` before delegating to the node clock.
+ * Otherwise, it is equal to the node.get_clock()->sleep_until(until) behavior.
  *
  * @param node Node whose clock and fss_time parameters are used.
  * @param until Absolute time to sleep until.
@@ -27,6 +28,7 @@ bool sleep_until(
  *
  * If the node parameter `use_fss_sim_time` is true, the current thread's
  * fss_time participant announces the computed end time before sleeping.
+ * Otherwise, it is equal to the node.get_clock()->sleep_for(rel_time) behavior.
  *
  * @param node Node whose clock and fss_time parameters are used.
  * @param rel_time Relative duration to sleep for.

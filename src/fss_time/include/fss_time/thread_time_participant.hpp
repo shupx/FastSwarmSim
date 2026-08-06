@@ -50,7 +50,14 @@ public:
   void unregister_participant();
 
   /**
-   * @brief Set whether this thread's participant follows real time.
+   * @brief Set whether this thread's participant follows real time. 
+   * The default is true, which means the coordinator will apply a real-time
+   *  floor to the simulation time even if some participants do not 
+   * finish their work in real time, like what happens in a real-time system. 
+   * Setting this to false will allow the simulation to run slower than 
+   * real time if necessary, and make sure every participant 
+   * finishes its work before the next simulation time step is allowed,
+   * which is necessary for stable simulation of physics and control systems. 
    * @param follows_real_time true to apply the coordinator real-time floor.
    */
   void set_follows_real_time(bool follows_real_time);

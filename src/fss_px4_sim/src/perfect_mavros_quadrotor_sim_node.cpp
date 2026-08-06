@@ -1,9 +1,12 @@
 #include <cmath>
 #include <algorithm>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 
-#include "fss_time/thread_time_participant.hpp"
+#include "fss_time/rate.hpp"
+#include "fss_time/executors.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "mavros_msgs/msg/position_target.hpp"
@@ -26,7 +29,6 @@ public:
     velocity_publish_rate_ = declare_parameter<double>("velocity_publish_rate", 30.0);
     odom_publish_rate_ = declare_parameter<double>("odom_publish_rate", 30.0);
     state_publish_rate_ = declare_parameter<double>("state_publish_rate", 10.0);
-    const auto enable_fss_time = declare_parameter<bool>("enable_fss_time", true);
     const auto init_x = declare_parameter<double>("init_x", 0.0);
     const auto init_y = declare_parameter<double>("init_y", 0.0);
     const auto init_z = declare_parameter<double>("init_z", 0.0);
@@ -62,30 +64,26 @@ public:
     state_pub_ = create_publisher<mavros_msgs::msg::State>("mavros/state", rclcpp::QoS(10));
 
     initialize_state(init_x, init_y, init_z, init_yaw_deg * M_PI / 180.0);
-    if (enable_fss_time) {
-      auto participant_id = std::string(get_namespace());
-      if (participant_id.empty() || participant_id == "/") {
-        participant_id = get_name();
-      }
-      time_participant_ = &fss_time::thread_time_participant::for_current_thread(*this, participant_id);
-      time_participant_->announce_next_safe_time(now() + rclcpp::Duration::from_seconds(0.01));
-    }
-    pose_timer_ = create_publish_timer(pose_publish_rate_, [this]() { publish_pose(); });
-    velocity_timer_ = create_publish_timer(velocity_publish_rate_, [this]() { publish_velocity(); });
-    odom_timer_ = create_publish_timer(odom_publish_rate_, [this]() { publish_odom(); });
-    state_timer_ = create_publish_timer(state_publish_rate_, [this]() { publish_state(); });
+    last_pose_publish_ = now();
+    last_velocity_publish_ = now();
+    last_odom_publish_ = now();
+    last_state_publish_ = now();
 
     RCLCPP_INFO(get_logger(), "Perfect MAVROS drone ready on relative namespace '%s'", get_namespace());
   }
 
-private:
-  template<typename Callback>
-  rclcpp::TimerBase::SharedPtr create_publish_timer(double rate_hz, Callback callback)
+  void run()
   {
-    const auto period = std::chrono::duration<double>(1.0 / std::max(1.0, rate_hz));
-    return create_wall_timer(std::chrono::duration_cast<std::chrono::nanoseconds>(period), callback);
+    fss_time::Rate rate(*this, 100.0);
+    while (rclcpp::ok()) {
+      const auto stamp = now();
+      std::scoped_lock lock(state_mutex_);
+      publish_due(stamp);
+      rate.sleep();
+    }
   }
 
+private:
   void initialize_state(double x, double y, double z, double yaw)
   {
     current_pose_.header.frame_id = "map";
@@ -113,6 +111,7 @@ private:
 
   void setpoint_callback(const mavros_msgs::msg::PositionTarget::SharedPtr msg)
   {
+    std::scoped_lock lock(state_mutex_);
     const auto stamp = now();
     if (current_state_.mode != "OFFBOARD" || !current_state_.armed) {
       hold_position(stamp);
@@ -120,19 +119,38 @@ private:
     }
 
     current_pose_.header.stamp = stamp;
+    const auto dt = last_setpoint_time_.nanoseconds() == 0 ? 0.0 :
+      std::max(0.0, (stamp - last_setpoint_time_).seconds());
+    last_setpoint_time_ = stamp;
     if ((msg->type_mask & mavros_msgs::msg::PositionTarget::IGNORE_PX) == 0) {
       current_pose_.pose.position.x = msg->position.x;
+    } else if ((msg->type_mask & mavros_msgs::msg::PositionTarget::IGNORE_VX) == 0) {
+      current_pose_.pose.position.x += msg->velocity.x * dt;
     }
     if ((msg->type_mask & mavros_msgs::msg::PositionTarget::IGNORE_PY) == 0) {
       current_pose_.pose.position.y = msg->position.y;
+    } else if ((msg->type_mask & mavros_msgs::msg::PositionTarget::IGNORE_VY) == 0) {
+      current_pose_.pose.position.y += msg->velocity.y * dt;
     }
     if ((msg->type_mask & mavros_msgs::msg::PositionTarget::IGNORE_PZ) == 0) {
       current_pose_.pose.position.z = msg->position.z;
+    } else if ((msg->type_mask & mavros_msgs::msg::PositionTarget::IGNORE_VZ) == 0) {
+      current_pose_.pose.position.z += msg->velocity.z * dt;
     }
 
     if ((msg->type_mask & mavros_msgs::msg::PositionTarget::IGNORE_YAW) == 0) {
       tf2::Quaternion q;
       q.setRPY(0.0, 0.0, msg->yaw);
+      current_pose_.pose.orientation = tf2::toMsg(q);
+    } else if ((msg->type_mask & mavros_msgs::msg::PositionTarget::IGNORE_YAW_RATE) == 0) {
+      tf2::Quaternion q_current;
+      tf2::fromMsg(current_pose_.pose.orientation, q_current);
+      double roll = 0.0;
+      double pitch = 0.0;
+      double yaw = 0.0;
+      tf2::Matrix3x3(q_current).getRPY(roll, pitch, yaw);
+      tf2::Quaternion q;
+      q.setRPY(0.0, 0.0, yaw + msg->yaw_rate * dt);
       current_pose_.pose.orientation = tf2::toMsg(q);
     }
 
@@ -178,37 +196,44 @@ private:
   {
     current_pose_.header.stamp = now();
     pose_pub_->publish(current_pose_);
-    announce_next(pose_publish_rate_);
   }
 
   void publish_velocity()
   {
     current_velocity_.header.stamp = now();
     velocity_pub_->publish(current_velocity_);
-    announce_next(velocity_publish_rate_);
   }
 
   void publish_odom()
   {
     sync_odom(now());
     odom_pub_->publish(current_odom_);
-    announce_next(odom_publish_rate_);
   }
 
   void publish_state()
   {
     current_state_.header.stamp = now();
     state_pub_->publish(current_state_);
-    announce_next(state_publish_rate_);
   }
 
-  void announce_next(double rate_hz)
+  void publish_due(const rclcpp::Time & stamp)
   {
-    if (!time_participant_) {
-      return;
+    if ((stamp - last_pose_publish_).seconds() >= 1.0 / std::max(1.0, pose_publish_rate_)) {
+      publish_pose();
+      last_pose_publish_ = stamp;
     }
-    time_participant_->announce_next_safe_time(
-      now() + rclcpp::Duration::from_seconds(1.0 / std::max(1.0, rate_hz)));
+    if ((stamp - last_velocity_publish_).seconds() >= 1.0 / std::max(1.0, velocity_publish_rate_)) {
+      publish_velocity();
+      last_velocity_publish_ = stamp;
+    }
+    if ((stamp - last_odom_publish_).seconds() >= 1.0 / std::max(1.0, odom_publish_rate_)) {
+      publish_odom();
+      last_odom_publish_ = stamp;
+    }
+    if ((stamp - last_state_publish_).seconds() >= 1.0 / std::max(1.0, state_publish_rate_)) {
+      publish_state();
+      last_state_publish_ = stamp;
+    }
   }
 
   rclcpp::Subscription<mavros_msgs::msg::PositionTarget>::SharedPtr setpoint_sub_;
@@ -218,12 +243,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr velocity_pub_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<mavros_msgs::msg::State>::SharedPtr state_pub_;
-  rclcpp::TimerBase::SharedPtr pose_timer_;
-  rclcpp::TimerBase::SharedPtr velocity_timer_;
-  rclcpp::TimerBase::SharedPtr odom_timer_;
-  rclcpp::TimerBase::SharedPtr state_timer_;
-  fss_time::thread_time_participant * time_participant_{nullptr};
-
+  std::mutex state_mutex_;
   geometry_msgs::msg::PoseStamped current_pose_;
   geometry_msgs::msg::TwistStamped current_velocity_;
   nav_msgs::msg::Odometry current_odom_;
@@ -232,12 +252,23 @@ private:
   double velocity_publish_rate_{30.0};
   double odom_publish_rate_{30.0};
   double state_publish_rate_{10.0};
+  rclcpp::Time last_setpoint_time_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time last_pose_publish_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time last_velocity_publish_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time last_odom_publish_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time last_state_publish_{0, 0, RCL_ROS_TIME};
 };
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<PerfectMavrosDrone>());
+  auto node = std::make_shared<PerfectMavrosDrone>();
+  fss_time::executors::SingleThreadedExecutor executor;
+  executor.add_node(node);
+  std::thread spin_thread([&executor]() { executor.spin(); });
+  node->run();
+  executor.cancel();
   rclcpp::shutdown();
+  spin_thread.join();
   return 0;
 }

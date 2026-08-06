@@ -1,11 +1,25 @@
 # PX4/MAVROS Migration Boundary
 
-`fss_px4_sim` currently provides a ROS 2 port of the original perfect MAVROS drone.
+This package is the ROS 2 destination for the ROS 1
+`mavros_px4_quadrotor_sim` runtime.  The PX4 v1.13.3-derived modules and
+quadrotor dynamics live under `src/px4_core`; the executable feeds them through
+the same MAVLink receive/stream queues used by the original `mavros_sim`.
 
-The full trimmed PX4 v1.13.3 dynamics stack from `sim_px4_drone/src/px4_rotor_sim` should be migrated in these next slices:
+`MavrosSim` owns the six legacy plugin surfaces under the `mavros/...`
+namespace: `setpoint_raw`, `local_position`, `imu`, `sys_status`, `command`,
+and `global_position`. Their ROS 2 publishers, subscriptions, and services use
+`mavros_msgs`. Callbacks only encode MAVLink frames through the bridge; the
+PX4/dynamics state is mutated exclusively by the 100 Hz `fss_time::Rate` loop.
 
-1. Move ROS-independent dynamics and PX4 module libraries unchanged, then compile them without ROS includes.
-2. Replace the MAVROS shim plugin layer with ROS 2 publishers/subscribers/services while preserving relative topic names under `mavros/...`.
-3. Replace the original global `hrt_absolute_time_us_sim` with an indexed time context owned by each simulated agent.
-4. Use `fss_time::thread_time_participant` in the 100 Hz agent loop to announce each agent's next safe integration time.
-5. Register the final simulator as an `rclcpp_components` component after the standalone executable works.
+`px4_rotor_visualizer_node` is intentionally a separate executable.  It only
+subscribes to MAVROS output and uses a ROS-time timer; it is not linked into the
+PX4 simulation loop.
+
+## PX4 Context Limitation
+
+The copied PX4 v1.13.3 code still stores uORB, parameters, and MAVLink queues
+in agent-indexed static containers. The provided launch files run one complete
+simulator executable per UAV, which gives each vehicle an independent process
+and therefore independent storage. A composed, multi-vehicle process is not a
+supported execution mode until those PX4 internals are converted to a real
+`Px4Context` instance type.
