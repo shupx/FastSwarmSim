@@ -128,14 +128,20 @@ std::string ZeroMqTimeParticipantBackend::request_coordinator_locked(
 {
   constexpr auto retry_period = std::chrono::milliseconds(200);
   int attempts = 0;
+  bool request_sent = false;
   while ((wait_forever || attempts < 3) && rclcpp::ok()) {
     ++attempts;
     try {
-      zmq::message_t request(message.begin(), message.end());
-      const auto sent = impl_->socket.send(request, zmq::send_flags::none);
-      if (!sent) {
-        std::this_thread::sleep_for(retry_period);
-        continue;
+      if (!request_sent) {
+        // DEALER replies are not correlated with requests; resending here can leave a stale reply
+        // that the next request would consume.
+        zmq::message_t request(message.begin(), message.end());
+        const auto sent = impl_->socket.send(request, zmq::send_flags::none);
+        if (!sent) {
+          std::this_thread::sleep_for(retry_period);
+          continue;
+        }
+        request_sent = true;
       }
 
       zmq::message_t reply;

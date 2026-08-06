@@ -63,6 +63,7 @@ class CoordinatorBridge(QObject):
     clock_signal = pyqtSignal(float)
     progress_signal = pyqtSignal(dict)
     message_signal = pyqtSignal(str)
+    namespace_signal = pyqtSignal(str)
 
     def __init__(self, initial_rtf: float):
         super().__init__()
@@ -86,6 +87,7 @@ class CoordinatorBridge(QObject):
         self.executor = SingleThreadedExecutor(context=self._context)
         self.executor.add_node(self.node)
         self._ros_ready.set()
+        self.namespace_signal.emit(self.node.get_namespace())
         try:
             while not self._shutdown.is_set() and self._context.ok():
                 self.executor.spin_once(timeout_sec=0.1)
@@ -118,6 +120,11 @@ class CoordinatorBridge(QObject):
                 pass
         if self._spin_thread.is_alive():
             self._spin_thread.join(timeout=0.5)
+
+    def namespace(self) -> str:
+        if not self._ros_ready.is_set():
+            return ""
+        return self.node.get_namespace()
 
     def _on_status(self, msg: SimClockStatus):
         sim_time = float(msg.sim_time.sec) + float(msg.sim_time.nanosec) * 1e-9
@@ -391,6 +398,7 @@ class TimeCoordinatorUi(QObject):
         super().__init__()
         self.app = QApplication([sys.argv[0]])
         self.window = MainWindow()
+        self._window_title = self.window.windowTitle()
         
         ### Set logo icon
         workspace = os.path.dirname(os.path.abspath(__file__)) # absolute path of this folder 
@@ -413,6 +421,10 @@ class TimeCoordinatorUi(QObject):
         self.bridge.clock_signal.connect(self.window.set_sim_time)
         self.bridge.progress_signal.connect(self.window.set_progress)
         self.bridge.message_signal.connect(lambda text: self.window.statusBar().showMessage(text, 3000))
+        self.bridge.namespace_signal.connect(self._set_namespace)
+        namespace = self.bridge.namespace()
+        if namespace:
+            self._set_namespace(namespace)
 
     def run(self):
         signal.signal(signal.SIGINT, self._handle_signal)
@@ -423,6 +435,12 @@ class TimeCoordinatorUi(QObject):
 
     def _handle_signal(self, *_args):
         self.app.quit()
+
+    def _set_namespace(self, namespace: str):
+        if namespace == "/":
+            self.window.setWindowTitle(self._window_title)
+            return
+        self.window.setWindowTitle("{} - {}".format(namespace, self._window_title))
 
     def _status_updated(self, status: dict):
         self.window.set_status(status)
