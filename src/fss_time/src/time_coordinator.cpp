@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdio>
 #include <limits>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -37,6 +38,12 @@ T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const 
   return value;
 }
 
+/**
+ * @brief Check whether an endpoint is an absolute IPC path and extract that path.
+ * @param endpoint Endpoint to inspect.
+ * @param[out] path Extracted IPC filesystem path.
+ * @return true when endpoint is an absolute IPC endpoint.
+ */
 bool is_ipc_endpoint_path(const std::string & endpoint, std::string & path)
 {
   constexpr char prefix[] = "ipc://";
@@ -45,6 +52,77 @@ bool is_ipc_endpoint_path(const std::string & endpoint, std::string & path)
   }
   path = endpoint.substr(sizeof(prefix) - 1);
   return !path.empty() && path.front() == '/';
+}
+
+/** @brief Components of a parsed ZeroMQ TCP endpoint. */
+struct TcpEndpointParts
+{
+  std::string host;
+  std::string port;
+  std::size_t port_offset{};
+};
+
+/**
+ * @brief Parse a ZeroMQ TCP endpoint into its host, port, and port offset.
+ * @param endpoint Endpoint to parse.
+ * @return Parsed endpoint parts, or std::nullopt for a non-TCP/malformed endpoint.
+ */
+std::optional<TcpEndpointParts> parse_tcp_endpoint(const std::string & endpoint)
+{
+  constexpr char prefix[] = "tcp://";
+  if (endpoint.rfind(prefix, 0) != 0) {
+    return std::nullopt;
+  }
+  const auto address = endpoint.substr(sizeof(prefix) - 1);
+  std::size_t separator = std::string::npos;
+  if (!address.empty() && address.front() == '[') {
+    const auto closing_bracket = address.find(']');
+    if (closing_bracket != std::string::npos && closing_bracket + 1 < address.size() &&
+      address[closing_bracket + 1] == ':') {
+      separator = closing_bracket + 1;
+    }
+  } else {
+    separator = address.rfind(':');
+  }
+  if (separator == std::string::npos || separator + 1 >= address.size()) {
+    return std::nullopt;
+  }
+  return TcpEndpointParts{address.substr(0, separator), address.substr(separator + 1),
+    sizeof(prefix) - 1 + separator + 1};
+}
+
+/**
+ * @brief Replace the port portion of a TCP endpoint.
+ * @param endpoint Endpoint whose port should be replaced.
+ * @param port New port text.
+ * @return Endpoint with the new port, or the original endpoint if it is not TCP.
+ */
+std::string replace_tcp_endpoint_port(const std::string & endpoint, const std::string & port)
+{
+  const auto parts = parse_tcp_endpoint(endpoint);
+  if (!parts) {
+    return endpoint;
+  }
+  return endpoint.substr(0, parts->port_offset) + port;
+}
+
+/**
+ * @brief Replace a wildcard TCP host with the host from a parent endpoint.
+ * @param endpoint Endpoint potentially containing a wildcard host.
+ * @param parent_endpoint Endpoint supplying the concrete host.
+ * @return Endpoint with its wildcard host replaced when both endpoints are TCP.
+ */
+std::string replace_tcp_endpoint_wildcard_host(
+  const std::string & endpoint, const std::string & parent_endpoint)
+{
+  const auto endpoint_parts = parse_tcp_endpoint(endpoint);
+  const auto parent_parts = parse_tcp_endpoint(parent_endpoint);
+  if (!endpoint_parts || !parent_parts ||
+    (endpoint_parts->host != "*" && endpoint_parts->host != "0.0.0.0" &&
+    endpoint_parts->host != "[::]")) {
+    return endpoint;
+  }
+  return "tcp://" + parent_parts->host + ":" + endpoint_parts->port;
 }
 
 }  // namespace
@@ -155,6 +233,13 @@ void TimeCoordinator::start()
   impl_->pub_socket.set(zmq::sockopt::linger, 0);
   impl_->pub_socket.set(zmq::sockopt::sndhwm, 100000);
   impl_->pub_socket.bind(pub_endpoint_);
+  // A TCP port of zero requests an ephemeral port. Advertise the port selected by bind().
+  if (parse_tcp_endpoint(pub_endpoint_)) {
+    if (const auto bound_pub = parse_tcp_endpoint(
+        impl_->pub_socket.get(zmq::sockopt::last_endpoint))) {
+      pub_endpoint_ = replace_tcp_endpoint_port(pub_endpoint_, bound_pub->port);
+    }
+  }
 
   // connect to the parent coordinator if specified
   if (has_parent_coordinator_) {
@@ -178,6 +263,15 @@ void TimeCoordinator::start()
       throw std::runtime_error(
               "failed to get parent coordinator PUB endpoint from " + parent_endpoint_ +
               ": " + parent_pub_reply);
+    }
+    if (const auto parent_pub = parse_tcp_endpoint(parent_pub_endpoint_)) {
+      if (!parent_pub->port.empty() &&
+        parent_pub->port.find_first_not_of('0') == std::string::npos) {
+        throw std::runtime_error(
+                "parent coordinator PUB endpoint has invalid port 0: " + parent_pub_endpoint_);
+      }
+      parent_pub_endpoint_ =
+        replace_tcp_endpoint_wildcard_host(parent_pub_endpoint_, parent_endpoint_);
     }
     impl_->parent_sub_socket.set(zmq::sockopt::linger, 0);
     impl_->parent_sub_socket.set(zmq::sockopt::subscribe, "");
