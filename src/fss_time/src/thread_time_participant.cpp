@@ -53,7 +53,8 @@ std::string sanitize_name(std::string name)
 
 ZeroMqTimeParticipantOptions make_options(
   rclcpp::Node & node,
-  const std::string & participant_id_hint)
+  const std::string & participant_id_hint,
+  bool follows_real_time)
 {
   ZeroMqTimeParticipantOptions options;
   auto base_name = participant_id_hint;
@@ -71,6 +72,7 @@ ZeroMqTimeParticipantOptions make_options(
     fss_time_tools::make_uuid());
   options.coordinator_endpoint =
     declare_or_get_parameter_locked<std::string>(node, "fss_time_coordinator_endpoint", options.coordinator_endpoint);
+  options.follows_real_time = follows_real_time;
   return options;
 }
 
@@ -92,12 +94,13 @@ thread_time_participant::~thread_time_participant()
 
 thread_time_participant & thread_time_participant::for_current_thread(
   rclcpp::Node & node,
-  const std::string & participant_id_hint)
+  const std::string & participant_id_hint,
+  bool follows_real_time)
 {
   if (!tls_participant) {
     tls_participant = std::unique_ptr<thread_time_participant>(
       new thread_time_participant(std::make_shared<ZeroMqTimeParticipantBackend>(
-        make_options(node, participant_id_hint),
+        make_options(node, participant_id_hint, follows_real_time),
         node.get_clock())));
   }
   return *tls_participant;
@@ -136,6 +139,11 @@ void thread_time_participant::unregister_participant()
   if (backend_) {
     backend_->unregister_participant();
   }
+}
+
+void thread_time_participant::set_follows_real_time(bool follows_real_time)
+{
+  backend_->set_follows_real_time(follows_real_time);
 }
 
 rclcpp::Time thread_time_participant::get_sim_time() const

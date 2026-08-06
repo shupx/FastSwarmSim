@@ -249,6 +249,7 @@ void TimeCoordinator::start()
       std::string(node_.get_name()) + "_coordinator_participant_" +
       fss_time_tools::make_uuid();
     parent_options.coordinator_endpoint = parent_endpoint_;
+    parent_options.follows_real_time = follows_real_time_;
     parent_participant_ =
       std::make_unique<ZeroMqTimeParticipantBackend>(std::move(parent_options), node_.get_clock());
     parent_participant_->register_participant();
@@ -447,7 +448,13 @@ std::string TimeCoordinator::handle_message(const std::string & identity, const 
 
   std::lock_guard<std::mutex> lock(mutex_);
   if (command == "REGISTER") {
-    participants_.try_emplace(identity);
+    bool follows_real_time = true;
+    input >> follows_real_time;
+    if (input.fail()) {
+      follows_real_time = true;
+    }
+    auto & participant = participants_[identity];
+    participant.follows_real_time = follows_real_time;
     return "OK";
   }
 
@@ -461,6 +468,22 @@ std::string TimeCoordinator::handle_message(const std::string & identity, const 
     auto & participant = participants_[identity];
     participant.request_time_ns = request_ns;
     participant.has_new_request = true;
+    try_update_clock_locked();
+    return "OK";
+  }
+
+  if (command == "SET_FOLLOWS_REAL_TIME") {
+    int follows_real_time = 0;
+    std::string extra;
+    if (!(input >> follows_real_time) || (follows_real_time != 0 && follows_real_time != 1) ||
+      (input >> extra)) {
+      return "ERROR invalid follows_real_time setting";
+    }
+    const auto participant = participants_.find(identity);
+    if (participant == participants_.end()) {
+      return "ERROR participant is not registered";
+    }
+    participant->second.follows_real_time = follows_real_time == 1;
     try_update_clock_locked();
     return "OK";
   }
@@ -577,7 +600,7 @@ void TimeCoordinator::try_update_clock_locked()
       waiting_participant = entry.first;
       break;
     }
-    const auto participant_request_ns = follows_real_time_ ?
+    const auto participant_request_ns = follows_real_time_ && participant.follows_real_time ?
       std::max(real_time_request_ns_, participant.request_time_ns) :
       participant.request_time_ns;
     min_request_ns = std::min(min_request_ns, participant_request_ns);

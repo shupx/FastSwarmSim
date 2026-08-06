@@ -347,6 +347,75 @@ TEST(TimeCoordinator, RealTimeParticipantRequestCatchesUpToWallTime)
   executor.remove_node(coordinator_node);
 }
 
+TEST(TimeCoordinator, ParticipantCanDisableRealTimeFollowing)
+{
+  const auto endpoint = reserve_test_endpoint();
+  auto coordinator_node = std::make_shared<rclcpp::Node>(
+    "time_coordinator_participant_real_time_setting_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  coordinator_node->declare_parameter("speed_regulator_step_ns", 5000000);
+  coordinator_node->declare_parameter("max_real_time_factor", 1.0);
+  coordinator_node->declare_parameter("auto_start", true);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
+
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(coordinator_node);
+  std::atomic<bool> stop_executor{false};
+  std::thread spin_thread([&executor, &stop_executor]() {
+    while (!stop_executor.load()) {
+      executor.spin_some();
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  });
+
+  rclcpp::Node participant_node("participant_real_time_setting_test");
+  participant_node.declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+  auto & participant =
+    fss_time::thread_time_participant::for_current_thread(participant_node, "no_real_time_following");
+  wait_until([&coordinator]() {
+    return coordinator.status_message().participant_count == 1;
+  }, std::chrono::seconds(1));
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  participant.set_follows_real_time(false);
+  participant.announce_next_safe_time(rclcpp::Time(1000000LL, RCL_ROS_TIME));
+  wait_until([&coordinator]() {
+    return fss_time::to_ns(coordinator.status_message().sim_time) >= 1000000LL;
+  }, std::chrono::seconds(1));
+  EXPECT_EQ(fss_time::to_ns(coordinator.status_message().sim_time), 1000000LL);
+
+  participant.unregister_participant();
+  fss_time::thread_time_participant::reset_current_thread_for_testing();
+  stop_executor = true;
+  spin_thread.join();
+  executor.remove_node(coordinator_node);
+}
+
+TEST(TimeCoordinator, RejectsInvalidParticipantRealTimeSetting)
+{
+  const auto endpoint = reserve_test_endpoint();
+  auto coordinator_node = std::make_shared<rclcpp::Node>(
+    "time_coordinator_invalid_participant_real_time_setting_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
+
+  fss_time::ZeroMqTimeParticipantOptions options;
+  options.participant_id = "invalid_participant_real_time_setting";
+  options.coordinator_endpoint = endpoint;
+  auto clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
+  fss_time::ZeroMqTimeParticipantBackend participant(options, clock);
+  participant.register_participant();
+
+  EXPECT_EQ(
+    participant.request_coordinator("SET_FOLLOWS_REAL_TIME 2", true),
+    "ERROR invalid follows_real_time setting");
+  participant.set_follows_real_time(false);
+  participant.unregister_participant();
+}
+
 TEST(TimeCoordinator, FollowsRealTimeParameterDisablesWallTimeCatchUp)
 {
   const auto endpoint = reserve_test_endpoint();

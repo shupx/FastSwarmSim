@@ -71,6 +71,7 @@ private:
   {
     int64_t request_time_ns{0};
     bool has_new_request{false};
+    bool follows_real_time{true};
   };
 
   void receive_loop();

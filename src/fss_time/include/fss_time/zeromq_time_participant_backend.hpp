@@ -18,6 +18,9 @@ struct ZeroMqTimeParticipantOptions
 
   /// ZeroMQ endpoint for the coordinator. Supports any endpoint accepted by zmq::socket_t::connect().
   std::string coordinator_endpoint{"ipc:///tmp/fss_time_coordinator.ipc"};
+
+  /// Whether this participant's requests should be constrained by real time.
+  bool follows_real_time{true};
 };
 
 /**
@@ -65,6 +68,15 @@ public:
    * @brief Unregister this participant from the coordinator.
    */
   void unregister_participant();
+
+  /**
+   * @brief Set whether this participant follows real time.
+   *
+   * Updates the coordinator immediately when this participant is registered.
+   * @param follows_real_time true to apply the coordinator real-time floor.
+   * @throws std::runtime_error if the coordinator rejects the update.
+   */
+  void set_follows_real_time(bool follows_real_time);
 
   /**
    * @brief Return the latest coordinator time observed by this backend.
