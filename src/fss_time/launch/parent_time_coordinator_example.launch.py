@@ -5,6 +5,21 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter, PushRosNamespace
 from launch.actions import SetEnvironmentVariable
 
+'''
+### Unique changes for parent time coordinator:
+- The `fss_time_coordinator_endpoint` is set to "tcp://*:5545" to bind to a specific TCP port for the parent coordinator so that child coordinators can connect to it.
+- The `fss_time_coordinator_pub_endpoint` is set to "tcp://*:0" to bind to a random idle TCP port for the parent coordinator's PUB socket so that child coordinators can connect to it.
+- The `publish_clock` parameter is set to "false" because the parent coordinator does not need to publish the /clock topic.
+- The `namespace` parameter is set to "parent1" to give the parent coordinator a unique namespace.
+'''
+
+'''
+### For child coordinators, 
+- set `fss_time_parent_coordinator_endpoint` to the `fss_time_coordinator_endpoint` of the parent coordinator (e.g., "tcp://parent_IP:5545") so that the child coordinator can connect to the parent and follow its time.
+- (optional) set `namespace` to a unique value for the child coordinator to avoid name collisions with the parent coordinator.
+'''
+
+
 
 def generate_launch_description():
     return LaunchDescription([
