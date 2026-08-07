@@ -72,8 +72,8 @@ public:
 
   void run()
   {
-    if (declare_parameter("use_fss_sim_time", false).get_value<bool>() == true) {
-      auto fss_time_participant = fss_time::thread_time_participant::for_current_thread(*this, "mavros_px4_quadrotor_sim_node", false);
+    if (parameter("use_fss_sim_time", false)) {
+      auto & fss_time_participant = fss_time::thread_time_participant::for_current_thread(*this, "mavros_px4_quadrotor_sim_node", false);
       fss_time_participant.set_follows_real_time(false); // Blocks the fss_time coordinator until it finishes one loop iteration, even it is slower than real time. This is necessary to ensure that each step of the simulated dynamics and PX4 SITL is finished before the next step, otherwise the simulation will be unstable.
     }
     fss_time::Rate rate(*this, 100.0);

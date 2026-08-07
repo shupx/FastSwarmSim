@@ -35,9 +35,7 @@ void ZeroMqTimeParticipantBackend::announce_next_safe_time(int64_t next_safe_tim
   std::lock_guard<std::mutex> lock(mutex_);
   start_locked();
   if (!registered_) {
-    const std::string register_message =
-      std::string("REGISTER ") + (options_.follows_real_time ? "1" : "0");
-    if (request_coordinator_locked(register_message, true) != "OK") {
+    if (request_coordinator_locked("REGISTER", true) != "OK") {
       throw std::runtime_error("failed to register fss_time participant");
     }
     registered_ = true;
@@ -58,9 +56,7 @@ void ZeroMqTimeParticipantBackend::register_participant()
   if (registered_) {
     return;
   }
-  const std::string register_message =
-    std::string("REGISTER ") + (options_.follows_real_time ? "1" : "0");
-  if (request_coordinator_locked(register_message, true) != "OK") {
+  if (request_coordinator_locked("REGISTER", true) != "OK") {
     throw std::runtime_error("failed to register fss_time participant");
   }
   registered_ = true;
@@ -81,12 +77,12 @@ void ZeroMqTimeParticipantBackend::unregister_participant()
 void ZeroMqTimeParticipantBackend::set_follows_real_time(bool follows_real_time)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (options_.follows_real_time == follows_real_time) {
-    return;
-  }
   if (!registered_) {
-    options_.follows_real_time = follows_real_time;
-    return;
+    start_locked();
+    if (request_coordinator_locked("REGISTER", true) != "OK") {
+      throw std::runtime_error("failed to register fss_time participant");
+    }
+    registered_ = true;
   }
 
   const std::string message =
@@ -94,7 +90,6 @@ void ZeroMqTimeParticipantBackend::set_follows_real_time(bool follows_real_time)
   if (request_coordinator_locked(message, true) != "OK") {
     throw std::runtime_error("failed to update fss_time participant follows_real_time setting");
   }
-  options_.follows_real_time = follows_real_time;
 }
 
 int64_t ZeroMqTimeParticipantBackend::current_time_ns() const

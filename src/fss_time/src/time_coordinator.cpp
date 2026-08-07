@@ -249,10 +249,10 @@ void TimeCoordinator::start()
       std::string(node_.get_name()) + "_coordinator_participant_" +
       fss_time_tools::make_uuid();
     parent_options.coordinator_endpoint = parent_endpoint_;
-    parent_options.follows_real_time = follows_real_time_;
     parent_participant_ =
       std::make_unique<ZeroMqTimeParticipantBackend>(std::move(parent_options), node_.get_clock());
     parent_participant_->register_participant();
+    parent_participant_->set_follows_real_time(follows_real_time_);
 
     // Get the parent coordinator's PUB endpoint so we can subscribe to it (for granted clock messages).
     const auto parent_pub_reply =
@@ -448,13 +448,7 @@ std::string TimeCoordinator::handle_message(const std::string & identity, const 
 
   std::lock_guard<std::mutex> lock(mutex_);
   if (command == "REGISTER") {
-    bool follows_real_time = true;
-    input >> follows_real_time;
-    if (input.fail()) {
-      follows_real_time = true;
-    }
-    auto & participant = participants_[identity];
-    participant.follows_real_time = follows_real_time;
+    participants_[identity];
     return "OK";
   }
 

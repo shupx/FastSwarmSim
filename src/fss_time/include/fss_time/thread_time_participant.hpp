@@ -19,13 +19,11 @@ public:
    * @brief Get or create the fss_time participant associated with this thread.
    * @param node Node used for participant options, clock access, and coordinator endpoint parameters.
    * @param participant_id_hint Optional stable prefix used when generating the participant id.
-   * @param follows_real_time Whether this participant should follow real time.
    * @return Thread-local participant instance.
    */
   static thread_time_participant & for_current_thread(
     rclcpp::Node & node,
-    const std::string & participant_id_hint = "",
-    bool follows_real_time = true);
+    const std::string & participant_id_hint = "");
 #ifdef BUILD_TESTING
   /**
    * @brief Reset the current thread's participant for tests.

@@ -44,6 +44,12 @@ add_library(fss_px4_core
   ${PX4_CORE_DIR}/px4_modules/mavlink/mavlink_streamer.cpp
   ${PX4_CORE_DIR}/px4_modules/mavlink/mavlink_receiver.cpp
   src/mavros_sim/plugins.cpp
+  src/mavros_sim/setpoint_raw.cpp
+  src/mavros_sim/local_position.cpp
+  src/mavros_sim/imu.cpp
+  src/mavros_sim/system_status.cpp
+  src/mavros_sim/command.cpp
+  src/mavros_sim/global_position.cpp
 )
 target_include_directories(fss_px4_core PUBLIC
   include
