@@ -24,7 +24,7 @@ namespace fss_time
 namespace
 {
 
-constexpr int64_t kMinOperationWalltime_ns = 100000;
+constexpr int64_t kMinOperationWalltime_ns = 100000LL; // 100us, a clock publish may take 100us at least (from publlish to subscriber callback)
 
 template<typename T>
 T declare_or_get_parameter(rclcpp::Node & node, const std::string & name, const T & default_value)
@@ -468,6 +468,7 @@ std::string TimeCoordinator::handle_message(const std::string & identity, const 
   input >> command;
 
   std::lock_guard<std::mutex> lock(mutex_);
+  
   if (command == "REGISTER") {
     participants_[identity];
     return "OK";
@@ -529,7 +530,7 @@ void TimeCoordinator::on_real_time_tick()
       return;
     }
     update_real_time_request_locked();
-    try_update_clock_locked();
+    // try_update_clock_locked(); // not needed, as the speed regulator will trigger a clock update on the next tick. Decrease the pub clock frequency.
   }
 }
 
