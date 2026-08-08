@@ -3,9 +3,12 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
+#include <queue>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -95,7 +98,12 @@ private:
   void try_update_clock_locked();
   void advance_time_locked(int64_t target_time_ns);
   void publish_clock_locked();
-  void publish_granted_time_locked();
+  void publish_clock(int64_t sim_time_ns);
+  void publish_granted_time(int64_t sim_time_ns);
+  void enqueue_async_task(std::function<void()> task);
+  void start_async_worker();
+  void stop_async_worker();
+  void async_worker_loop();
   void receive_router_message();
   void receive_parent_grant();
   void publish_status();
@@ -143,6 +151,11 @@ private:
   bool has_parent_coordinator_{false};
   std::thread receive_thread_;
   std::atomic<bool> stop_receive_{false};
+  std::thread async_worker_thread_;
+  std::mutex async_mutex_;
+  std::condition_variable async_cv_;
+  std::queue<std::function<void()>> async_tasks_;
+  bool stop_async_worker_{false};
 };
 
 }  // namespace fss_time

@@ -195,6 +195,7 @@ TimeCoordinator::~TimeCoordinator()
   if (receive_thread_.joinable()) {
     receive_thread_.join();
   }
+  stop_async_worker();
   if (impl_) {
     try {
       impl_->socket.close();
@@ -281,6 +282,8 @@ void TimeCoordinator::start()
     impl_->parent_sub_socket.set(zmq::sockopt::subscribe, "");
     impl_->parent_sub_socket.connect(parent_pub_endpoint_);
   }
+
+  start_async_worker(); // heavy work is moved to this separate thread, like clock publishing (200us) and zeromq message sending (5us), so that the coordinator can respond to participants quickly.
 
   {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -653,7 +656,9 @@ void TimeCoordinator::advance_time_locked(int64_t target_time_ns)
   if (has_parent_coordinator_) {
     // If we have a parent coordinator, we don't advance the time directly. Instead, we announce the next safe time to the parent coordinator and wait for a grant.
     if (parent_participant_) {
-      parent_participant_->announce_next_safe_time(target_time_ns);
+      enqueue_async_task([this, target_time_ns]() {
+        parent_participant_->announce_next_safe_time(target_time_ns);
+      });
     }
   }
   else {
@@ -665,24 +670,94 @@ void TimeCoordinator::advance_time_locked(int64_t target_time_ns)
 
 void TimeCoordinator::publish_clock_locked()
 {
-  if (publish_clock_ && clock_pub_) {
-    rosgraph_msgs::msg::Clock clock;
-    clock.clock = from_ns(sim_time_ns_);
-    clock_pub_->publish(clock);
-  }
-  publish_granted_time_locked();
+  const auto sim_time_ns = sim_time_ns_;
+  enqueue_async_task([this, sim_time_ns]() {
+    publish_clock(sim_time_ns);
+  });
 }
 
-void TimeCoordinator::publish_granted_time_locked()
+void TimeCoordinator::publish_clock(int64_t sim_time_ns)
+{
+  if (publish_clock_ && clock_pub_) {
+    rosgraph_msgs::msg::Clock clock;
+    clock.clock = from_ns(sim_time_ns);
+    clock_pub_->publish(clock);
+  }
+  publish_granted_time(sim_time_ns);
+}
+
+void TimeCoordinator::publish_granted_time(int64_t sim_time_ns)
 {
   if (!impl_ || pub_endpoint_.empty()) {
     return;
   }
   std::ostringstream message;
-  message << "GRANT " << sim_time_ns_;
+  message << "GRANT " << sim_time_ns;
   try {
     impl_->pub_socket.send(zmq::buffer(message.str()), zmq::send_flags::dontwait);
   } catch (const zmq::error_t &) {
+  }
+}
+
+void TimeCoordinator::enqueue_async_task(std::function<void()> task)
+{
+  {
+    std::lock_guard<std::mutex> lock(async_mutex_);
+    async_tasks_.push(std::move(task));
+  }
+  async_cv_.notify_one();
+}
+
+void TimeCoordinator::start_async_worker()
+{
+  {
+    std::lock_guard<std::mutex> lock(async_mutex_);
+    if (async_worker_thread_.joinable()) {
+      return;
+    }
+    stop_async_worker_ = false;
+  }
+  async_worker_thread_ = std::thread([this]() { async_worker_loop(); });
+}
+
+void TimeCoordinator::stop_async_worker()
+{
+  {
+    std::lock_guard<std::mutex> lock(async_mutex_);
+    stop_async_worker_ = true;
+  }
+  async_cv_.notify_one();
+  if (async_worker_thread_.joinable()) {
+    async_worker_thread_.join();
+  }
+}
+
+void TimeCoordinator::async_worker_loop()
+{
+  while (rclcpp::ok()) {
+    std::function<void()> task;
+    {
+      std::unique_lock<std::mutex> lock(async_mutex_);
+      async_cv_.wait(lock, [this]() {
+        return stop_async_worker_ || !async_tasks_.empty();
+      });
+      if (stop_async_worker_ && async_tasks_.empty()) {
+        return;
+      }
+      task = std::move(async_tasks_.front());
+      async_tasks_.pop();
+    }
+
+    if (task) {
+      try {
+        task();
+      } catch (const std::exception & error) {
+        RCLCPP_WARN(
+          node_.get_logger(),
+          "failed to execute asynchronous time coordinator task: %s",
+          error.what());
+      }
+    }
   }
 }
 
