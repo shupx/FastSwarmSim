@@ -45,13 +45,14 @@
 #include <uORB/topics/vehicle_status.h>
 
 #include <uORB/uORB_sim.hpp> // Added by Peixuan Shu
-#include "../mavlink_msg_list.hpp"  // Added by Peixuan Shu
+#include "../mavlink_sender.hpp"
 
 class MavlinkStreamSysStatus
 {
 private:
 
-    int agent_id_ = -1; // agent id. 
+	int agent_id_ = -1; // agent id.
+	MavlinkSender sender_;
 	
 	uORB_sim::Subscription<vehicle_status_s> _status_sub{ORB_ID(vehicle_status)};
 	uORB_sim::Subscription<cpuload_s> _cpuload_sub{ORB_ID(cpuload)};
@@ -62,6 +63,8 @@ public:
 	{
 		agent_id_ = id;
 	}
+
+	void set_sender(MavlinkSender sender) { sender_ = std::move(sender); }
 
 	bool send()
 	{
@@ -130,10 +133,10 @@ public:
 
 			// mavlink_msg_sys_status_send_struct(_mavlink->get_channel(), &msg);
 
-			/*  Added by Peixuan Shu. Write mavlink messages into "px4_modules/mavlink/mavlink_msg_list.hpp" */
-			int handle = (int) px4::mavlink_stream_handle::SYS_STATUS;
-			mavlink_msg_sys_status_encode(1, 1, &px4::mavlink_stream_lists.at(agent_id_)[handle].msg, &msg); 
-			px4::mavlink_stream_lists.at(agent_id_)[handle].updated = true;
+			/* Encode and send the stream directly over the PX4 UDP endpoint. */
+			mavlink_message_t encoded{};
+			mavlink_msg_sys_status_encode(1, 1, &encoded, &msg);
+			if (sender_) sender_(encoded);
 
 			return true;
 		}

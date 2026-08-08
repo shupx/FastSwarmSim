@@ -31,8 +31,13 @@ PX4SITL::PX4SITL(int agent_id, rclcpp::Node &node, const std::shared_ptr<Dynamic
     update_init_pos_from_dynamics();
 
     /* Load px4 modules */
-    mavlink_receiver_ = std::make_shared<MavlinkReceiver>(agent_id_);
-    mavlink_streamer_ = std::make_shared<MavlinkStreamer>(agent_id_);
+    int mavlink_udp_local_port = 14540;
+    int mavlink_udp_remote_port = 14557;
+    node_.get_parameter_or("mavlink_udp_local_port", mavlink_udp_local_port, mavlink_udp_local_port);
+    node_.get_parameter_or("mavlink_udp_remote_port", mavlink_udp_remote_port, mavlink_udp_remote_port);
+    mavlink_ = std::make_shared<MAVLINK>(
+        agent_id_, mavlink_udp_local_port, mavlink_udp_remote_port);
+    mavlink_->start();
     commander_ = std::make_shared<Commander>(agent_id_);
     mc_pos_control_ = std::make_shared<MulticopterPositionControl>(agent_id_, false);
     mc_att_control_ = std::make_shared<MulticopterAttitudeControl>(agent_id_, false);
@@ -121,9 +126,6 @@ void PX4SITL::Run(const uint64_t &time_us)
         /* Run commander module to handle vehicle_command and switch/publish vehicle mode/status uorb messages */
         commander_->run();
 
-        /* Run mavlink receiver to update command uorb messages */
-        ReceiveMavlink();
-
         /* Run pos and att controller to calculate control output */
         mc_pos_control_->Run(); // calling period should between [0.002f, 0.04f] 25Hz-500Hz
         mc_att_control_->Run(); // calling should between [0.0002f, 0.02f] 50Hz-5000Hz
@@ -139,22 +141,9 @@ void PX4SITL::Run(const uint64_t &time_us)
 
 }
 
-void PX4SITL::ReceiveMavlink()
-{
-	/* Search for mavlink receiving list and handle the updated messages */
-	for (int i=0; i<MAVLINK_RECEIVE_NUM; ++i)
-	{		
-		if (px4::mavlink_receive_lists.at(agent_id_)[i].updated)
-		{
-			mavlink_receiver_->handle_message(&px4::mavlink_receive_lists.at(agent_id_)[i].msg);
-			px4::mavlink_receive_lists.at(agent_id_)[i].updated = false; // waiting for the next update
-		}
-	}
-}
-
 void PX4SITL::StreamMavlink(const uint64_t &time_us)
 {
-    mavlink_streamer_->Stream(time_us);
+    mavlink_->Stream(time_us);
 }
 
 void PX4SITL::SendControlInput()

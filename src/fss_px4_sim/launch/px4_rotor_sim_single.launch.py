@@ -25,6 +25,21 @@ def generate_launch_description():
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         PushRosNamespace(namespace),
+        # FSS_SIM_MODIFICATION: MAVROS owns the official ROS 2 plugin runtime
+        # and talks to the simulator through its standard UDP FCU endpoint.
+        Node(
+            package="mavros", executable="mavros_node", name="mavros", output="screen",
+            parameters=[{
+                "fcu_url": "udp://127.0.0.1:14557@127.0.0.1:14540",
+                "plugin_allowlist": ["setpoint_raw", "local_position", "imu",
+                                     "sys_status", "command", "global_position"],
+                "plugin_denylist": ["*"],
+                # FSS_SIM_MODIFICATION: preserve original no-COMMAND_ACK
+                # command-service behavior for this simulator transport.
+                "fss_simulate_no_command_ack": True,
+                "use_sim_time": LaunchConfiguration("use_fss_sim_time"),
+            }],
+        ),
         Node(
             package="fss_px4_sim",
             executable="mavros_px4_quadrotor_sim_node",
@@ -41,6 +56,8 @@ def generate_launch_description():
                 "init_roll_deg": LaunchConfiguration("init_roll_deg"),
                 "init_pitch_deg": LaunchConfiguration("init_pitch_deg"),
                 "init_yaw_deg": LaunchConfiguration("init_yaw_deg"),
+                "mavlink_udp_local_port": 14540,
+                "mavlink_udp_remote_port": 14557,
                 "local_pos_source": LaunchConfiguration("local_pos_source"),
                 "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
                 "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),

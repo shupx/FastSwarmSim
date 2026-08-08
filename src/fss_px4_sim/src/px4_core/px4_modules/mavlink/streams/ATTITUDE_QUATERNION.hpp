@@ -45,13 +45,14 @@
 #include <uORB/topics/vehicle_status.h>
 
 #include <uORB/uORB_sim.hpp> // Added by Peixuan Shu
-#include "../mavlink_msg_list.hpp"  // Added by Peixuan Shu
+#include "../mavlink_sender.hpp"
 
 class MavlinkStreamAttitudeQuaternion
 {
 private:
 
     int agent_id_ = -1; // agent id.
+	MavlinkSender sender_;
 	
 	uORB_sim::Subscription<vehicle_attitude_s> _att_sub{ORB_ID(vehicle_attitude)};
 	uORB_sim::Subscription<vehicle_angular_velocity_s> _angular_velocity_sub{ORB_ID(vehicle_angular_velocity)};
@@ -62,6 +63,8 @@ public:
 	{
 		agent_id_ = id;
 	}
+
+	void set_sender(MavlinkSender sender) { sender_ = std::move(sender); }
 
 	bool send()
 	{
@@ -105,10 +108,10 @@ public:
 
 			// mavlink_msg_attitude_quaternion_send_struct(_mavlink->get_channel(), &msg);
 
-			/*  Added by Peixuan Shu. Write mavlink messages into "px4_modules/mavlink/mavlink_msg_list.hpp" */
-			int handle = (int) px4::mavlink_stream_handle::ATTITUDE_QUATERNION;
-			mavlink_msg_attitude_quaternion_encode(1, 1, &px4::mavlink_stream_lists.at(agent_id_)[handle].msg, &msg); 
-			px4::mavlink_stream_lists.at(agent_id_)[handle].updated = true;
+			/* Encode and send the stream directly over the PX4 UDP endpoint. */
+			mavlink_message_t encoded{};
+			mavlink_msg_attitude_quaternion_encode(1, 1, &encoded, &msg);
+			if (sender_) sender_(encoded);
 
 			return true;
 		}

@@ -54,7 +54,6 @@
 // #include <lib/systemlib/px4_macros.h>
 
 #include <math.h>
-#include <poll.h>
 
 // #ifdef CONFIG_NET
 // #include <net/if.h>
@@ -90,27 +89,9 @@ MavlinkReceiver::~MavlinkReceiver()
 }
 
 // Added by Peixuan Shu
-MavlinkReceiver::MavlinkReceiver(int agent_id) : 
+MavlinkReceiver::MavlinkReceiver(int agent_id) :
 	agent_id_(agent_id),  // agent_id added by Peixuan Shu
 	ModuleParams(nullptr)
-{
-	_handle_sens_flow_maxhgt = param_find("SENS_FLOW_MAXHGT");
-	_handle_sens_flow_maxr = param_find("SENS_FLOW_MAXR");
-	_handle_sens_flow_minhgt = param_find("SENS_FLOW_MINHGT");
-	_handle_sens_flow_rot = param_find("SENS_FLOW_ROT");
-	_handle_ekf2_min_rng = param_find("EKF2_MIN_RNG");
-	_handle_ekf2_rng_a_hmax = param_find("EKF2_RNG_A_HMAX");
-}
-
-
-MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
-	ModuleParams(nullptr)/*,
-	_mavlink(parent),
-	_mavlink_ftp(parent),
-	_mavlink_log_handler(parent),
-	_mission_manager(parent),
-	_parameters_manager(parent),
-	_mavlink_timesync(parent) */
 {
 	_handle_sens_flow_maxhgt = param_find("SENS_FLOW_MAXHGT");
 	_handle_sens_flow_maxr = param_find("SENS_FLOW_MAXR");

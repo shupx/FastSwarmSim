@@ -135,16 +135,13 @@
 
 using namespace time_literals;
 
-class Mavlink;
-
 class MavlinkReceiver : public ModuleParams
 {
 private: 
 	int agent_id_ = -1; // UAV id
 
 public:
-	MavlinkReceiver(int agent_id); // agent_id added by Peixuan Shu
-	MavlinkReceiver(Mavlink *parent);
+	MavlinkReceiver(int agent_id);
 	~MavlinkReceiver() override;
 
 	// void start();

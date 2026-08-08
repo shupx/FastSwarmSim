@@ -40,16 +40,9 @@ add_library(fss_px4_core
   ${PX4_CORE_DIR}/px4_modules/mc_att_control/mc_att_control_main.cpp
   ${PX4_CORE_DIR}/px4_modules/commander/Commander.cpp
   ${PX4_CORE_DIR}/px4_modules/commander/state_machine_helper.cpp
-  ${PX4_CORE_DIR}/px4_modules/mavlink/mavlink_msg_list.cpp
+  ${PX4_CORE_DIR}/px4_modules/mavlink/mavlink_main.cpp
   ${PX4_CORE_DIR}/px4_modules/mavlink/mavlink_streamer.cpp
   ${PX4_CORE_DIR}/px4_modules/mavlink/mavlink_receiver.cpp
-  src/mavros_sim/plugins.cpp
-  src/mavros_sim/setpoint_raw.cpp
-  src/mavros_sim/local_position.cpp
-  src/mavros_sim/imu.cpp
-  src/mavros_sim/system_status.cpp
-  src/mavros_sim/command.cpp
-  src/mavros_sim/global_position.cpp
 )
 target_include_directories(fss_px4_core PUBLIC
   include
@@ -99,5 +92,14 @@ install(TARGETS
 )
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY config model rviz DESTINATION share/${PROJECT_NAME})
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_mavlink_udp_bridge test/test_mavlink_udp_bridge.cpp)
+  if(TARGET test_mavlink_udp_bridge)
+    target_link_libraries(test_mavlink_udp_bridge fss_px4_core)
+    ament_target_dependencies(test_mavlink_udp_bridge rclcpp)
+  endif()
+endif()
 
 ament_package()

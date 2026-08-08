@@ -32,13 +32,11 @@
 #include <mavros/frame_tf.h> // for mavros::ftf frame conversion
 #include <uORB/uORB_sim.hpp> // simulate uORB publication and subscription. Store the extern(global) simulated uORB messages
 
-#include "px4_modules/mavlink/mavlink_receiver.h"
-#include "px4_modules/mavlink/mavlink_streamer.hpp"
+#include "px4_modules/mavlink/mavlink_main.hpp"
 #include "px4_modules/commander/Commander.hpp"
 #include "px4_modules/mc_pos_control/MulticopterPositionControl.hpp"
 #include "px4_modules/mc_att_control/mc_att_control.hpp"
 #include "px4_modules/px4_lib/drivers/drv_hrt.h"  // time utils, store the extern(global) simulated time
-#include "px4_modules/mavlink/mavlink_msg_list.hpp" // store the simulated extern(global) mavlink messages
 
 #include "fss_px4_sim/quadrotor_dynamics.hpp"
 
@@ -129,8 +127,7 @@ private:
     uORB_sim::Subscription<vehicle_control_mode_s>           _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
     
 
-    std::shared_ptr<MavlinkReceiver> mavlink_receiver_;
-    std::shared_ptr<MavlinkStreamer> mavlink_streamer_;
+    std::shared_ptr<MAVLINK> mavlink_;
     std::shared_ptr<Commander> commander_;
     std::shared_ptr<MulticopterPositionControl> mc_pos_control_; 
     std::shared_ptr<MulticopterAttitudeControl> mc_att_control_; 
@@ -149,10 +146,7 @@ private:
     /* Land detector module. Update vehicle_land_detected uORB message*/
     void DectectLand(const uint64_t &time_us);
 
-	/* Search for mavlink receiving list and handle the updated messages (transfer into PX4 uORB messages) */
-	void ReceiveMavlink();
-
-    /* Stream mavlink messages into "px4_modules/mavlink/mavlink_msg_list.hpp" at a given frequency */
+    /* Stream MAVLink messages at a given frequency. */
     void StreamMavlink(const uint64_t &time_us);
 
     /* Send control input calculated by the controller to the quadrotor dynamics */

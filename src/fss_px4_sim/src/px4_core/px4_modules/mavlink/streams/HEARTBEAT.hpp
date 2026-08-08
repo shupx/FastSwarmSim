@@ -46,7 +46,7 @@
 #include <uORB/topics/vehicle_status_flags.h>
 
 #include <uORB/uORB_sim.hpp> // Added by Peixuan Shu
-#include "../mavlink_msg_list.hpp"  // Added by Peixuan Shu
+#include "../mavlink_sender.hpp"
 
 #include <commander/px4_custom_mode.h> // Added by Peixuan Shu
 
@@ -151,7 +151,8 @@ class MavlinkStreamHeartbeat
 {
 private:
 
-    int agent_id_ = -1; // agent id. 
+	int agent_id_ = -1; // agent id.
+	MavlinkSender sender_;
 	
 	uORB_sim::Subscription<actuator_armed_s> _acturator_armed_sub{ORB_ID(actuator_armed)};
 	uORB_sim::Subscription<vehicle_control_mode_s> _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
@@ -163,6 +164,8 @@ public:
 	{
 		agent_id_ = id;
 	}
+
+	void set_sender(MavlinkSender sender) { sender_ = std::move(sender); }
 
 	bool send()
 	{
@@ -241,16 +244,16 @@ public:
 			// mavlink_msg_heartbeat_send(_mavlink->get_channel(), _mavlink->get_system_type(), MAV_AUTOPILOT_PX4,
 			// 			   base_mode, custom_mode.data, system_status);
 
-			/*  Added by Peixuan Shu. Write mavlink messages into "px4_modules/mavlink/mavlink_msg_list.hpp" */
+			/* Encode and send the stream directly over the PX4 UDP endpoint. */
 			mavlink_heartbeat_t msg{};
 			msg.type = 0; // equal to _mavlink->get_system_type(), which is _param_mav_type.get()
 			msg.autopilot = MAV_AUTOPILOT_PX4;
 			msg.base_mode = base_mode;
 			msg.custom_mode = custom_mode.data;
 			msg.system_status = system_status;
-			int handle = (int) px4::mavlink_stream_handle::HEARTBEAT;
-			mavlink_msg_heartbeat_encode(1, 1, &px4::mavlink_stream_lists.at(agent_id_)[handle].msg, &msg); 
-			px4::mavlink_stream_lists.at(agent_id_)[handle].updated = true;
+			mavlink_message_t encoded{};
+			mavlink_msg_heartbeat_encode(1, 1, &encoded, &msg);
+			if (sender_) sender_(encoded);
 
 			return true;
 		}

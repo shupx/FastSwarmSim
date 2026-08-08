@@ -16,7 +16,7 @@
 
 #include "mavlink_streamer.hpp"
 
-MavlinkStreamer::MavlinkStreamer(int agent_id) : agent_id_(agent_id)
+MavlinkStreamer::MavlinkStreamer(int agent_id, MavlinkSender sender) : agent_id_(agent_id), sender_(std::move(sender))
 {
     mavlink_stream_AttitudeQuaternion_ = STREAM_MAKE_PTR(MavlinkStreamAttitudeQuaternion)(50, this); // set streaming rate
     mavlink_stream_LocalPositionNED_ = STREAM_MAKE_PTR(MavlinkStreamLocalPositionNED)(30, this); // set streaming rate
@@ -39,6 +39,30 @@ MavlinkStreamer::~MavlinkStreamer()
 
 void MavlinkStreamer::Stream(const uint64_t &time_us)
 {
+	while (_vehicle_command_ack_sub.updated()) {
+		vehicle_command_ack_s command_ack{};
+		if (!_vehicle_command_ack_sub.update(&command_ack)) {
+			break;
+		}
+
+		if (!command_ack.from_external
+		    && command_ack.command < vehicle_command_s::VEHICLE_CMD_PX4_INTERNAL_START) {
+			mavlink_command_ack_t ack{};
+			ack.command = command_ack.command;
+			ack.result = command_ack.result;
+			ack.progress = command_ack.result_param1;
+			ack.result_param2 = command_ack.result_param2;
+			ack.target_system = command_ack.target_system;
+			ack.target_component = command_ack.target_component;
+
+			mavlink_message_t encoded{};
+			mavlink_msg_command_ack_encode(1, MAV_COMP_ID_AUTOPILOT1, &encoded, &ack);
+			if (sender_) {
+				sender_(encoded);
+			}
+		}
+	}
+
     // stream all mavlink messages
     stream_signal_(time_us); 
 }

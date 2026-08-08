@@ -19,6 +19,9 @@
 #include <iostream> // for std::cout, std::endl
 #include <memory>  // for std::shared_ptr
 #include <boost/signals2.hpp> // for signal2
+#include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/vehicle_command_ack.h>
+#include <uORB/uORB_sim.hpp>
 
 #include "streams/ATTITUDE_QUATERNION.hpp"
 #include "streams/ATTITUDE_TARGET.hpp"
@@ -29,7 +32,7 @@
 #include "streams/GLOBAL_POSITION_INT.hpp"
 #include "streams/GPS_GLOBAL_ORIGIN.hpp"
 
-#include "mavlink_msg_list.hpp"  // store the simulated static(global) mavlink messages
+#include "mavlink_sender.hpp"
 
 
 #define STREAM_PTR(...) std::shared_ptr<MavlinkStream<__VA_ARGS__> >
@@ -51,6 +54,7 @@ public:
 			MavlinkStream(const float& rate, MavlinkStreamer* parent) : period_us_(1.e6/rate) 
 			{
 				stream_.set_agent_id(parent->agent_id_);
+				stream_.set_sender(parent->sender_);
 				parent->stream_signal_.connect(boost::bind(&MavlinkStream::Stream, this, boost::placeholders::_1));
 			}
 
@@ -82,7 +86,7 @@ public:
 	STREAM_PTR(MavlinkStreamGlobalPositionInt) mavlink_stream_GlobalPositionInt_;
 	STREAM_PTR(MavlinkStreamGpsGlobalOrigin) mavlink_stream_GpsGlobalOrigin_;
 
-	MavlinkStreamer(int agent_id);
+    MavlinkStreamer(int agent_id, MavlinkSender sender = {});
 
 	~MavlinkStreamer();
 
@@ -90,7 +94,9 @@ public:
 	 * \brief stream all mavlink messages
 	 * @param time_us time now (microseconds, us)
 	 */
-	void Stream(const uint64_t &time_us);
+    void Stream(const uint64_t &time_us);
+
+private:
+    MavlinkSender sender_;
+	uORB_sim::Subscription<vehicle_command_ack_s> _vehicle_command_ack_sub{ORB_ID(vehicle_command_ack)};
 };
-
-
