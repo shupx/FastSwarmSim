@@ -298,6 +298,22 @@ TEST(TimeCoordinator, ParticipantAnnouncementAdvancesClockAndStatus)
   executor.remove_node(coordinator_node);
 }
 
+TEST(TimeCoordinator, AllowsEmptyPubEndpointAndAdvertisesIt)
+{
+  const auto endpoint = reserve_test_endpoint();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("time_coordinator_empty_pub_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
+
+  fss_time::ZeroMqTimeParticipantOptions options;
+  options.participant_id = "empty_pub_endpoint_client";
+  options.coordinator_endpoint = endpoint;
+  fss_time::ZeroMqTimeParticipantBackend client(
+    std::move(options), std::make_shared<rclcpp::Clock>(RCL_ROS_TIME));
+  EXPECT_EQ(client.request_coordinator("GET_PUB_ENDPOINT", true), "PUB_ENDPOINT ");
+}
+
 TEST(TimeCoordinator, RealTimeParticipantRequestCatchesUpToWallTime)
 {
   const auto endpoint = reserve_test_endpoint();
