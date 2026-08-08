@@ -111,6 +111,7 @@ public:
 
 private:
   void start_locked();
+  bool send_coordinator_locked(const std::string & message, bool wait_forever);
   std::string request_coordinator_locked(const std::string & message, bool wait_forever);
 
   struct Impl;

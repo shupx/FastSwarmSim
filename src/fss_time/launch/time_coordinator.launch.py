@@ -15,7 +15,7 @@ def generate_launch_description():
         DeclareLaunchArgument("start_coordinator_ui", default_value="true"),
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"), # The bind endpoint for the time coordinator's ROUTER socket, which is used by time participants to connect to the coordinator. 
 
-        DeclareLaunchArgument("fss_time_coordinator_pub_endpoint", default_value="ipc:///tmp/fss_time_coordinator_pub.ipc"), # The bind endpoint for the time coordinator's time zeromq PUB socket, only used when it is a parent coordinator. This endpoint is automatically aquired by the child coordinator and needs not be set by the child. Only make sure it is accessible by the child coordinator.
+        DeclareLaunchArgument("fss_time_coordinator_pub_endpoint", default_value=""), # The bind endpoint for the time coordinator's time zeromq PUB socket, only used when it is a parent coordinator. This endpoint is automatically aquired by the child coordinator and needs not be set by the child. Only make sure it is accessible by the child coordinator. ("tcp://*:0" for example)
 
         DeclareLaunchArgument("fss_time_parent_coordinator_endpoint", default_value=""), # The fss_time_coordinator_endpoint of the parent coordinator, only used when it is a child coordinator and connects to it. If set, the coordinator will connect to a parent coordinator and follow its time. If not set as an empty string, the coordinator will be a root coordinator and will control time itself. (tcp://parent_IP:5545 for example)
 

@@ -67,6 +67,17 @@ public:
   fss_time_interfaces::msg::SimClockStatus status_message() const;
 
 private:
+  enum class DebugState
+  {
+    Initializing,
+    NoParticipants,
+    WaitingForParticipant,
+    InfiniteRequest,
+    RequestNotAdvanced,
+    Advanced,
+    ParentGrantPublished
+  };
+
   struct ParticipantState
   {
     int64_t request_time_ns{0};
@@ -116,10 +127,14 @@ private:
   int64_t observed_rtf_last_sim_time_ns_{0};
   std::chrono::steady_clock::time_point observed_rtf_last_wall_time_{};
   std::chrono::steady_clock::time_point real_time_last_wall_time_{};
+  std::chrono::steady_clock::time_point update_clock_stats_start_{};
+  uint64_t update_clock_call_count_{0};
+  uint64_t update_clock_total_duration_ns_{0};
   bool running_{true};
   bool follows_real_time_{true};
   bool publish_clock_{true};
-  std::string debug_msg_{"Initializing..."};
+  DebugState debug_state_{DebugState::Initializing};
+  int64_t debug_min_request_ns_{0};
   std::string endpoint_;
   std::string pub_endpoint_;
   std::string parent_endpoint_;

@@ -143,7 +143,7 @@ TimeCoordinator::TimeCoordinator(rclcpp::Node & node)
       node_, "fss_time_coordinator_endpoint", "ipc:///tmp/fss_time_coordinator.ipc");
   pub_endpoint_ =
     declare_or_get_parameter<std::string>(
-      node_, "fss_time_coordinator_pub_endpoint", "ipc:///tmp/fss_time_coordinator_pub.ipc");
+      node_, "fss_time_coordinator_pub_endpoint", "");
   parent_endpoint_ =
     declare_or_get_parameter<std::string>(node_, "fss_time_parent_coordinator_endpoint", "");
   has_parent_coordinator_ = !parent_endpoint_.empty();
@@ -168,11 +168,12 @@ TimeCoordinator::TimeCoordinator(rclcpp::Node & node)
   max_real_time_factor_ = max_rtf;
 
   if (publish_clock_) {
+    // Use rclcpp::ClockQoS() to ensure that the /clock topic is best-effort and volatile, which is the standard for /clock in ROS 2. Do not use a reliable QoS for /clock, as it will increase the clock publishing time significantly as subscribers are added and is not necessary for clock use cases.
     clock_pub_ = node_.create_publisher<rosgraph_msgs::msg::Clock>(
-      "/clock", rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local());
+      "/clock", rclcpp::ClockQoS()); 
   }
   status_pub_ = node_.create_publisher<fss_time_interfaces::msg::SimClockStatus>(
-    "fss/sim_clock_status", rclcpp::QoS(rclcpp::KeepLast(10)).reliable().transient_local());
+    "fss/sim_clock_status", rclcpp::QoS(rclcpp::KeepLast(10)).durability_volatile().transient_local());
   control_srv_ = node_.create_service<fss_time_interfaces::srv::SimClockControl>(
     "fss/clock_control",
     [this](
@@ -229,15 +230,17 @@ void TimeCoordinator::start()
   impl_->socket.set(zmq::sockopt::rcvtimeo, 0);
   impl_->socket.bind(endpoint_);
 
-  // bind the PUB socket for publishing granted time to participants
-  impl_->pub_socket.set(zmq::sockopt::linger, 0);
-  impl_->pub_socket.set(zmq::sockopt::sndhwm, 100000);
-  impl_->pub_socket.bind(pub_endpoint_);
-  // A TCP port of zero requests an ephemeral port. Advertise the port selected by bind().
-  if (parse_tcp_endpoint(pub_endpoint_)) {
-    if (const auto bound_pub = parse_tcp_endpoint(
-        impl_->pub_socket.get(zmq::sockopt::last_endpoint))) {
-      pub_endpoint_ = replace_tcp_endpoint_port(pub_endpoint_, bound_pub->port);
+  // The granted-time PUB channel is optional for non-cascaded coordinators.
+  if (!pub_endpoint_.empty()) {
+    impl_->pub_socket.set(zmq::sockopt::linger, 0);
+    impl_->pub_socket.set(zmq::sockopt::sndhwm, 100000);
+    impl_->pub_socket.bind(pub_endpoint_);
+    // A TCP port of zero requests an ephemeral port. Advertise the port selected by bind().
+    if (parse_tcp_endpoint(pub_endpoint_)) {
+      if (const auto bound_pub = parse_tcp_endpoint(
+          impl_->pub_socket.get(zmq::sockopt::last_endpoint))) {
+        pub_endpoint_ = replace_tcp_endpoint_port(pub_endpoint_, bound_pub->port);
+      }
     }
   }
 
@@ -262,7 +265,7 @@ void TimeCoordinator::start()
     input >> status >> parent_pub_endpoint_;
     if (status != "PUB_ENDPOINT" || parent_pub_endpoint_.empty()) {
       throw std::runtime_error(
-              "failed to get parent coordinator PUB endpoint from " + parent_endpoint_ +
+              "parent coordinator does not provide a PUB endpoint: " + parent_endpoint_ +
               ": " + parent_pub_reply);
     }
     if (const auto parent_pub = parse_tcp_endpoint(parent_pub_endpoint_)) {
@@ -351,7 +354,25 @@ fss_time_interfaces::msg::SimClockStatus TimeCoordinator::status_message() const
         return entry.second.has_new_request;
       }));
   status.regulator_active = running_ && max_real_time_factor_ > 0.0;
-  status.debug_msg = debug_msg_;
+  switch (debug_state_) {
+    case DebugState::Initializing: status.debug_msg = "Initializing..."; break;
+    case DebugState::NoParticipants:
+      status.debug_msg = "try_update_clock_locked: publish_clock_locked skipped: no participants";
+      break;
+    case DebugState::WaitingForParticipant:
+      status.debug_msg = "try_update_clock_locked: publish_clock_locked skipped: waiting for participant";
+      break;
+    case DebugState::InfiniteRequest:
+      status.debug_msg = "try_update_clock_locked: publish_clock_locked skipped: minimum request is infinite or near infinite";
+      break;
+    case DebugState::RequestNotAdvanced:
+      status.debug_msg = "try_update_clock_locked: publish_clock_locked skipped: minimum request " +
+        std::to_string(debug_min_request_ns_) + " ns is not greater than current sim time " +
+        std::to_string(sim_time_ns_) + " ns";
+      break;
+    case DebugState::Advanced: status.debug_msg = "try_update_clock_locked: clock advanced"; break;
+    case DebugState::ParentGrantPublished: status.debug_msg = "receive_parent_grant: clock advanced"; break;
+  }
   status.speed_regulator_step_ns = speed_regulator_step_ns_;
   status.min_operation_walltime = min_operation_walltime_;
   return status;
@@ -399,10 +420,13 @@ void TimeCoordinator::receive_router_message()
   }
 
   const auto reply_text = handle_message(identity_frame.to_string(), message_frame.to_string());
-  zmq::message_t identity(identity_frame.data(), identity_frame.size());
-  zmq::message_t reply(reply_text.begin(), reply_text.end());
-  impl_->socket.send(identity, zmq::send_flags::sndmore);
-  impl_->socket.send(reply, zmq::send_flags::none);
+  if (!reply_text.empty()) {
+    // send() may take 2us, which is heavy for a time coordinator that is expected to run at 1kHz and with multiple participants. 
+    zmq::message_t identity(identity_frame.data(), identity_frame.size());
+    zmq::message_t reply(reply_text.begin(), reply_text.end());
+    impl_->socket.send(identity, zmq::send_flags::sndmore);
+    impl_->socket.send(reply, zmq::send_flags::none);
+  }
 }
 
 void TimeCoordinator::receive_parent_grant()
@@ -425,12 +449,9 @@ void TimeCoordinator::receive_parent_grant()
   if (granted_time_ns <= sim_time_ns_) {
     return;
   }
-  const auto previous_sim_time_ns = sim_time_ns_;
   sim_time_ns_ = granted_time_ns;
   publish_clock_locked();
-  debug_msg_ =
-    "receive_parent_grant: publish_clock_locked published: sim time advanced from " +
-    std::to_string(previous_sim_time_ns) + " ns to " + std::to_string(sim_time_ns_) + " ns";
+  debug_state_ = DebugState::ParentGrantPublished;
 
   for (auto & entry : participants_) {
     auto & participant = entry.second;
@@ -463,7 +484,7 @@ std::string TimeCoordinator::handle_message(const std::string & identity, const 
     participant.request_time_ns = request_ns;
     participant.has_new_request = true;
     try_update_clock_locked();
-    return "OK";
+    return ""; // no reply needed for ANNOUNCE
   }
 
   if (command == "SET_FOLLOWS_REAL_TIME") {
@@ -577,21 +598,19 @@ void TimeCoordinator::update_observed_real_time_factor_locked()
 void TimeCoordinator::try_update_clock_locked()
 {
   if (participants_.empty()) {
-    debug_msg_ = "try_update_clock_locked: publish_clock_locked skipped: no participants";
+    debug_state_ = DebugState::NoParticipants;
     return;
   }
 
-  bool all_have_new_request = true;
   int64_t min_request_ns = regulator_request_ns_;
   if (follows_real_time_ && max_real_time_factor_ >= 1.0) {
     min_request_ns = std::max(min_request_ns, real_time_request_ns_);
   }
-  std::string waiting_participant;
+  bool all_have_new_request = true;
   for (const auto & entry : participants_) {
     const auto & participant = entry.second;
     if (!participant.has_new_request) {
       all_have_new_request = false;
-      waiting_participant = entry.first;
       break;
     }
     const auto participant_request_ns = follows_real_time_ && participant.follows_real_time ?
@@ -601,36 +620,24 @@ void TimeCoordinator::try_update_clock_locked()
   }
 
   if (!all_have_new_request) {
-    debug_msg_ =
-      "try_update_clock_locked: publish_clock_locked skipped: waiting for participant " +
-      waiting_participant + " to announce next safe time";
+    debug_state_ = DebugState::WaitingForParticipant;
     return;
   }
 
   if (min_request_ns >= kInfiniteTimeNs - speed_regulator_step_ns_) {
-    debug_msg_ =
-      "try_update_clock_locked: publish_clock_locked skipped: minimum request is infinite or near infinite";
+    debug_state_ = DebugState::InfiniteRequest;
     return;
   }
 
   if (min_request_ns <= sim_time_ns_) {
-    debug_msg_ =
-      "try_update_clock_locked: publish_clock_locked skipped: minimum request " +
-      std::to_string(min_request_ns) + " ns is not greater than current sim time " +
-      std::to_string(sim_time_ns_) + " ns";
+    debug_state_ = DebugState::RequestNotAdvanced;
+    debug_min_request_ns_ = min_request_ns;
     return;
   }
 
   advance_time_locked(min_request_ns);
-  if (has_parent_coordinator_) {
-    debug_msg_ =
-      "try_update_clock_locked: advance_time requested parent grant from " +
-      std::to_string(sim_time_ns_) + " ns to " + std::to_string(min_request_ns) + " ns";
-  } else {
-    debug_msg_ =
-      "try_update_clock_locked: publish_clock_locked published: sim time advanced to " +
-      std::to_string(sim_time_ns_) + " ns";
-
+  debug_state_ = DebugState::Advanced;
+  if (!has_parent_coordinator_) {
     for (auto & entry : participants_) {
       auto & participant = entry.second;
       if (participant.request_time_ns <= sim_time_ns_) {
@@ -667,7 +674,7 @@ void TimeCoordinator::publish_clock_locked()
 
 void TimeCoordinator::publish_granted_time_locked()
 {
-  if (!impl_) {
+  if (!impl_ || pub_endpoint_.empty()) {
     return;
   }
   std::ostringstream message;
