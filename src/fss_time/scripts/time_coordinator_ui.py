@@ -135,6 +135,7 @@ class CoordinatorBridge(QObject):
         return self.node.get_namespace()
 
     def _on_status(self, msg: SimClockStatus):
+        sim_time = float(msg.sim_time.sec) + float(msg.sim_time.nanosec) * 1e-9
         self.running = bool(msg.running)
         self.expected_rtf = max(0.0, float(msg.max_real_time_factor))
         observed_rtf = max(0.0, float(msg.observed_real_time_factor))
@@ -147,6 +148,7 @@ class CoordinatorBridge(QObject):
             self.operation_limited_rtf = 0.0
         self.status_signal.emit(
             {
+                "sim_time": sim_time,
                 "running": self.running,
                 "max_real_time_factor": self.expected_rtf,
                 "observed_real_time_factor": observed_rtf,
@@ -323,6 +325,7 @@ class MainWindow(QMainWindow):
         return self.scale_widget.width() * value_offset / value_range
 
     def set_status(self, status: dict):
+        self.set_sim_time(status["sim_time"])
         self.label_running_value.setText("running" if status["running"] else "paused")
         self.label_rtf_value.setText(format_rtf(status["max_real_time_factor"]))
         self.label_participants_value.setText(str(status["participant_count"]))
