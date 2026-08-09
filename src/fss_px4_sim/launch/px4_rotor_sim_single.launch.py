@@ -11,26 +11,39 @@ from launch.substitutions import PathJoinSubstitution
 def generate_launch_description():
     namespace = LaunchConfiguration("namespace")
     return LaunchDescription([
+        # ROS namespace for this vehicle. Empty means use the root namespace.
         DeclareLaunchArgument("namespace", default_value=""),
+        # Use the FastSwarmSim coordinated simulation clock when true. If ture, run 'ros2 launch fss_time time_coordinator.launch.py ' first.
         DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
+        # MAVLink system identifiers; valid values are 1-255.
         DeclareLaunchArgument("mav_sys_id", default_value="1"),
+        # MAVLink component identifiers, shoulb be fixed to 1 for PX4 SITL.
         DeclareLaunchArgument("mav_comp_id", default_value="1"),
+        # PX4 SITL UDP bind port. 0 lets the operating system choose a port.
         DeclareLaunchArgument("mavlink_udp_local_port", default_value="0"),
+        # MAVROS UDP port receiving MAVLink packets from PX4 SITL. (for example, mavros binds this port to receive telemetry from PX4 SITL)
         DeclareLaunchArgument("mavlink_udp_remote_port", default_value="24540"),
+        # Initial position in the local East/North/Up frame, in metres.
         DeclareLaunchArgument("init_x_East_metre", default_value="0.0"),
         DeclareLaunchArgument("init_y_North_metre", default_value="0.0"),
         DeclareLaunchArgument("init_z_Up_metre", default_value="0.0"),
+        # Initial vehicle attitude in degrees.
         DeclareLaunchArgument("init_roll_deg", default_value="0.0"),
         DeclareLaunchArgument("init_pitch_deg", default_value="0.0"),
         DeclareLaunchArgument("init_yaw_deg", default_value="0.0"),
+        # Position source: 0 uses mocap/local position; 1 uses GPS/global position.
         DeclareLaunchArgument("local_pos_source", default_value="0"),
+        # Geographic origin used to convert GPS coordinates to the local frame.
         DeclareLaunchArgument("world_origin_latitude_deg", default_value="39.978861"),
         DeclareLaunchArgument("world_origin_longitude_deg", default_value="116.339803"),
         DeclareLaunchArgument("world_origin_AMSL_alt_metre", default_value="53.0"),
+        # IPC endpoint of the FastSwarmSim time coordinator.
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
+        # Enable or disable the corresponding runtime component.
         DeclareLaunchArgument("enable_mavros", default_value="true"),
         DeclareLaunchArgument("enable_visualizer", default_value="true"),
         DeclareLaunchArgument("enable_rviz", default_value="true"),
+        # RViz configuration file used when enable_rviz is true.
         DeclareLaunchArgument("rviz_config", default_value=PathJoinSubstitution([
             FindPackageShare("fss_px4_sim"), "rviz", "single_px4_rotor.rviz"])),
 
