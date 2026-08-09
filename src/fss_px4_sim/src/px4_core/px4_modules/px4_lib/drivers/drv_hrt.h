@@ -3,6 +3,8 @@
  * Modified by Peixuan Shu
  * 
  * Simulate the high resolution time (hrt)
+ * Modified by Peixuan Shu (2026-08-09): add an instance-local SimClock for
+ * composed multi-PX4 simulation.
  * 
  * 2023-12-23
  * 
@@ -137,9 +139,38 @@ typedef struct latency_boardctl {
 
 #endif
 
-// Each complete simulator advances PX4 only on its own simulation thread.
-// Keeping HRT thread-local prevents composed simulators from sharing a clock.
-extern thread_local hrt_abstime hrt_absolute_time_us_sim;
+__END_DECLS
+
+#include <atomic>
+
+namespace px4
+{
+/** Simulation clock owned by one PX4 instance. Added by Peixuan Shu. */
+class SimClock
+{
+public:
+	class Scope
+	{
+	public:
+		explicit Scope(SimClock &clock);
+		~Scope();
+		Scope(const Scope &) = delete;
+		Scope &operator=(const Scope &) = delete;
+
+	private:
+		SimClock *previous_;
+	};
+
+	void set(hrt_abstime value) { value_.store(value, std::memory_order_relaxed); }
+	hrt_abstime get() const { return value_.load(std::memory_order_relaxed); }
+	static SimClock *current();
+
+private:
+	std::atomic<hrt_abstime> value_{0};
+};
+}  // namespace px4
+
+__BEGIN_DECLS
 
 /**
  * Get absolute time in [us] (does not wrap).
@@ -300,7 +331,6 @@ void reset_latency_counters(void);
 #endif
 
 __END_DECLS
-
 
 #ifdef	__cplusplus
 

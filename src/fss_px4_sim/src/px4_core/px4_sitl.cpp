@@ -8,6 +8,8 @@
  * 
  * @version 1.0
  * @date 2023-12-11
+ * Modified by Peixuan Shu (2026-08-09): bind PX4 modules to instance-local
+ * uORB, parameter, and simulation-clock contexts.
  * 
  * @license BSD 3-Clause License
  * @copyright (c) 2023, Peixuan Shu
@@ -21,9 +23,12 @@
 namespace MavrosQuadSimulator
 {
 
-PX4SITL::PX4SITL(int agent_id, rclcpp::Node &node, const std::shared_ptr<Dynamics> &dynamics)
-    : agent_id_(agent_id), node_(node), uav_dynamics_(dynamics), pos_inited_(false)
+PX4SITL::PX4SITL(rclcpp::Node &node,
+    const std::shared_ptr<Dynamics> &dynamics)
+    : node_(node), uav_dynamics_(dynamics), pos_inited_(false)
 {
+    // Added by Peixuan Shu: modules bind to the context owned by this PX4SITL.
+    Px4InstanceContext::Scope context_scope(context_);
     /* Load px4 parameters from ROS parameter space to override the default values from <parameters/px4_parameters.hpp>*/
     load_px4_params_from_ros_params(); // Before loading px4 modules!
 
@@ -35,12 +40,11 @@ PX4SITL::PX4SITL(int agent_id, rclcpp::Node &node, const std::shared_ptr<Dynamic
     int mavlink_udp_remote_port = 14557;
     node_.get_parameter_or("mavlink_udp_local_port", mavlink_udp_local_port, mavlink_udp_local_port);
     node_.get_parameter_or("mavlink_udp_remote_port", mavlink_udp_remote_port, mavlink_udp_remote_port);
-    mavlink_ = std::make_shared<MAVLINK>(
-        agent_id_, mavlink_udp_local_port, mavlink_udp_remote_port);
+    mavlink_ = std::make_shared<MAVLINK>(context_, mavlink_udp_local_port, mavlink_udp_remote_port);
     mavlink_->start();
-    commander_ = std::make_shared<Commander>(agent_id_);
-    mc_pos_control_ = std::make_shared<MulticopterPositionControl>(agent_id_, false);
-    mc_att_control_ = std::make_shared<MulticopterAttitudeControl>(agent_id_, false);
+    commander_ = std::make_shared<Commander>();
+    mc_pos_control_ = std::make_shared<MulticopterPositionControl>(false);
+    mc_att_control_ = std::make_shared<MulticopterAttitudeControl>(false);
 
     /* Init px4 modules */
     mc_pos_control_->init();
@@ -49,28 +53,32 @@ PX4SITL::PX4SITL(int agent_id, rclcpp::Node &node, const std::shared_ptr<Dynamic
 
 void PX4SITL::load_px4_params_from_ros_params()
 {
-    /* Load px4 parameters from ROS parameter space to override the default values from parameters_vectors.at(agent_id_) in <parameters/px4_parameters.hpp>*/
+    /* Modified by Peixuan Shu: load ROS overrides into this instance's ParameterStore. */
     for (int i=0; i<sizeof(px4::parameters)/sizeof(px4::parameters[0]); ++i)
     {
         switch (px4::parameters_type[i])
         {
             case PARAM_TYPE_INT32:
             {
-                int default_value = px4::parameters[i].val.i;
-                node_.get_parameter_or(px4::parameters[i].name, px4::parameters_vectors.at(agent_id_)[i].val.i, default_value);
-                if (px4::parameters_vectors.at(agent_id_)[i].val.i != default_value)
+                int configured = px4::parameters[i].val.i;
+                const int default_value = configured;
+                node_.get_parameter_or(px4::parameters[i].name, configured, default_value);
+                context_.parameter_store.set(static_cast<param_t>(i), &configured);
+                if (configured != default_value)
                 {
-                    std::cout << "[PX4SITL] Reset " << px4::parameters[i].name << " from " << default_value << " to " << px4::parameters_vectors.at(agent_id_)[i].val.i << std::endl;
+                    std::cout << "[PX4SITL] Reset " << px4::parameters[i].name << " from " << default_value << " to " << configured << std::endl;
                 }
                 break;
             }
             case PARAM_TYPE_FLOAT:
             {
-                float default_value = px4::parameters[i].val.f;
-                node_.get_parameter_or(px4::parameters[i].name, px4::parameters_vectors.at(agent_id_)[i].val.f, default_value);
-                if (px4::parameters_vectors.at(agent_id_)[i].val.f != default_value)
+                float configured = px4::parameters[i].val.f;
+                const float default_value = configured;
+                node_.get_parameter_or(px4::parameters[i].name, configured, default_value);
+                context_.parameter_store.set(static_cast<param_t>(i), &configured);
+                if (configured != default_value)
                 {
-                    std::cout << "[PX4SITL] Reset " << px4::parameters[i].name << " from " << default_value << " to " << px4::parameters_vectors.at(agent_id_)[i].val.f << std::endl;
+                    std::cout << "[PX4SITL] Reset " << px4::parameters[i].name << " from " << default_value << " to " << configured << std::endl;
                 }
                 break; 
             }   
@@ -114,8 +122,9 @@ void PX4SITL::Run(const uint64_t &time_us)
     }
     else
     {
-        /* Update the global px4 time (stored in px4_modules/px4_lib/drivers/drv_hrt.h) */
-        hrt_absolute_time_us_sim = time_us; //@TODO seperate time for each UAV rather than extern/global time?
+        /* Modified by Peixuan Shu: advance this PX4 instance's simulation clock. */
+        context_.clock.set(time_us);
+        Px4InstanceContext::Scope context_scope(context_);
 
         /* Update px4 estimator uorb states (pos/vel/acc/att, etc.) from UAV dynamical model */
         UpdateDroneStates(time_us);
@@ -416,14 +425,7 @@ void PX4SITL::get_px4_param(float& output)
 	    // static type-check
 	    static_assert(px4::parameters_type[(int)p] == PARAM_TYPE_FLOAT, "parameter type must be float");
 
-        if (agent_id_>=0 && agent_id_ < px4::parameters_vectors.size())
-        {
-            output = px4::parameters_vectors.at(agent_id_)[(int) p].val.f;
-        }
-        else
-        {
-            std::cout << "[PX4SITL::get_px4_param] agent_id_ " << agent_id_ << " is invalid" << std::endl;
-        }
+        context_.parameter_store.get(static_cast<param_t>(p), &output);
 }
 
 template <px4::params p>
@@ -432,14 +434,7 @@ void PX4SITL::get_px4_param(int32_t& output)
 	    // static type-check
 	    static_assert(px4::parameters_type[(int)p] == PARAM_TYPE_INT32, "parameter type must be int32_t");
 
-        if (agent_id_>=0 && agent_id_ < px4::parameters_vectors.size())
-        {
-            output = px4::parameters_vectors.at(agent_id_)[(int) p].val.i;
-        }
-        else
-        {
-            std::cout << "[PX4SITL::get_px4_param] agent_id_ " << agent_id_ << " is invalid" << std::endl;
-        }
+        context_.parameter_store.get(static_cast<param_t>(p), &output);
 }
 
 template <px4::params p>
@@ -448,14 +443,9 @@ void PX4SITL::get_px4_param(bool& output)
 	    // static type-check
 	    static_assert(px4::parameters_type[(int)p] == PARAM_TYPE_INT32, "parameter type must be int32_t");
 
-        if (agent_id_>=0 && agent_id_ < px4::parameters_vectors.size())
-        {
-            output = px4::parameters_vectors.at(agent_id_)[(int) p].val.i != 0;
-        }
-        else
-        {
-            std::cout << "[PX4SITL::get_px4_param] agent_id_ " << agent_id_ << " is invalid" << std::endl;
-        }
+        int32_t value = 0;
+        context_.parameter_store.get(static_cast<param_t>(p), &value);
+        output = value != 0;
 }
 
 

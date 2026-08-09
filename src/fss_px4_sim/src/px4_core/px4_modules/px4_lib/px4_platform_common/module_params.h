@@ -35,6 +35,8 @@
  * @file px4_module_params.h
  *
  * @class ModuleParams is a C++ base class for modules/classes using configuration parameters.
+ * Modified by Peixuan Shu (2026-08-09): retain the parameter store selected
+ * while each module instance is created.
  */
 
 #pragma once
@@ -48,6 +50,8 @@ class ModuleParams : public ListNode<ModuleParams *>
 public:
 
 	ModuleParams(ModuleParams *parent)
+		// Added by Peixuan Shu: capture the instance-local ParameterStore.
+		: parameter_store_(px4::ParameterStore::current())
 	{
 		setParent(parent);
 	}
@@ -77,6 +81,9 @@ public:
 	ModuleParams &operator=(ModuleParams &&) = delete;
 
 protected:
+	// Added by Peixuan Shu: parameter wrappers use the store belonging to this module.
+	px4::ParameterStore &parameter_store_;
+
 	/**
 	 * @brief Call this method whenever the module gets a parameter change notification.
 	 *        It will automatically call updateParams() for all children, which then call updateParamsImpl().

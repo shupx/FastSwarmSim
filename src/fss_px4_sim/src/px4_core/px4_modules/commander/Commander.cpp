@@ -156,8 +156,8 @@ typedef enum VEHICLE_MODE_FLAG {
 /* Delete some useless functions */ 
 
 
-Commander::Commander(int agent_id) : 
-	agent_id_(agent_id), 
+// Modified by Peixuan Shu: agent_id no longer selects global PX4 state.
+Commander::Commander() :
 	ModuleParams(nullptr)
 	// _failure_detector(this)
 {

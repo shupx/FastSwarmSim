@@ -80,11 +80,8 @@ using namespace time_literals;
 class MulticopterPositionControl : /* public ModuleBase<MulticopterPositionControl>, public control::SuperBlock,*/
 	public ModuleParams/*, public px4::ScheduledWorkItem */
 {
-private: 
-	int agent_id_ = -1; // UAV id
-
 public:
-	MulticopterPositionControl(int agent_id, bool vtol = false);  // agent_id added by Peixuan Shu
+	MulticopterPositionControl(bool vtol = false);
 	~MulticopterPositionControl();
 
 	// /** @see ModuleBase */

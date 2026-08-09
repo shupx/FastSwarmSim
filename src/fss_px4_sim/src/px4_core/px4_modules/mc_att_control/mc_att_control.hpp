@@ -72,11 +72,8 @@ using namespace time_literals;
 class MulticopterAttitudeControl : /*public ModuleBase<MulticopterAttitudeControl>,*/ public ModuleParams/*,
 	public px4::WorkItem*/
 {
-private: 
-	int agent_id_ = -1; // UAV id
-
 public:
-	MulticopterAttitudeControl(int agent_id, bool vtol = false); // agent_id added by Peixuan Shu
+	MulticopterAttitudeControl(bool vtol = false);
 	~MulticopterAttitudeControl();
 
 	// /** @see ModuleBase */
@@ -185,4 +182,3 @@ private:
 		(ParamFloat<px4::params::MC_MAN_TILT_TAU>) _param_mc_man_tilt_tau
 	)
 };
-

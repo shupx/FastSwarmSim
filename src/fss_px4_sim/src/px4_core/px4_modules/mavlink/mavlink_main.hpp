@@ -8,6 +8,8 @@
  *
  * @author Peixuan Shu
  * @date 2026-08-08
+ * Modified by Peixuan Shu (2026-08-09): bind MAVLink work to the owning PX4
+ * instance context and remove agent-indexed state routing.
  */
 
 #pragma once
@@ -18,6 +20,7 @@
 #include <thread>
 
 #include <mavlink/v2.0/common/mavlink.h>
+#include <fss_px4_sim/px4_instance_context.hpp>
 
 #include "mavlink_receiver.h"
 #include "mavlink_streamer.hpp"
@@ -37,12 +40,14 @@ public:
 	 * Socket creation and thread startup are deferred until start() is called.
 	 * Both UDP endpoints use the loopback interface.
 	 *
-	 * @param agent_id simulated vehicle identifier passed to the receiver and
-	 * streamer.
+	 * @param context runtime context owned by the PX4SITL instance.
 	 * @param local_port local UDP port on which MAVLink messages are received.
 	 * @param remote_port remote UDP port to which MAVLink messages are sent.
 	 */
-	MAVLINK(int agent_id, int local_port, int remote_port);
+	// Modified by Peixuan Shu: receive the complete context used by this module
+	// and its receiver thread.
+	MAVLINK(MavrosQuadSimulator::Px4InstanceContext &context,
+		int local_port, int remote_port);
 
 	/**
 	 * @brief Stop the module and release its socket and worker thread.
@@ -99,7 +104,8 @@ private:
 	 */
 	void send_message(const mavlink_message_t &message) const;
 
-	int agent_id_; ///< Simulated vehicle identifier.
+	// Modified by Peixuan Shu: one context isolates all MAVLink-facing PX4 state.
+	MavrosQuadSimulator::Px4InstanceContext &context_;
 	int local_port_; ///< Local UDP port used to receive MAVLink messages.
 	int remote_port_; ///< Remote UDP port used to send MAVLink messages.
 	int socket_fd_{-1}; ///< UDP socket descriptor, or -1 when stopped.

@@ -8,6 +8,8 @@
  *
  * @author Peixuan Shu
  * @date 2026-08-08
+ * Modified by Peixuan Shu (2026-08-09): scope the MAVLink module and receiver
+ * thread to their owning PX4 instance context.
  */
 
 #include "mavlink_main.hpp"
@@ -20,8 +22,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-MAVLINK::MAVLINK(int agent_id, int local_port, int remote_port)
-	: agent_id_(agent_id), local_port_(local_port), remote_port_(remote_port)
+MAVLINK::MAVLINK(MavrosQuadSimulator::Px4InstanceContext &context,
+	int local_port, int remote_port)
+	: context_(context), local_port_(local_port), remote_port_(remote_port)
 {
 }
 
@@ -32,6 +35,8 @@ MAVLINK::~MAVLINK()
 
 void MAVLINK::start()
 {
+	// Modified by Peixuan Shu: construct MAVLink components in their owning context.
+	MavrosQuadSimulator::Px4InstanceContext::Scope context_scope(context_);
 	if (socket_fd_ >= 0) {
 		return;
 	}
@@ -58,8 +63,8 @@ void MAVLINK::start()
 			throw std::runtime_error("failed to connect MAVLink UDP socket");
 		}
 
-		receiver_ = std::make_unique<MavlinkReceiver>(agent_id_);
-		streamer_ = std::make_unique<MavlinkStreamer>(agent_id_, [this](const mavlink_message_t &message) {
+		receiver_ = std::make_unique<MavlinkReceiver>();
+		streamer_ = std::make_unique<MavlinkStreamer>([this](const mavlink_message_t &message) {
 			send_message(message);
 		});
 		receiving_.store(true);
@@ -93,6 +98,8 @@ void MAVLINK::stop()
 
 void MAVLINK::Stream(const uint64_t &time_us)
 {
+	// Added by Peixuan Shu: keep direct MAVLINK callers in the owning context.
+	MavrosQuadSimulator::Px4InstanceContext::Scope context_scope(context_);
 	if (streamer_) {
 		streamer_->Stream(time_us);
 	}
@@ -112,6 +119,9 @@ void MAVLINK::send_message(const mavlink_message_t &message) const
 
 void MAVLINK::receive_loop()
 {
+	// Modified by Peixuan Shu: the receiver executes on another thread, so it
+	// must select the complete owning context explicitly.
+	MavrosQuadSimulator::Px4InstanceContext::Scope context_scope(context_);
 	mavlink_status_t status{};
 	uint8_t buffer[2048];
 	pollfd poll_fd{socket_fd_, POLLIN, 0};

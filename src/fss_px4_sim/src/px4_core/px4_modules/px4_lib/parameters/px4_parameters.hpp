@@ -12,6 +12,7 @@
 #include <parameters/param.h>
 
 #include <array> // added by Peixuan Shu
+#include <mutex> // Added by Peixuan Shu: instance-local ParameterStore synchronization.
 #include <vector> // added by Peixuan Shu
 
 // DO NOT EDIT
@@ -11268,10 +11269,34 @@ static constexpr params parameters_volatile[] = {
 };
 
 
-// Store global(extern) px4 parameters of all UAVs (Created by Peixuan Shu)
-extern std::vector<std::vector<param_info_s>> parameters_vectors; // added by Peixuan Shu
+/** Parameter values for one PX4 runtime instance. Added by Peixuan Shu. */
+class ParameterStore
+{
+public:
+	class Scope
+	{
+	public:
+		explicit Scope(ParameterStore &store);
+		~Scope();
+		Scope(const Scope &) = delete;
+		Scope &operator=(const Scope &) = delete;
 
-/* allocate global storage for messages of agent i */
-void allocate_px4_params_storage(int expected_agent_num);
+	private:
+		ParameterStore *previous_;
+	};
+
+	ParameterStore();
+	ParameterStore(const ParameterStore &) = delete;
+	ParameterStore &operator=(const ParameterStore &) = delete;
+
+	static ParameterStore &current();
+	int get(param_t param, void *value) const;
+	int set(param_t param, const void *value);
+	int reset(param_t param);
+
+private:
+	mutable std::mutex mutex_;
+	std::vector<param_info_s> values_;
+};
 
 } // namespace px4

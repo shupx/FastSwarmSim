@@ -16,7 +16,8 @@
 
 #include "mavlink_streamer.hpp"
 
-MavlinkStreamer::MavlinkStreamer(int agent_id, MavlinkSender sender) : agent_id_(agent_id), sender_(std::move(sender))
+// Modified by Peixuan Shu: agent_id no longer selects global PX4 state.
+MavlinkStreamer::MavlinkStreamer(MavlinkSender sender) : sender_(std::move(sender))
 {
     mavlink_stream_AttitudeQuaternion_ = STREAM_MAKE_PTR(MavlinkStreamAttitudeQuaternion)(50, this); // set streaming rate
     mavlink_stream_LocalPositionNED_ = STREAM_MAKE_PTR(MavlinkStreamLocalPositionNED)(30, this); // set streaming rate

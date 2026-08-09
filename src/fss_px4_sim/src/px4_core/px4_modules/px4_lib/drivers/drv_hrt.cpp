@@ -3,6 +3,8 @@
  * Modified by Peixuan Shu
  * 
  * Simulate the high resolution time (hrt)
+ * Modified by Peixuan Shu (2026-08-09): bind hrt_absolute_time() to the
+ * instance-local SimClock selected by the current execution scope.
  * 
  * 2023-12-24
  * 
@@ -157,14 +159,35 @@ static constexpr unsigned HRT_INTERVAL_MAX = 50000000;
 // #endif // defined(ENABLE_LOCKSTEP_SCHEDULER)
 // }
 
-/* Modified by Peixuan Shu to simulate the time */
-thread_local hrt_abstime hrt_absolute_time_us_sim = 0;
+namespace
+{
+// Added by Peixuan Shu: thread-local selection of an instance-owned SimClock.
+thread_local px4::SimClock *current_sim_clock = nullptr;
+}
+
+px4::SimClock::Scope::Scope(px4::SimClock &clock)
+	: previous_(current_sim_clock)
+{
+	current_sim_clock = &clock;
+}
+
+px4::SimClock::Scope::~Scope()
+{
+	current_sim_clock = previous_;
+}
+
+px4::SimClock *px4::SimClock::current()
+{
+	return current_sim_clock;
+}
+
 /*
  * Get absolute time.
  */
 hrt_abstime hrt_absolute_time(void)
 {
-	return hrt_absolute_time_us_sim;
+	const px4::SimClock *clock = px4::SimClock::current();
+	return clock ? clock->get() : 0;
 }
 
 /*

@@ -59,6 +59,7 @@
 #include <float.h>
 
 #include "state_machine_helper.h"
+#include <iostream> // Added by Peixuan Shu: include explicitly after removing transitive uORB iostream dependency.
 // #include "commander_helper.h"
 
 using namespace time_literals;

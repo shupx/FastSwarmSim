@@ -7,6 +7,8 @@
  * 
  * @version 1.0
  * @date 2026-08-06
+ * Modified by Peixuan Shu (2026-08-09): PX4SITL owns its instance-local
+ * simulation context instead of process-global agent storage.
  * 
  * @license BSD 3-Clause License
  * @copyright (c) 2026, Peixuan Shu
@@ -28,11 +30,10 @@ namespace
 {
 using MavrosQuadSimulator::Dynamics;
 using MavrosQuadSimulator::PX4SITL;
-constexpr int kAgentId = 0;
 }
 
-// One executable represents exactly one vehicle.  This node owns the PX4
-// runtime and physics only; MAVROS communicates directly with PX4SITL over UDP.
+// Modified by Peixuan Shu: one node owns the PX4 runtime and physics for
+// one vehicle; MAVROS communicates directly with PX4SITL over UDP.
 class MavrosPx4QuadrotorSim final : public rclcpp::Node
 {
 public:
@@ -47,17 +48,12 @@ public:
     const auto init_pitch = parameter("init_pitch_deg", 0.0);
     const auto init_yaw = parameter("init_yaw_deg", 0.0);
 
-    // The copied PX4 v1.13.3 runtime uses agent-indexed storage.  Full-node
-    // launch creates one process per UAV, making index zero process-local.
-    uORB_sim::allocate_uorb_message_storage(1);
-    px4::allocate_px4_params_storage(1);
-
     dynamics_ = std::make_shared<Dynamics>();
     dynamics_->setSimStep(0.01);
     dynamics_->setPos(init_x, init_y, init_z);
     dynamics_->setRPY(init_roll * M_PI / 180.0, init_pitch * M_PI / 180.0,
       init_yaw * M_PI / 180.0);
-    px4_sitl_ = std::make_shared<PX4SITL>(kAgentId, *this, dynamics_);
+    px4_sitl_ = std::make_shared<PX4SITL>(*this, dynamics_);
   }
 
   void run()

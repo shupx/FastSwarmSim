@@ -35,8 +35,8 @@ class Executor : public rclcpp::Executor
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(Executor)
 
-  using rclcpp::Executor::add_node;
-  using rclcpp::Executor::remove_node;
+  // using rclcpp::Executor::add_node;
+  // using rclcpp::Executor::remove_node;
 
   /**
    * @brief Construct the fss_time executor base.
@@ -113,8 +113,8 @@ class SingleThreadedExecutor : public fss_time::Executor
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(SingleThreadedExecutor)
 
-  using fss_time::Executor::add_node;
-  using fss_time::Executor::remove_node;
+  // using fss_time::Executor::add_node;
+  // using fss_time::Executor::remove_node;
 
   /** 
    * Single-threaded executor implementation with fss_time support. This is the default executor created by fss_time::spin. 
@@ -149,8 +149,8 @@ class MultiThreadedExecutor : public fss_time::Executor
 public:
   RCLCPP_SMART_PTR_DEFINITIONS(MultiThreadedExecutor)
 
-  using fss_time::Executor::add_node;
-  using fss_time::Executor::remove_node;
+  // using fss_time::Executor::add_node;
+  // using fss_time::Executor::remove_node;
 
   /**
    * Multi-threaded executor implementation with fss_time support.

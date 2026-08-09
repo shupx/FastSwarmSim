@@ -8,6 +8,8 @@
  * 
  * @version 1.0
  * @date 2023-12-11
+ * Modified by Peixuan Shu (2026-08-09): own an instance-local PX4 runtime
+ * context for multiple flight stacks in one process.
  * 
  * @license BSD 3-Clause License
  * @copyright (c) 2023, Peixuan Shu
@@ -32,6 +34,8 @@
 #include <mavros/frame_tf.h> // for mavros::ftf frame conversion
 #include <uORB/uORB_sim.hpp> // simulate uORB publication and subscription. Store the extern(global) simulated uORB messages
 
+#include "fss_px4_sim/px4_instance_context.hpp"
+
 #include "px4_modules/mavlink/mavlink_main.hpp"
 #include "px4_modules/commander/Commander.hpp"
 #include "px4_modules/mc_pos_control/MulticopterPositionControl.hpp"
@@ -50,11 +54,9 @@ namespace MavrosQuadSimulator
  */
 class PX4SITL
 {
-private:
-    int agent_id_ = -1; // agent id.
-
 public:
-    PX4SITL(int agent_id, rclcpp::Node &node, const std::shared_ptr<Dynamics> &dynamics);
+    // Modified by Peixuan Shu: PX4SITL owns the complete runtime context.
+    PX4SITL(rclcpp::Node &node, const std::shared_ptr<Dynamics> &dynamics);
 
     /* Load px4 parameters from ROS parameter space to override the default values from <parameters/px4_parameters.hpp>*/    
     void load_px4_params_from_ros_params();
@@ -78,6 +80,8 @@ public:
     void get_px4_param(bool& output);
 
 private:
+    // Added by Peixuan Shu: declare context first so it outlives all modules.
+    Px4InstanceContext context_;
     rclcpp::Node &node_;
 
     enum class position_mode : uint32_t {
@@ -113,18 +117,19 @@ private:
     float last_ref_alt_ = 0; // 0 means not initialized
 
 	// publications with topic
-	uORB_sim::Publication<vehicle_attitude_s>           _attitude_pub {ORB_ID(vehicle_attitude)};
-	uORB_sim::Publication<vehicle_local_position_s>     _local_position_pub{ORB_ID(vehicle_local_position)};
-    uORB_sim::Publication<vehicle_angular_velocity_s> _vehicle_angular_velocity_pub{ORB_ID(vehicle_angular_velocity)};
-    uORB_sim::Publication<battery_status_s> _battery_status_pub{ORB_ID(battery_status)};
-	uORB_sim::Publication<vehicle_global_position_s>    _global_position_pub{ORB_ID(vehicle_global_position)};
-	uORB_sim::Publication<vehicle_odometry_s>           _odometry_pub{ORB_ID(vehicle_odometry)};
-    uORB_sim::Publication<vehicle_land_detected_s>      _vehicle_land_detected_pub{ORB_ID(vehicle_land_detected)};
+    // Modified by Peixuan Shu: bind PX4SITL's own topics directly to context_.
+	uORB_sim::Publication<vehicle_attitude_s> _attitude_pub{context_.uorb_domain, ORB_ID(vehicle_attitude)};
+	uORB_sim::Publication<vehicle_local_position_s> _local_position_pub{context_.uorb_domain, ORB_ID(vehicle_local_position)};
+    uORB_sim::Publication<vehicle_angular_velocity_s> _vehicle_angular_velocity_pub{context_.uorb_domain, ORB_ID(vehicle_angular_velocity)};
+    uORB_sim::Publication<battery_status_s> _battery_status_pub{context_.uorb_domain, ORB_ID(battery_status)};
+	uORB_sim::Publication<vehicle_global_position_s> _global_position_pub{context_.uorb_domain, ORB_ID(vehicle_global_position)};
+	uORB_sim::Publication<vehicle_odometry_s> _odometry_pub{context_.uorb_domain, ORB_ID(vehicle_odometry)};
+    uORB_sim::Publication<vehicle_land_detected_s> _vehicle_land_detected_pub{context_.uorb_domain, ORB_ID(vehicle_land_detected)};
 
-    uORB_sim::Subscription<vehicle_command_s>           _vehicle_command_sub{ORB_ID(vehicle_command)};
-    uORB_sim::Subscription<vehicle_rates_setpoint_s>           _vehicle_rates_setpoint_sub{ORB_ID(vehicle_rates_setpoint)};
-    uORB_sim::Subscription<vehicle_local_position_s>           _vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
-    uORB_sim::Subscription<vehicle_control_mode_s>           _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
+    uORB_sim::Subscription<vehicle_command_s> _vehicle_command_sub{context_.uorb_domain, ORB_ID(vehicle_command)};
+    uORB_sim::Subscription<vehicle_rates_setpoint_s> _vehicle_rates_setpoint_sub{context_.uorb_domain, ORB_ID(vehicle_rates_setpoint)};
+    uORB_sim::Subscription<vehicle_local_position_s> _vehicle_local_position_sub{context_.uorb_domain, ORB_ID(vehicle_local_position)};
+    uORB_sim::Subscription<vehicle_control_mode_s> _vehicle_control_mode_sub{context_.uorb_domain, ORB_ID(vehicle_control_mode)};
     
 
     std::shared_ptr<MAVLINK> mavlink_;

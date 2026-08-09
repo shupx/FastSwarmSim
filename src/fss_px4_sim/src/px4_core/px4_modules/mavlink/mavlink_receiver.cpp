@@ -88,9 +88,8 @@ MavlinkReceiver::~MavlinkReceiver()
 // #endif // !CONSTRAINED_FLASH
 }
 
-// Added by Peixuan Shu
-MavlinkReceiver::MavlinkReceiver(int agent_id) :
-	agent_id_(agent_id),  // agent_id added by Peixuan Shu
+// Modified by Peixuan Shu: agent_id no longer selects global PX4 state.
+MavlinkReceiver::MavlinkReceiver() :
 	ModuleParams(nullptr)
 {
 	_handle_sens_flow_maxhgt = param_find("SENS_FLOW_MAXHGT");

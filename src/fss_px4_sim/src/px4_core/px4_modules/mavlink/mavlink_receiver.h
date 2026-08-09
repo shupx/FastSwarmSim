@@ -137,11 +137,9 @@ using namespace time_literals;
 
 class MavlinkReceiver : public ModuleParams
 {
-private: 
-	int agent_id_ = -1; // UAV id
-
 public:
-	MavlinkReceiver(int agent_id);
+	// Modified by Peixuan Shu: publications bind to the active PX4 context.
+	MavlinkReceiver();
 	~MavlinkReceiver() override;
 
 	// void start();

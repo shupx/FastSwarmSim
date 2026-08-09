@@ -1,6 +1,7 @@
 /**
  * Copied from PX4-Autopilot/platforms/common/include/px4_platform_common/param.h
- * Modified by Peixuan Shu
+ * Modified by Peixuan Shu (2026-08-09): replace agent-indexed global
+ * parameter storage with an instance-local ParameterStore.
  * @author Peixuan Shu
  */
 
@@ -131,33 +132,14 @@ static inline param_type_t param_type(param_t param)
  * @param val		Where to return the value, assumed to point to suitable storage for the parameter type.
  * @return		Zero if the parameter's value could be returned, nonzero otherwise.
  */
-// int		param_get(param_t param, void *val)
-static inline int		param_get(int &agent_id, param_t param, void *val) //add agent_id by Peixuan Shu
+// Modified by Peixuan Shu: preserve the PX4-style helper while selecting the
+// parameter store explicitly.
+static inline int param_get(px4::ParameterStore &store, param_t param, void *val)
 {
-	// Redefined from <parameters/param.cpp>
-	// Get the param from px4::parameters defined in <parameters/px4_parameters.hpp>
 	if (!handle_in_range(param)) {
-		// PX4_ERR("get: param %" PRId16 " invalid", param);
 		return PX4_ERROR;
 	}
-
-	int result = PX4_ERROR;
-	if (val) {
-		// if parameter is unchanged (static default value) copy immediately and avoid locking
-		switch (param_type(param)) {
-		case PARAM_TYPE_INT32:
-			// memcpy(val, &px4::parameters[param].val.i, sizeof(px4::parameters[param].val.i));
-			memcpy(val, &px4::parameters_vectors.at(agent_id)[param].val.i, sizeof(px4::parameters[param].val.i)); // modified by Peixuan Shu
-			return PX4_OK;
-
-		case PARAM_TYPE_FLOAT:
-			// memcpy(val, &px4::parameters[param].val.f, sizeof(px4::parameters[param].val.f));
-			memcpy(val, &px4::parameters_vectors.at(agent_id)[param].val.f, sizeof(px4::parameters[param].val.f)); // modified by Peixuan Shu
-			return PX4_OK;
-		}
-	}
-
-	return result;
+	return store.get(param, val);
 }
 
 /**
@@ -227,23 +209,20 @@ static inline const char *param_name(param_t param)
 // w/o having to use a different interface
 
 // static inline int param_get_cplusplus(param_t param, float *val)
-static inline int param_get_cplusplus(int &agent_id, param_t param, float *val) // add agent_id by Peixuan Shu
+static inline int param_get_cplusplus(px4::ParameterStore &store, param_t param, float *val)
 {
 	CHECK_PARAM_TYPE(param, PARAM_TYPE_FLOAT);
-	// return param_get(param, (void *)val);
-	return param_get(agent_id, param, (void *)val);  // add agent_id by Peixuan Shu
+	return param_get(store, param, static_cast<void *>(val));
 }
 // static inline int param_get_cplusplus(param_t param, int32_t *val)
-static inline int param_get_cplusplus(int &agent_id, param_t param, int32_t *val) // add agent_id by Peixuan Shu
+static inline int param_get_cplusplus(px4::ParameterStore &store, param_t param, int32_t *val)
 {
 	CHECK_PARAM_TYPE(param, PARAM_TYPE_INT32);
-	// return param_get(param, (void *)val);
-	return param_get(agent_id, param, (void *)val);  // add agent_id by Peixuan Shu
+	return param_get(store, param, static_cast<void *>(val));
 }
 #undef CHECK_PARAM_TYPE
 
-// #define param_get(param, val) param_get_cplusplus(param, val)
-#define param_get(param, val) param_get_cplusplus(agent_id_, param, val)  // add agent_id_ by Peixuan Shu
+#define param_get(param, val) param_get_cplusplus(parameter_store_, param, val)
 
 /*****************************************************************************
 ******************************************************************************
@@ -263,9 +242,8 @@ inline static param_t param_handle(px4::params p)
 
 
 
-#define _DEFINE_SINGLE_PARAMETER(x) \
-	do_not_explicitly_use_this_namespace::PAIR(x) {agent_id_}; // add agent_id_ by Peixuan Shu
-	// do_not_explicitly_use_this_namespace::PAIR(x);
+// Modified by Peixuan Shu: parameter wrappers bind their current local store.
+#define _DEFINE_SINGLE_PARAMETER(x) do_not_explicitly_use_this_namespace::PAIR(x) {};
 
 #define _CALL_UPDATE(x) \
 	STRIP(x).update();
@@ -324,38 +302,27 @@ public:
 	// static type-check
 	static_assert(px4::parameters_type[(int)p] == PARAM_TYPE_FLOAT, "parameter type must be float");
 
-	int &agent_id_; // reference passing. // add agent_id_ by Peixuan Shu
-
-	// Param()
-	Param(int& agent_id) : agent_id_(agent_id) // add agent_id_ by Peixuan Shu
+	// Added by Peixuan Shu: capture the ParameterStore of this PX4 instance.
+	Param() : parameter_store_(px4::ParameterStore::current())
 	{
 		param_set_used(handle());
-		if (agent_id_>=0 && agent_id_ < px4::parameters_vectors.size()) // add agent_id_ by Peixuan Shu
-		{update();}
+		update();
 	}
 
 	// float get() const { return _val; }
 	float get() 
 	{ 
-		if (agent_id_>=0 && agent_id_ < px4::parameters_vectors.size()) // add agent_id_ by Peixuan Shu
-		{	
-			update();
-			return _val; 
-		}
-		else  // add agent_id_ by Peixuan Shu
-		{
-			std::cout << "[Param.get() ERROR] agent_id_ " << agent_id_ << " is invalid" << std::endl;
-			return _val; 
-		}
+		update();
+		return _val;
 	}
 
 	const float &reference() const { return _val; }
 
 	/// Store the parameter value to the parameter storage (@see param_set())
-	bool commit() const { return param_set(handle(), &_val) == 0; }
+	bool commit() const { return parameter_store_.set(handle(), &_val) == PX4_OK; }
 
 	/// Store the parameter value to the parameter storage, w/o notifying the system (@see param_set_no_notification())
-	bool commit_no_notification() const { return param_set_no_notification(handle(), &_val) == 0; }
+	bool commit_no_notification() const { return parameter_store_.set(handle(), &_val) == PX4_OK; }
 
 	/// Set and commit a new value. Returns true if the value changed.
 	bool commit_no_notification(float val)
@@ -373,14 +340,15 @@ public:
 
 	void reset()
 	{
-		param_reset_no_notification(handle());
+		parameter_store_.reset(handle());
 		update();
 	}
 
-	bool update() { return param_get(handle(), &_val) == 0; }
+	bool update() { return parameter_store_.get(handle(), &_val) == PX4_OK; }
 
 	param_t handle() const { return param_handle(p); }
 private:
+	px4::ParameterStore &parameter_store_;
 	float _val;
 };
 
@@ -443,38 +411,27 @@ public:
 	// static type-check
 	static_assert(px4::parameters_type[(int)p] == PARAM_TYPE_INT32, "parameter type must be int32_t");
 
-	int &agent_id_; // reference passing. // add agent_id_ by Peixuan Shu
-
-	// Param()
-	Param(int& agent_id) : agent_id_(agent_id) // add agent_id_ by Peixuan Shu
+	// Added by Peixuan Shu: capture the ParameterStore of this PX4 instance.
+	Param() : parameter_store_(px4::ParameterStore::current())
 	{
 		param_set_used(handle());
-		if (agent_id_>=0 && agent_id_ < px4::parameters_vectors.size()) // add agent_id_ by Peixuan Shu
-		{update();}
+		update();
 	}
 
 	// int32_t get() const { return _val; }
 	int32_t get() 
 	{ 
-		if (agent_id_>=0 && agent_id_ < px4::parameters_vectors.size()) // add agent_id_ by Peixuan Shu
-		{	
-			update();
-			return _val; 
-		}
-		else  // add agent_id_ by Peixuan Shu
-		{
-			std::cout << "[Param.get()] agent_id_ " << agent_id_ << " is invalid" << std::endl;
-			return _val; 
-		}
+		update();
+		return _val;
 	}
 
 	const int32_t &reference() const { return _val; }
 
 	/// Store the parameter value to the parameter storage (@see param_set())
-	bool commit() const { return param_set(handle(), &_val) == 0; }
+	bool commit() const { return parameter_store_.set(handle(), &_val) == PX4_OK; }
 
 	/// Store the parameter value to the parameter storage, w/o notifying the system (@see param_set_no_notification())
-	bool commit_no_notification() const { return param_set_no_notification(handle(), &_val) == 0; }
+	bool commit_no_notification() const { return parameter_store_.set(handle(), &_val) == PX4_OK; }
 
 	/// Set and commit a new value. Returns true if the value changed.
 	bool commit_no_notification(int32_t val)
@@ -492,14 +449,15 @@ public:
 
 	void reset()
 	{
-		param_reset_no_notification(handle());
+		parameter_store_.reset(handle());
 		update();
 	}
 
-	bool update() { return param_get(handle(), &_val) == 0; }
+	bool update() { return parameter_store_.get(handle(), &_val) == PX4_OK; }
 
 	param_t handle() const { return param_handle(p); }
 private:
+	px4::ParameterStore &parameter_store_;
 	int32_t _val;
 };
 
@@ -562,30 +520,18 @@ public:
 	// static type-check
 	static_assert(px4::parameters_type[(int)p] == PARAM_TYPE_INT32, "parameter type must be int32_t");
 
-	int &agent_id_; // reference passing. // add agent_id_ by Peixuan Shu
-
-	// Param()
-	Param(int& agent_id) : agent_id_(agent_id) // add agent_id_ by Peixuan Shu
+	// Added by Peixuan Shu: capture the ParameterStore of this PX4 instance.
+	Param() : parameter_store_(px4::ParameterStore::current())
 	{
 		param_set_used(handle());
-		// update();
-		if (agent_id_>=0 && agent_id_ < px4::parameters_vectors.size()) // add agent_id_ by Peixuan Shu
-		{update();}
+		update();
 	}
 
 	// bool get() const { return _val; }
 	bool get() 
 	{ 
-		if (agent_id_>=0 && agent_id_ < px4::parameters_vectors.size()) // add agent_id_ by Peixuan Shu
-		{	
-			update();
-			return _val; 
-		}
-		else  // add agent_id_ by Peixuan Shu
-		{
-			std::cout << "[Param.get()] agent_id_ " << agent_id_ << " is invalid" << std::endl;
-			return _val; 
-		}
+		update();
+		return _val;
 	}
 
 	const bool &reference() const { return _val; }
@@ -594,14 +540,14 @@ public:
 	bool commit() const
 	{
 		int32_t value_int = (int32_t)_val;
-		return param_set(handle(), &value_int) == 0;
+		return parameter_store_.set(handle(), &value_int) == PX4_OK;
 	}
 
 	/// Store the parameter value to the parameter storage, w/o notifying the system (@see param_set_no_notification())
 	bool commit_no_notification() const
 	{
 		int32_t value_int = (int32_t)_val;
-		return param_set_no_notification(handle(), &value_int) == 0;
+		return parameter_store_.set(handle(), &value_int) == PX4_OK;
 	}
 
 	/// Set and commit a new value. Returns true if the value changed.
@@ -620,14 +566,14 @@ public:
 
 	void reset()
 	{
-		param_reset_no_notification(handle());
+		parameter_store_.reset(handle());
 		update();
 	}
 
 	bool update()
 	{
 		int32_t value_int;
-		int ret = param_get(handle(), &value_int);
+		int ret = parameter_store_.get(handle(), &value_int);
 
 		if (ret == 0) {
 			_val = value_int != 0;
@@ -639,6 +585,7 @@ public:
 
 	param_t handle() const { return param_handle(p); }
 private:
+	px4::ParameterStore &parameter_store_;
 	bool _val;
 };
 

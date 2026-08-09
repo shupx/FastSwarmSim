@@ -40,9 +40,6 @@
 
 class MavlinkStreamer
 {
-private:
-    int agent_id_ = -1; // agent id.
-
 public:
 	typedef boost::signals2::signal<void(const uint64_t&)> VoidSignal;
 	VoidSignal stream_signal_;
@@ -53,7 +50,7 @@ public:
 		public:
 			MavlinkStream(const float& rate, MavlinkStreamer* parent) : period_us_(1.e6/rate) 
 			{
-				stream_.set_agent_id(parent->agent_id_);
+				// Modified by Peixuan Shu: stream subscriptions bind to the active context.
 				stream_.set_sender(parent->sender_);
 				parent->stream_signal_.connect(boost::bind(&MavlinkStream::Stream, this, boost::placeholders::_1));
 			}
@@ -86,7 +83,8 @@ public:
 	STREAM_PTR(MavlinkStreamGlobalPositionInt) mavlink_stream_GlobalPositionInt_;
 	STREAM_PTR(MavlinkStreamGpsGlobalOrigin) mavlink_stream_GpsGlobalOrigin_;
 
-    MavlinkStreamer(int agent_id, MavlinkSender sender = {});
+    // Modified by Peixuan Shu: agent_id no longer selects global PX4 state.
+    MavlinkStreamer(MavlinkSender sender = {});
 
 	~MavlinkStreamer();
 

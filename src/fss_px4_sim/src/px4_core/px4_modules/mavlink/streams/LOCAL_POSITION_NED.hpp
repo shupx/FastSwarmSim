@@ -49,17 +49,12 @@ class MavlinkStreamLocalPositionNED
 {
 private:
 
-	int agent_id_ = -1; // agent id.
+	// Modified by Peixuan Shu: subscriptions bind to the active PX4 context.
 	MavlinkSender sender_;
 	
 	uORB_sim::Subscription<vehicle_local_position_s> _lpos_sub{ORB_ID(vehicle_local_position)};
 
 public:
-	void set_agent_id(int id)
-	{
-		agent_id_ = id;
-	}
-
 	void set_sender(MavlinkSender sender) { sender_ = std::move(sender); }
 
 	bool send()

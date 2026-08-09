@@ -48,7 +48,7 @@ class MavlinkStreamGlobalPositionInt
 {
 private:
 
-	int agent_id_ = -1; // agent id.
+	// Modified by Peixuan Shu: subscriptions bind to the active PX4 context.
 	MavlinkSender sender_;
 	
 	uORB_sim::Subscription<vehicle_global_position_s> _gpos_sub{ORB_ID(vehicle_global_position)};
@@ -57,11 +57,6 @@ private:
 	uORB_sim::Subscription<vehicle_air_data_s> _air_data_sub{ORB_ID(vehicle_air_data)};
 
 public:
-	void set_agent_id(int id)
-	{
-		agent_id_ = id;
-	}
-
 	void set_sender(MavlinkSender sender) { sender_ = std::move(sender); }
 
 	bool send()
