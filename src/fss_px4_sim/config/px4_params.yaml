@@ -1,24 +1,10 @@
 /**:
   ros__parameters:
-    # MAVLink transport settings
-    
-    mavros_use_egm96: false # Enable transforming from AMSL to Ellipsoid(WGS84) altitude of mavros/global_position/global using egm96 lib. Loading egm96_5 library needs extra 18MB RAM per node!
-    
-    
-    
-    
-    # Visualizer parameters
-    
-    # visualize_max_freq: 30 # (Hz) Maximum base_link tf publishing rate 
-    # enable_history_path: true # Enable visualizing history path (long history path slows the simulation speed significantly).
-    # visualize_path_time: 30 # (s) Visualizing history path time (long history path slows the simulation speed significantly).
-    visualize_tf_frame: map # tf world frame name
-    base_link_name: base_link # base link name in the robot urdf
-    # base_link_tf_prefix: uav1 # tf prefix added to the base_link_name
-    rotor_0_joint_name: rotor_0_joint # rotor revolute joint name in the robot urdf
-    rotor_1_joint_name: rotor_1_joint # rotor revolute joint name in the robot urdf
-    rotor_2_joint_name: rotor_2_joint # rotor revolute joint name in the robot urdf
-    rotor_3_joint_name: rotor_3_joint # rotor revolute joint name in the robot urdf
+    # # PX4 SITL mavlink UDP related parameters
+    # mavlink_udp_local_port: 0
+    # mavlink_udp_remote_port: 24540
+
+    # # PX4 SITL position source related parameters
     
     ## 0 for mocap (use local_position/pose for visualization directly)
     ## 1 for GPS (use global_position/global relative to the world_origin_gps for x,y visualization, use local_position/pose for z and attitude visualization)
@@ -29,32 +15,35 @@
     # world_origin_longitude_deg: 116.339803  # degree
     # world_origin_AMSL_alt_metre: 53.0  # metre (Above Mean Sea Level) (not WGS84/ELlipsoid of GPS)
     
-    
-    
-    
-    # Dynamics parameters
-    
     ## initial position in the world
     # init_x_East_metre: 0.0
     # init_y_North_metre: 0.0
     # init_z_Up_metre: 0.0
     
     
-    
-    
-    # PX4_SITL parameters 
-    
-    ## 0 (mocap/uwb): mavros/local_position/pose will output the world coordinates of the drone
-    ## 1 (gps): mavros/local_position/pose will output the coordinates relative to the initial point or gp_origin which can be changed by mavros/globa_position/set_gp_origin
-    # local_pos_source: 0  # simulated local_position/pose source
-    
-    ## world origin gps values as the ref of calculting the simulated gps coordinates
-    # world_origin_latitude_deg: 39.978861  # degree
-    # world_origin_longitude_deg: 116.339803  # degree
-    # world_origin_AMSL_alt_metre: 53.0  # metre (Above Mean Sea Level) (not WGS84/ELlipsoid of GPS)
+    # PX4 parameters (collected from PX4 source code xxx_params.c of each module)
     
     ## For px4 parameters, refer to https://docs.px4.io/v1.13/en/advanced_config/parameter_reference.html
-    
+
+
+    # # /**
+    # # * MAVLink system ID
+    # # * @group MAVLink
+    # # * @min 1
+    # # * @max 250
+    # # * @reboot_required true
+    # # */
+    # MAV_SYS_ID: 1
+
+    # # /**
+    # # * MAVLink component ID
+    # # * @group MAVLink
+    # # * @min 1
+    # # * @max 250
+    # # * @reboot_required true
+    # # */
+    # MAV_COMP_ID: 1
+
     # /**
     #  * Hover thrust
     #  *

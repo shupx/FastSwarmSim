@@ -247,7 +247,7 @@ public:
 			msg.custom_mode = custom_mode.data;
 			msg.system_status = system_status;
 			mavlink_message_t encoded{};
-			mavlink_msg_heartbeat_encode(1, 1, &encoded, &msg);
+			mavlink_msg_heartbeat_encode(sender_.system_id(), sender_.component_id(), &encoded, &msg); // added or modified by Peixuan Shu
 			if (sender_) sender_(encoded);
 
 			return true;

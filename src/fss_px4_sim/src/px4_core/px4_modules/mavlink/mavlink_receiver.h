@@ -139,7 +139,7 @@ class MavlinkReceiver : public ModuleParams
 {
 public:
 	// Modified by Peixuan Shu: publications bind to the active PX4 context.
-	MavlinkReceiver();
+	MavlinkReceiver(uint8_t system_id, uint8_t component_id); // added or modified by Peixuan Shu
 	~MavlinkReceiver() override;
 
 	// void start();
@@ -171,6 +171,11 @@ public:
 	void handle_message(mavlink_message_t *msg); // move to public by Peixuan Shu
 
 private:
+	bool evaluate_target_ok(int command, int target_system, int target_component) const; // added or modified by Peixuan Shu
+	bool is_external_setpoint_target(uint8_t target_system, uint8_t target_component) const; // added or modified by Peixuan Shu
+	uint8_t system_id_; // added or modified by Peixuan Shu
+	uint8_t component_id_; // added or modified by Peixuan Shu
+
 	void handle_message_adsb_vehicle(mavlink_message_t *msg);
 	void handle_message_att_pos_mocap(mavlink_message_t *msg);
 	void handle_message_battery_status(mavlink_message_t *msg);

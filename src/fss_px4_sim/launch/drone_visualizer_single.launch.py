@@ -36,7 +36,9 @@ def generate_launch_description():
                 "robot_description": ParameterValue(
                     Command(["cat ", LaunchConfiguration("urdf_model_path")]), value_type=str),
                 # The visualizer emits the namespaced base-link transform.
-                "frame_prefix": PythonExpression(["'", LaunchConfiguration("base_link_tf_prefix"), "' + '/'"]),
+                "frame_prefix": PythonExpression([
+                    "'", LaunchConfiguration("base_link_tf_prefix"),
+                    "' + '/' if '", LaunchConfiguration("base_link_tf_prefix"), "' else ''"]),
             }],
         ),
         Node(

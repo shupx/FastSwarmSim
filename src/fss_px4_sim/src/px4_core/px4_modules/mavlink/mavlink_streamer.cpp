@@ -57,7 +57,7 @@ void MavlinkStreamer::Stream(const uint64_t &time_us)
 			ack.target_component = command_ack.target_component;
 
 			mavlink_message_t encoded{};
-			mavlink_msg_command_ack_encode(1, MAV_COMP_ID_AUTOPILOT1, &encoded, &ack);
+			mavlink_msg_command_ack_encode(sender_.system_id(), sender_.component_id(), &encoded, &ack); // added or modified by Peixuan Shu
 			if (sender_) {
 				sender_(encoded);
 			}

@@ -36,11 +36,20 @@ PX4SITL::PX4SITL(rclcpp::Node &node,
     update_init_pos_from_dynamics();
 
     /* Load px4 modules */
-    int mavlink_udp_local_port = 14540;
-    int mavlink_udp_remote_port = 14557;
-    node_.get_parameter_or("mavlink_udp_local_port", mavlink_udp_local_port, mavlink_udp_local_port);
-    node_.get_parameter_or("mavlink_udp_remote_port", mavlink_udp_remote_port, mavlink_udp_remote_port);
-    mavlink_ = std::make_shared<MAVLINK>(context_, mavlink_udp_local_port, mavlink_udp_remote_port);
+	int mavlink_udp_local_port = 0;
+	int mavlink_udp_remote_port = 24540;
+	int mavlink_system_id = 1; // added or modified by Peixuan Shu
+	int mavlink_component_id = 1; // added or modified by Peixuan Shu
+	node_.get_parameter_or("mavlink_udp_local_port", mavlink_udp_local_port, mavlink_udp_local_port);
+	node_.get_parameter_or("mavlink_udp_remote_port", mavlink_udp_remote_port, mavlink_udp_remote_port);
+	node_.get_parameter_or("MAV_SYS_ID", mavlink_system_id, mavlink_system_id); // added or modified by Peixuan Shu
+	node_.get_parameter_or("MAV_COMP_ID", mavlink_component_id, mavlink_component_id); // added or modified by Peixuan Shu
+	if (mavlink_system_id < 1 || mavlink_system_id > 255 || mavlink_component_id < 1 || mavlink_component_id > 255) {
+		throw std::invalid_argument("MAV_SYS_ID and MAV_COMP_ID must be in [1, 255]");
+	}
+
+	mavlink_ = std::make_shared<MAVLINK>(context_, mavlink_udp_local_port, mavlink_udp_remote_port,
+		static_cast<uint8_t>(mavlink_system_id), static_cast<uint8_t>(mavlink_component_id));
     mavlink_->start();
     commander_ = std::make_shared<Commander>();
     mc_pos_control_ = std::make_shared<MulticopterPositionControl>(false);

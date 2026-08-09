@@ -89,8 +89,8 @@ MavlinkReceiver::~MavlinkReceiver()
 }
 
 // Modified by Peixuan Shu: agent_id no longer selects global PX4 state.
-MavlinkReceiver::MavlinkReceiver() :
-	ModuleParams(nullptr)
+MavlinkReceiver::MavlinkReceiver(uint8_t system_id, uint8_t component_id) :
+	ModuleParams(nullptr), system_id_(system_id), component_id_(component_id) // added or modified by Peixuan Shu
 {
 	_handle_sens_flow_maxhgt = param_find("SENS_FLOW_MAXHGT");
 	_handle_sens_flow_maxr = param_find("SENS_FLOW_MAXR");
@@ -366,28 +366,36 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 	// _mavlink->set_has_received_messages(true);
 }
 
-// bool
-// MavlinkReceiver::evaluate_target_ok(int command, int target_system, int target_component)
-// {
-// 	/* evaluate if this system should accept this command */
-// 	bool target_ok = false;
+bool
+MavlinkReceiver::evaluate_target_ok(int command, int target_system, int target_component) const
+{
+	/* evaluate if this system should accept this command */
+	bool target_ok = false;
 
-// 	switch (command) {
+	switch (command) {
 
-// 	case MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES:
-// 	case MAV_CMD_REQUEST_PROTOCOL_VERSION:
-// 		/* broadcast and ignore component */
-// 		target_ok = (target_system == 0) || (target_system == mavlink_system.sysid);
-// 		break;
+	case MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES:
+	case MAV_CMD_REQUEST_PROTOCOL_VERSION:
+		/* broadcast and ignore component */
+		target_ok = (target_system == 0) || (target_system == system_id_);
+		break;
 
-// 	default:
-// 		target_ok = (target_system == mavlink_system.sysid) && ((target_component == mavlink_system.compid)
-// 				|| (target_component == MAV_COMP_ID_ALL));
-// 		break;
-// 	}
+	default:
+		target_ok = (target_system == system_id_) && ((target_component == component_id_)
+				|| (target_component == MAV_COMP_ID_ALL));
+		break;
+	}
 
-// 	return target_ok;
-// }
+	return target_ok;
+}
+
+// added by Peixuan Shu
+bool
+MavlinkReceiver::is_external_setpoint_target(uint8_t target_system, uint8_t target_component) const
+{
+	return (target_system == system_id_ || target_system == 0)
+		&& (target_component == component_id_ || target_component == 0);
+}
 
 void
 MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
@@ -429,8 +437,9 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 	vcmd.confirmation = cmd_mavlink.confirmation;
 	vcmd.from_external = true;
 
-	// handle_message_command_both(msg, cmd_mavlink, vcmd);
-	_cmd_pub.publish(vcmd); // modified by Peixuan Shu
+	if (evaluate_target_ok(cmd_mavlink.command, cmd_mavlink.target_system, cmd_mavlink.target_component)) {
+		_cmd_pub.publish(vcmd); // added or modified by Peixuan Shu
+	}
 
 	// std::cout << "[MavlinkReceiver::handle_message_command_long] publish vehicle command. vcmd.timestamp = " << vcmd.timestamp << std::endl; //added by Peixuan Shu
 
@@ -481,8 +490,9 @@ MavlinkReceiver::handle_message_command_int(mavlink_message_t *msg)
 	vcmd.confirmation = false;
 	vcmd.from_external = true;
 
-	// handle_message_command_both(msg, cmd_mavlink, vcmd);
-	_cmd_pub.publish(vcmd); // modified by Peixuan Shu
+	if (evaluate_target_ok(cmd_mavlink.command, cmd_mavlink.target_system, cmd_mavlink.target_component)) {
+		_cmd_pub.publish(vcmd); // added or modified by Peixuan Shu
+	}
 
 	// std::cout << "[mavlink_receiver] receive command int" << std::endl;
 
@@ -921,6 +931,9 @@ MavlinkReceiver::handle_message_set_mode(mavlink_message_t *msg)
 {
 	mavlink_set_mode_t new_mode;
 	mavlink_msg_set_mode_decode(msg, &new_mode);
+	if (new_mode.target_system != 0 && new_mode.target_system != system_id_) {
+		return; // added or modified by Peixuan Shu
+	}
 
 	union px4_custom_mode custom_mode;
 	custom_mode.data = new_mode.custom_mode;
@@ -1027,9 +1040,7 @@ MavlinkReceiver::handle_message_set_position_target_local_ned(mavlink_message_t 
 	mavlink_msg_set_position_target_local_ned_decode(msg, &target_local_ned);
 
 	/* Only accept messages which are intended for this system */
-	if (/*_mavlink->get_forward_externalsp() &&
-	    (mavlink_system.sysid == target_local_ned.target_system || target_local_ned.target_system == 0) &&
-	    (mavlink_system.compid == target_local_ned.target_component || target_local_ned.target_component == 0)*/ /* modified by Peixuan Shu */ true ) {
+	if (is_external_setpoint_target(target_local_ned.target_system, target_local_ned.target_component)) { // added or modified by Peixuan Shu
 
 		vehicle_local_position_setpoint_s setpoint{};
 
@@ -1161,9 +1172,7 @@ MavlinkReceiver::handle_message_set_position_target_global_int(mavlink_message_t
 	mavlink_msg_set_position_target_global_int_decode(msg, &target_global_int);
 
 	/* Only accept messages which are intended for this system */
-	if (/* _mavlink->get_forward_externalsp() &&
-	    (mavlink_system.sysid == target_global_int.target_system || target_global_int.target_system == 0) &&
-	    (mavlink_system.compid == target_global_int.target_component || target_global_int.target_component == 0)*/ /* modified by Peixuan Shu */ true ) {
+	if (is_external_setpoint_target(target_global_int.target_system, target_global_int.target_component)) { // added or modified by Peixuan Shu
 
 		vehicle_local_position_setpoint_s setpoint{};
 
@@ -1350,13 +1359,13 @@ MavlinkReceiver::handle_message_set_gps_global_origin(mavlink_message_t *msg)
 	mavlink_set_gps_global_origin_t gps_global_origin;
 	mavlink_msg_set_gps_global_origin_decode(msg, &gps_global_origin);
 
-	if (/* gps_global_origin.target_system == _mavlink->get_system_id()*/ /* modified by Peixuan Shu */ true ) {
+	if (gps_global_origin.target_system == system_id_) { // added or modified by Peixuan Shu
 		vehicle_command_s vcmd{};
 		vcmd.param5 = (double)gps_global_origin.latitude * 1.e-7;
 		vcmd.param6 = (double)gps_global_origin.longitude * 1.e-7;
 		vcmd.param7 = (float)gps_global_origin.altitude * 1.e-3f;
 		vcmd.command = vehicle_command_s::VEHICLE_CMD_SET_GPS_GLOBAL_ORIGIN;
-		vcmd.target_system = 1 /*_mavlink->get_system_id()*/;
+		vcmd.target_system = system_id_; // added or modified by Peixuan Shu
 		vcmd.target_component = MAV_COMP_ID_ALL;
 		vcmd.source_system = msg->sysid;
 		vcmd.source_component = msg->compid;
@@ -1577,9 +1586,7 @@ MavlinkReceiver::handle_message_set_attitude_target(mavlink_message_t *msg)
 	mavlink_msg_set_attitude_target_decode(msg, &attitude_target);
 
 	/* Only accept messages which are intended for this system */
-	if (/* _mavlink->get_forward_externalsp() &&
-	    (mavlink_system.sysid == attitude_target.target_system || attitude_target.target_system == 0) &&
-	    (mavlink_system.compid == attitude_target.target_component || attitude_target.target_component == 0)*/ /* modified by Peixuan Shu */ true) {
+	if (is_external_setpoint_target(attitude_target.target_system, attitude_target.target_component)) { // added or modified by Peixuan Shu
 
 		const uint8_t type_mask = attitude_target.type_mask;
 

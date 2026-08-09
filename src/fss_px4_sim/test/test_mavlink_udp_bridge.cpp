@@ -179,7 +179,7 @@ TEST(MavlinkUdpSender, SendsEncodedPacketToRemote)
   remote.sin_port = htons(static_cast<uint16_t>(remote_port));
   ASSERT_EQ(bind(remote_fd, reinterpret_cast<const sockaddr *>(&remote), sizeof(remote)), 0);
 
-  MAVLINK mavlink(context, receiver_port, remote_port);
+  MAVLINK mavlink(context, receiver_port, remote_port, 42, MAV_COMP_ID_AUTOPILOT1); // added or modified by Peixuan Shu
   mavlink.start();
   mavlink.Stream(100000);
 
@@ -200,6 +200,8 @@ TEST(MavlinkUdpSender, SendsEncodedPacketToRemote)
   }
   ASSERT_TRUE(parsed);
   EXPECT_EQ(received.msgid, MAVLINK_MSG_ID_HEARTBEAT);
+  EXPECT_EQ(received.sysid, 42); // added or modified by Peixuan Shu
+  EXPECT_EQ(received.compid, MAV_COMP_ID_AUTOPILOT1); // added or modified by Peixuan Shu
 
   close(remote_fd);
 }

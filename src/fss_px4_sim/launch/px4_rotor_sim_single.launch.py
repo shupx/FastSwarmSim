@@ -1,6 +1,8 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.conditions import IfCondition
 from launch_ros.actions import Node, PushRosNamespace, SetParameter
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution
@@ -9,8 +11,12 @@ from launch.substitutions import PathJoinSubstitution
 def generate_launch_description():
     namespace = LaunchConfiguration("namespace")
     return LaunchDescription([
-        DeclareLaunchArgument("namespace", default_value="uav1"),
+        DeclareLaunchArgument("namespace", default_value=""),
         DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
+        DeclareLaunchArgument("mav_sys_id", default_value="1"),
+        DeclareLaunchArgument("mav_comp_id", default_value="1"),
+        DeclareLaunchArgument("mavlink_udp_local_port", default_value="0"),
+        DeclareLaunchArgument("mavlink_udp_remote_port", default_value="24540"),
         DeclareLaunchArgument("init_x_East_metre", default_value="0.0"),
         DeclareLaunchArgument("init_y_North_metre", default_value="0.0"),
         DeclareLaunchArgument("init_z_Up_metre", default_value="0.0"),
@@ -22,33 +28,65 @@ def generate_launch_description():
         DeclareLaunchArgument("world_origin_longitude_deg", default_value="116.339803"),
         DeclareLaunchArgument("world_origin_AMSL_alt_metre", default_value="53.0"),
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
+        DeclareLaunchArgument("enable_mavros", default_value="true"),
+        DeclareLaunchArgument("enable_visualizer", default_value="true"),
+        DeclareLaunchArgument("enable_rviz", default_value="true"),
+        DeclareLaunchArgument("rviz_config", default_value=PathJoinSubstitution([
+            FindPackageShare("fss_px4_sim"), "rviz", "single_px4_rotor.rviz"])),
+
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+
+        ### Visualizer
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(PathJoinSubstitution([
+                FindPackageShare("fss_px4_sim"), "launch", "drone_visualizer_single.launch.py"])),
+            condition=IfCondition(LaunchConfiguration("enable_visualizer")),
+            launch_arguments={
+                "namespace": namespace,
+                "use_sim_time": LaunchConfiguration("use_fss_sim_time"),
+                "local_pos_source": LaunchConfiguration("local_pos_source"),
+                "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"),
+                "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
+                "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),
+            }.items(),
+        ),
+
+        ### Rviz
+        Node(
+            package="rviz2", executable="rviz2", name="rviz2", output="screen",
+            arguments=["-d", LaunchConfiguration("rviz_config")],
+            condition=IfCondition(LaunchConfiguration("enable_rviz")),
+        ),
+
         PushRosNamespace(namespace),
-        # FSS_SIM_MODIFICATION: MAVROS owns the official ROS 2 plugin runtime
-        # and talks to the simulator through its standard UDP FCU endpoint.
+
+        ### mavros
         Node(
             package="mavros", executable="mavros_node", name="mavros", output="screen",
-            parameters=[{
-                "fcu_url": "udp://127.0.0.1:14557@127.0.0.1:14540",
+            parameters=[
+                {
+                "fcu_url": PythonExpression([
+                    "'udp://127.0.0.1:' + str(",
+                    LaunchConfiguration("mavlink_udp_remote_port"), ") + '@'"]), # mavros url rules: https://blog.csdn.net/benchuspx/article/details/156449911?spm=1001.2014.3001.5501
+                "gcs_url": "udp://@127.0.0.1:14550", # for local QGC which listens on 14550, MAVROS will forward telemetry to it.
+                "tgt_system": LaunchConfiguration("mav_sys_id"),
+                "tgt_component": LaunchConfiguration("mav_comp_id"),
                 "plugin_allowlist": ["setpoint_raw", "local_position", "imu",
                                      "sys_status", "command", "global_position"],
                 "plugin_denylist": ["*"],
-                # FSS_SIM_MODIFICATION: preserve original no-COMMAND_ACK
-                # command-service behavior for this simulator transport.
-                "fss_simulate_no_command_ack": True,
-                "use_sim_time": LaunchConfiguration("use_fss_sim_time"),
-            }],
+                },
+            ],
+            condition=IfCondition(LaunchConfiguration("enable_mavros")),
         ),
+        ### PX4 sitl
         Node(
             package="fss_px4_sim",
             executable="mavros_px4_quadrotor_sim_node",
             name="mavros_px4_quadrotor_sim_node",
             output="screen",
             parameters=[
-                PathJoinSubstitution([FindPackageShare("fss_px4_sim"), "config", "px4_rotor_sim_ros2.yaml"]),
-                PathJoinSubstitution([FindPackageShare("fss_px4_sim"), "config", "px4_rotor_sim_px4_params_ros2.yaml"]),
-                PathJoinSubstitution([FindPackageShare("fss_px4_sim"), "config", "mavros_px4_config_ros2.yaml"]),
+                PathJoinSubstitution([FindPackageShare("fss_px4_sim"), "config", "px4_params.yaml"]),
                 {
                 "init_x_East_metre": LaunchConfiguration("init_x_East_metre"),
                 "init_y_North_metre": LaunchConfiguration("init_y_North_metre"),
@@ -56,12 +94,12 @@ def generate_launch_description():
                 "init_roll_deg": LaunchConfiguration("init_roll_deg"),
                 "init_pitch_deg": LaunchConfiguration("init_pitch_deg"),
                 "init_yaw_deg": LaunchConfiguration("init_yaw_deg"),
-                "mavlink_udp_local_port": 14540,
-                "mavlink_udp_remote_port": 14557,
+                "mavlink_udp_local_port": LaunchConfiguration("mavlink_udp_local_port"), # px4 sitl binds to this port
+                "mavlink_udp_remote_port": LaunchConfiguration("mavlink_udp_remote_port"), # px4 sitl connect to this port
+                "MAV_SYS_ID": LaunchConfiguration("mav_sys_id"),
+                "MAV_COMP_ID": LaunchConfiguration("mav_comp_id"),
                 "local_pos_source": LaunchConfiguration("local_pos_source"),
                 "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),
-                "use_sim_time": LaunchConfiguration("use_fss_sim_time"),
                 "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"),
                 "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
                 "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),

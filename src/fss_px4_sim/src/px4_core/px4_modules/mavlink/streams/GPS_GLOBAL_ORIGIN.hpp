@@ -85,7 +85,7 @@ public:
 
 					/* Encode and send the stream directly over the PX4 UDP endpoint. */
 					mavlink_message_t encoded{};
-					mavlink_msg_gps_global_origin_encode(1, 1, &encoded, &msg);
+					mavlink_msg_gps_global_origin_encode(sender_.system_id(), sender_.component_id(), &encoded, &msg); // added or modified by Peixuan Shu
 					if (sender_) sender_(encoded);
 
 					_ref_timestamp = vehicle_local_position.ref_timestamp;

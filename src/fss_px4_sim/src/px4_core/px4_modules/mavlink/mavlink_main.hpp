@@ -47,7 +47,7 @@ public:
 	// Modified by Peixuan Shu: receive the complete context used by this module
 	// and its receiver thread.
 	MAVLINK(MavrosQuadSimulator::Px4InstanceContext &context,
-		int local_port, int remote_port);
+		int local_port, int remote_port, uint8_t system_id = 1, uint8_t component_id = 1); // added or modified by Peixuan Shu
 
 	/**
 	 * @brief Stop the module and release its socket and worker thread.
@@ -108,6 +108,8 @@ private:
 	MavrosQuadSimulator::Px4InstanceContext &context_;
 	int local_port_; ///< Local UDP port used to receive MAVLink messages.
 	int remote_port_; ///< Remote UDP port used to send MAVLink messages.
+	uint8_t system_id_; // added or modified by Peixuan Shu: source and target system ID for this PX4 instance.
+	uint8_t component_id_; // added or modified by Peixuan Shu: source and target component ID for this PX4 instance.
 	int socket_fd_{-1}; ///< UDP socket descriptor, or -1 when stopped.
 	std::atomic<bool> receiving_{false}; ///< Whether the receive loop should continue.
 	std::thread receive_thread_; ///< Worker thread that reads and parses incoming data.

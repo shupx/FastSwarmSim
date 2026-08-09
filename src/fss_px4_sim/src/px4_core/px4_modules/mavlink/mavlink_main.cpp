@@ -23,8 +23,9 @@
 #include <unistd.h>
 
 MAVLINK::MAVLINK(MavrosQuadSimulator::Px4InstanceContext &context,
-	int local_port, int remote_port)
-	: context_(context), local_port_(local_port), remote_port_(remote_port)
+	int local_port, int remote_port, uint8_t system_id, uint8_t component_id)
+	: context_(context), local_port_(local_port), remote_port_(remote_port),
+	  system_id_(system_id), component_id_(component_id) // added or modified by Peixuan Shu
 {
 }
 
@@ -63,10 +64,10 @@ void MAVLINK::start()
 			throw std::runtime_error("failed to connect MAVLink UDP socket");
 		}
 
-		receiver_ = std::make_unique<MavlinkReceiver>();
-		streamer_ = std::make_unique<MavlinkStreamer>([this](const mavlink_message_t &message) {
-			send_message(message);
-		});
+		receiver_ = std::make_unique<MavlinkReceiver>(system_id_, component_id_); // added or modified by Peixuan Shu
+		streamer_ = std::make_unique<MavlinkStreamer>(MavlinkSender(
+			[this](const mavlink_message_t &message) { send_message(message); },
+			system_id_, component_id_)); // added or modified by Peixuan Shu
 		receiving_.store(true);
 		receive_thread_ = std::thread(&MAVLINK::receive_loop, this);
 	} catch (...) {
