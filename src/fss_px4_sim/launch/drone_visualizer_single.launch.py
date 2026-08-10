@@ -9,8 +9,8 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     default_urdf = get_package_share_directory("fss_px4_sim") + "/model/iris.urdf"
     return LaunchDescription([
-        DeclareLaunchArgument("namespace", default_value="uav1"),
-        DeclareLaunchArgument("use_sim_time", default_value="true"),
+        DeclareLaunchArgument("namespace", default_value=""),
+        DeclareLaunchArgument("use_sim_time", default_value="false"),
         DeclareLaunchArgument("visualize_max_freq", default_value="20.0"),
         DeclareLaunchArgument("enable_history_path", default_value="true"),
         DeclareLaunchArgument("visualize_path_time", default_value="30.0"),

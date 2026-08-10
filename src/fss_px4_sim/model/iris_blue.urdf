@@ -74,7 +74,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://px4_rotor_sim/model/meshes/iris.stl" scale="1 1 1"/>
+        <mesh filename="package://fss_px4_sim/model/meshes/iris.stl" scale="1 1 1"/>
       </geometry>
       <material name="blue"/> <!-- Added by Peixuan Shu -->
     </visual>
@@ -101,7 +101,7 @@
     <visual name="rotor_0_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://px4_rotor_sim/model/meshes/iris_prop_ccw.stl" scale="1 1 1"/>
+        <mesh filename="package://fss_px4_sim/model/meshes/iris_prop_ccw.stl" scale="1 1 1"/>
       </geometry>
       <material name="blue"/> <!-- Added by Peixuan Shu -->
     </visual>
@@ -121,7 +121,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://px4_rotor_sim/model/meshes/iris_prop_ccw.stl" scale="1 1 1"/>
+        <mesh filename="package://fss_px4_sim/model/meshes/iris_prop_ccw.stl" scale="1 1 1"/>
       </geometry>
       <material name="grey"/> <!-- Added by Peixuan Shu -->
     </visual>
@@ -141,7 +141,7 @@
     <visual name="rotor_2_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://px4_rotor_sim/model/meshes/iris_prop_cw.stl" scale="1 1 1"/>
+        <mesh filename="package://fss_px4_sim/model/meshes/iris_prop_cw.stl" scale="1 1 1"/>
       </geometry>
       <material name="blue"/> <!-- Added by Peixuan Shu -->
     </visual>
@@ -161,7 +161,7 @@
     <visual name="rotor_3_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://px4_rotor_sim/model/meshes/iris_prop_cw.stl" scale="1 1 1"/>
+        <mesh filename="package://fss_px4_sim/model/meshes/iris_prop_cw.stl" scale="1 1 1"/>
       </geometry>
       <material name="grey"/> <!-- Added by Peixuan Shu -->
     </visual>

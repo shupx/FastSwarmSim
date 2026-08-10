@@ -24,7 +24,7 @@ def generate_launch_description():
         # MAVROS UDP port receiving MAVLink packets from PX4 SITL. (for example, mavros binds this port to receive telemetry from PX4 SITL)
         DeclareLaunchArgument("mavlink_udp_remote_port", default_value="24540"),
         # Initial position in the local East/North/Up frame, in metres.
-        DeclareLaunchArgument("init_x_East_metre", default_value="0.0"),
+        DeclareLaunchArgument("init_x_East_metre", default_value="1.0"),
         DeclareLaunchArgument("init_y_North_metre", default_value="0.0"),
         DeclareLaunchArgument("init_z_Up_metre", default_value="0.0"),
         # Initial vehicle attitude in degrees.
@@ -39,6 +39,8 @@ def generate_launch_description():
         DeclareLaunchArgument("world_origin_AMSL_alt_metre", default_value="53.0"),
         # IPC endpoint of the FastSwarmSim time coordinator.
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
+        # Start the time coordinator only when use_fss_sim_time is enabled.
+        DeclareLaunchArgument("enable_time_coordinator", default_value="true"),
         # Enable or disable the corresponding runtime component.
         DeclareLaunchArgument("enable_mavros", default_value="true"),
         DeclareLaunchArgument("enable_visualizer", default_value="true"),
@@ -49,6 +51,20 @@ def generate_launch_description():
 
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+
+        ### Time coordinator (only when use_fss_sim_time is true and enable_time_coordinator is true)
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(PathJoinSubstitution([
+                FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
+            condition=IfCondition(PythonExpression([
+                "'", LaunchConfiguration("use_fss_sim_time"),
+                "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
+            ])),
+            launch_arguments={
+                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                "publish_clock": "true",
+            }.items(),
+        ),
 
         ### Visualizer
         IncludeLaunchDescription(

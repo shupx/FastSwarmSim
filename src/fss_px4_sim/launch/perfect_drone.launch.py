@@ -2,7 +2,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node, PushRosNamespace, SetParameter
 from launch_ros.substitutions import FindPackageShare
@@ -18,6 +18,7 @@ def generate_launch_description():
         DeclareLaunchArgument("init_z", default_value="1.0"),
         DeclareLaunchArgument("init_yaw", default_value="0.0"),
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
+        DeclareLaunchArgument("enable_time_coordinator", default_value="true"),
         DeclareLaunchArgument("enable_mavros", default_value="true"),
         DeclareLaunchArgument("enable_visualizer", default_value="true"),
         DeclareLaunchArgument("enable_rviz", default_value="true"),
@@ -26,6 +27,19 @@ def generate_launch_description():
 
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(PathJoinSubstitution([
+                FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
+            condition=IfCondition(PythonExpression([
+                "'", LaunchConfiguration("use_fss_sim_time"),
+                "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
+            ])),
+            launch_arguments={
+                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                "publish_clock": "true",
+            }.items(),
+        ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(PathJoinSubstitution([

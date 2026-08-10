@@ -1,51 +1,39 @@
 Panels:
-  - Class: rviz/Displays
-    Help Height: 138
+  - Class: rviz_common/Displays
+    Help Height: 78
     Name: Displays
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /uav11
-      Splitter Ratio: 0.7176470756530762
-    Tree Height: 384
-  - Class: rviz/Selection
+        - /Status1
+        - /drone_visualizer1
+      Splitter Ratio: 0.5
+    Tree Height: 549
+  - Class: rviz_common/Selection
     Name: Selection
-  - Class: rviz/Tool Properties
+  - Class: rviz_common/Tool Properties
     Expanded:
-      - /2D Pose Estimate1
-      - /2D Nav Goal1
+      - /2D Goal Pose1
       - /Publish Point1
     Name: Tool Properties
     Splitter Ratio: 0.5886790156364441
-  - Class: rviz/Views
+  - Class: rviz_common/Views
     Expanded:
       - /Current View1
     Name: Views
-    Splitter Ratio: 0.5042979717254639
-  - Class: rviz/Time
+    Splitter Ratio: 0.5
+  - Class: rviz_common/Time
+    Experimental: false
     Name: Time
     SyncMode: 0
     SyncSource: ""
-Preferences:
-  PromptSaveOnExit: true
-Toolbars:
-  toolButtonStyle: 2
 Visualization Manager:
   Class: ""
   Displays:
-    - Alpha: 0.6000000238418579
-      Class: rviz/Axes
-      Enabled: true
-      Length: 0.20000000298023224
-      Name: WorldOrigin
-      Radius: 0.019999999552965164
-      Reference Frame: <Fixed Frame>
-      Show Trail: false
-      Value: true
     - Alpha: 0.5
       Cell Size: 1
-      Class: rviz/Grid
-      Color: 136; 138; 133
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
       Enabled: true
       Line Style:
         Line Width: 0.029999999329447746
@@ -57,206 +45,68 @@ Visualization Manager:
         Y: 0
         Z: 0
       Plane: XY
-      Plane Cell Count: 30
+      Plane Cell Count: 100
       Reference Frame: <Fixed Frame>
       Value: true
-    - Class: rviz/Group
-      Displays:
-        - Class: rviz/Group
-          Displays:
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object1
-              Robot Description: object1/robot_description
-              TF Prefix: object1
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object2
-              Robot Description: object2/robot_description
-              TF Prefix: object2
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object3
-              Robot Description: object3/robot_description
-              TF Prefix: object3
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object4
-              Robot Description: object4/robot_description
-              TF Prefix: object4
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object5
-              Robot Description: object5/robot_description
-              TF Prefix: object5
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object6
-              Robot Description: object6/robot_description
-              TF Prefix: object6
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object7
-              Robot Description: object7/robot_description
-              TF Prefix: object7
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object8
-              Robot Description: object8/robot_description
-              TF Prefix: object8
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object9
-              Robot Description: object9/robot_description
-              TF Prefix: object9
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-            - Alpha: 1
-              Class: rviz/RobotModel
-              Collision Enabled: false
-              Enabled: true
-              Links:
-                All Links Enabled: true
-                Expand Joint Details: false
-                Expand Link Details: false
-                Expand Tree: false
-                Link Tree Style: Links in Alphabetic Order
-              Name: object10
-              Robot Description: object10/robot_description
-              TF Prefix: object10
-              Update Interval: 0
-              Value: true
-              Visual Enabled: true
-          Enabled: true
-          Name: objects
+    - Class: rviz_default_plugins/Axes
       Enabled: true
-      Name: env
-    - Class: rviz/Group
+      Length: 0.5
+      Name: origin
+      Radius: 0.05000000074505806
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Class: rviz_common/Group
       Displays:
-        - Alpha: 0.5
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 239; 41; 41
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Billboards
-          Line Width: 0.009999999776482582
-          Name: HistoryPath
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /uav1/history_path
-          Unreliable: false
-          Value: true
+        - Angle Tolerance: 0.10000000149011612
+          Class: rviz_default_plugins/Odometry
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: true
+          Enabled: false
+          Keep: 100
+          Name: Odometry
+          Position Tolerance: 0.10000000149011612
+          Shape:
+            Alpha: 1
+            Axes Length: 0.20000000298023224
+            Axes Radius: 0.029999999329447746
+            Color: 255; 25; 0
+            Head Length: 0.30000001192092896
+            Head Radius: 0.10000000149011612
+            Shaft Length: 1
+            Shaft Radius: 0.05000000074505806
+            Value: Axes
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Best Effort
+            Value: /mavros/local_position/odom
+          Value: false
         - Alpha: 1
-          Class: rviz/RobotModel
+          Class: rviz_default_plugins/RobotModel
           Collision Enabled: false
+          Description File: ""
+          Description Source: Topic
+          Description Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /robot_description
           Enabled: true
           Links:
             All Links Enabled: true
@@ -297,128 +147,117 @@ Visualization Manager:
               Show Axes: false
               Show Trail: false
               Value: true
+          Mass Properties:
+            Inertia: false
+            Mass: false
           Name: RobotModel
-          Robot Description: uav1/robot_description
-          TF Prefix: uav1
+          TF Prefix: ""
           Update Interval: 0
           Value: true
           Visual Enabled: true
-        - Class: rviz/Marker
-          Enabled: true
-          Marker Topic: /uav1/marker_name
-          Name: Marker
-          Namespaces:
-            my_namespace: true
-          Queue Size: 100
-          Value: true
-        - Angle Tolerance: 0.10000000149011612
-          Class: rviz/Odometry
-          Covariance:
-            Orientation:
-              Alpha: 0.5
-              Color: 255; 255; 127
-              Color Style: Unique
-              Frame: Local
-              Offset: 1
-              Scale: 1
-              Value: true
-            Position:
-              Alpha: 0.30000001192092896
-              Color: 204; 51; 204
-              Scale: 1
-              Value: true
-            Value: true
-          Enabled: false
-          Keep: 50
-          Name: MavrosLocalOdometry
-          Position Tolerance: 0.10000000149011612
-          Queue Size: 50
-          Shape:
-            Alpha: 0.6000000238418579
-            Axes Length: 0.20000000298023224
-            Axes Radius: 0.019999999552965164
-            Color: 255; 25; 0
-            Head Length: 0.029999999329447746
-            Head Radius: 0.029999999329447746
-            Shaft Length: 0.15000000596046448
-            Shaft Radius: 0.009999999776482582
-            Value: Arrow
-          Topic: /uav1/mavros/local_position/odom
-          Unreliable: false
-          Value: false
         - Alpha: 1
-          Axes Length: 0.20000000298023224
-          Axes Radius: 0.019999999552965164
-          Class: rviz/Pose
-          Color: 255; 25; 0
+          Buffer Length: 1
+          Class: rviz_default_plugins/Path
+          Color: 224; 27; 36
           Enabled: true
-          Head Length: 0.30000001192092896
-          Head Radius: 0.10000000149011612
-          Name: MavrosLocalPose
-          Queue Size: 10
-          Shaft Length: 1
-          Shaft Radius: 0.05000000074505806
-          Shape: Axes
-          Topic: /uav1/mavros/local_position/pose
-          Unreliable: false
+          Head Diameter: 0.30000001192092896
+          Head Length: 0.20000000298023224
+          Length: 0.30000001192092896
+          Line Style: Lines
+          Line Width: 0.029999999329447746
+          Name: History Path
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color: 255; 85; 255
+          Pose Style: None
+          Radius: 0.029999999329447746
+          Shaft Diameter: 0.10000000149011612
+          Shaft Length: 0.10000000149011612
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /history_path
           Value: true
       Enabled: true
-      Name: uav1
+      Name: drone_visualizer
   Enabled: true
   Global Options:
-    Background Color: 243; 243; 243
-    Default Light: true
+    Background Color: 255; 255; 255
     Fixed Frame: map
     Frame Rate: 30
   Name: root
   Tools:
-    - Class: rviz/Interact
+    - Class: rviz_default_plugins/Interact
       Hide Inactive Objects: true
-    - Class: rviz/MoveCamera
-    - Class: rviz/Select
-    - Class: rviz/FocusCamera
-    - Class: rviz/Measure
-    - Class: rviz/SetInitialPose
-      Theta std deviation: 0.2617993950843811
-      Topic: /initialpose
-      X std deviation: 0.5
-      Y std deviation: 0.5
-    - Class: rviz/SetGoal
-      Topic: /move_base_simple/goal
-    - Class: rviz/PublishPoint
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+      Line color: 128; 128; 0
+    - Class: rviz_default_plugins/SetInitialPose
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /initialpose
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /goal_pose
+    - Class: rviz_default_plugins/PublishPoint
       Single click: true
-      Topic: /clicked_point
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /clicked_point
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
   Value: true
   Views:
     Current:
-      Class: rviz/Orbit
-      Distance: 6.2504377365112305
+      Class: rviz_default_plugins/Orbit
+      Distance: 7.16375732421875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.3293617963790894
-        Y: -0.10249773412942886
-        Z: -0.6746402382850647
+        X: 0.6638574600219727
+        Y: 0.8148724436759949
+        Z: 0.15630042552947998
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.1147971153259277
+      Pitch: 0.9197969436645508
       Target Frame: <Fixed Frame>
-      Yaw: 3.0654232501983643
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 4.712378978729248
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 773
+  Height: 846
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd00000004000000000000015600000247fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000b0fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d00000247000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000015f00000511fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000006e00000511000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005210000005efc0100000002fb0000000800540069006d0065010000000000000521000003cc00fffffffb0000000800540069006d00650100000000000004500000000000000000000003c50000024700000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd000000040000000000000156000002b0fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d000002b0000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f000002b0fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000002b0000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004b00000003efc0100000002fb0000000800540069006d00650100000000000004b0000002fb00fffffffb0000000800540069006d0065010000000000000450000000000000000000000354000002b000000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -427,6 +266,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: true
-  Width: 1313
-  X: 869
-  Y: 121
+  Width: 1200
+  X: 1113
+  Y: 297
