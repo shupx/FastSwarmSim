@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
@@ -57,6 +57,9 @@ def generate_launch_description():
             condition=IfCondition(LaunchConfiguration("enable_rviz")),
         ),
 
+        GroupAction(
+            scoped=True,
+            actions=[
         PushRosNamespace(namespace),
         Node(
             package="fss_px4_sim",
@@ -71,5 +74,7 @@ def generate_launch_description():
                 "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
             }],
             condition=IfCondition(LaunchConfiguration("enable_mavros")),
+        ),
+            ],
         ),
     ])

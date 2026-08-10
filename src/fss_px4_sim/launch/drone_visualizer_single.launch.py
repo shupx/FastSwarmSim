@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, GroupAction
 from launch.substitutions import Command, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node, PushRosNamespace, SetParameter
 from launch_ros.parameter_descriptions import ParameterValue
@@ -28,6 +28,9 @@ def generate_launch_description():
         DeclareLaunchArgument("world_origin_AMSL_alt_metre", default_value="53.0"),
         DeclareLaunchArgument("urdf_model_path", default_value=default_urdf),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_sim_time")),
+        GroupAction(
+            scoped=True,
+            actions=[
         PushRosNamespace(LaunchConfiguration("namespace")),
         Node(
             package="robot_state_publisher", executable="robot_state_publisher",
@@ -40,6 +43,7 @@ def generate_launch_description():
                     "'", LaunchConfiguration("base_link_tf_prefix"),
                     "' + '/' if '", LaunchConfiguration("base_link_tf_prefix"), "' else ''"]),
             }],
+            namespace="visualizer",
         ),
         Node(
             package="fss_px4_sim", executable="px4_rotor_visualizer_node",
@@ -61,5 +65,7 @@ def generate_launch_description():
                 "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
                 "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),
             }],
+        ),
+            ],
         ),
     ])

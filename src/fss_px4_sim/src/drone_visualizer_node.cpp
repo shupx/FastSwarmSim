@@ -63,11 +63,11 @@ public:
         gps_y_north_ = (message->latitude - origin_latitude_deg_) * M_PI / 180.0 * earth_radius_m;
         have_gps_ = true;
       });
-    joints_pub_ = create_publisher<sensor_msgs::msg::JointState>("joint_states", rclcpp::QoS(1).transient_local());
-    path_pub_ = create_publisher<nav_msgs::msg::Path>("history_path", rclcpp::QoS(1).transient_local());
-    marker_pub_ = create_publisher<visualization_msgs::msg::Marker>("marker_name", rclcpp::QoS(1).transient_local());
+    joints_pub_ = create_publisher<sensor_msgs::msg::JointState>("visualizer/joint_states", rclcpp::QoS(1).transient_local());
+    path_pub_ = create_publisher<nav_msgs::msg::Path>("visualizer/history_path", rclcpp::QoS(1).transient_local());
+    marker_pub_ = create_publisher<visualization_msgs::msg::Marker>("visualizer/marker_name", rclcpp::QoS(1).transient_local());
     switch_source_srv_ = create_service<mavros_msgs::srv::CommandAck>(
-      "switch_visualize_pose_source",
+      "visualizer/switch_visualize_pose_source",
       [this](const std::shared_ptr<mavros_msgs::srv::CommandAck::Request> request,
         std::shared_ptr<mavros_msgs::srv::CommandAck::Response> response) {
         if (request->command > 1) {

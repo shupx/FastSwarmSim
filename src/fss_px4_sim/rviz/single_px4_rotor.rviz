@@ -106,7 +106,7 @@ Visualization Manager:
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /robot_description
+            Value: /visualizer/robot_description
           Enabled: true
           Links:
             All Links Enabled: true
@@ -155,6 +155,19 @@ Visualization Manager:
           Update Interval: 0
           Value: true
           Visual Enabled: true
+        - Class: rviz_default_plugins/Marker
+          Enabled: true
+          Name: Name Marker
+          Namespaces:
+            fss_px4_sim: true
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /visualizer/marker_name
+          Value: true
         - Alpha: 1
           Buffer Length: 1
           Class: rviz_default_plugins/Path
@@ -181,7 +194,7 @@ Visualization Manager:
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /history_path
+            Value: /visualizer/history_path
           Value: true
       Enabled: true
       Name: drone_visualizer
@@ -231,25 +244,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 7.16375732421875
+      Distance: 4.742313385009766
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.6638574600219727
-        Y: 0.8148724436759949
-        Z: 0.15630042552947998
+        X: 0.9469732046127319
+        Y: 0.39036884903907776
+        Z: 0.49180254340171814
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9197969436645508
+      Pitch: 0.64479660987854
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.712378978729248
+      Yaw: 4.667386054992676
     Saved: ~
 Window Geometry:
   Displays:

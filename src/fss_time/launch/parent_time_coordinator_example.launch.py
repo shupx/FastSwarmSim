@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, GroupAction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter, PushRosNamespace
@@ -42,6 +42,9 @@ def generate_launch_description():
 
         DeclareLaunchArgument("namespace", default_value="parent1"),
 
+        GroupAction(
+            scoped=True,
+            actions=[
         PushRosNamespace(namespace=LaunchConfiguration("namespace")), # set the namespace for the coordinator and its UI, if any.
 
         SetParameter(name="use_sim_time", value=True),
@@ -68,5 +71,7 @@ def generate_launch_description():
             name="fss_time_coordinator_ui",
             output="screen",
             condition=IfCondition(LaunchConfiguration("start_coordinator_ui")),
+        ),
+            ],
         ),
     ])

@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.conditions import IfCondition
@@ -88,6 +88,9 @@ def generate_launch_description():
             condition=IfCondition(LaunchConfiguration("enable_rviz")),
         ),
 
+        GroupAction(
+            scoped=True,
+            actions=[
         PushRosNamespace(namespace),
 
         ### mavros
@@ -133,6 +136,8 @@ def generate_launch_description():
                 "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
                 "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),
                 },
+            ],
+        ),
             ],
         ),
     ])
