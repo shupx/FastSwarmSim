@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Set mutation_tries beyond the maximum number of the nodes if you are using fastdds rmw -->
+<!-- Then set in ~/.bashrc after sourcing fss_time: -->
+<!-- export FASTDDS_DEFAULT_PROFILES_FILE=$(ros2 pkg prefix fss_time)/share/fss_time/config/fastdds_large_scale_configuration.xml -->
+<!-- export FASTRTPS_DEFAULT_PROFILES_FILE=$(ros2 pkg prefix fss_time)/share/fss_time/config/fastdds_large_scale_configuration.xml # for old version (ROS humble)
+ -->
+ <!-- Then run `ros2 daemon stop` to make ros2 cli tools take effect.  -->
+
+<!-- https://docs.ros.org/en/humble/Tutorials/Advanced/Discovery-Server/Discovery-Server.html#large-number-of-participants -->
+
+
+<dds xmlns="http://www.eprosima.com">
+    <profiles>
+        <participant profile_name="participant_profile" is_default_profile="true">
+            <rtps>
+                <builtin>
+                    <mutation_tries>10000</mutation_tries>
+                </builtin>
+            </rtps>
+        </participant>
+    </profiles>
+</dds>
