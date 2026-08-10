@@ -83,6 +83,7 @@ add_executable(px4_rotor_visualizer_node src/drone_visualizer_node.cpp)
 ament_target_dependencies(px4_rotor_visualizer_node
   geometry_msgs mavros_msgs nav_msgs rclcpp sensor_msgs tf2_ros visualization_msgs
 )
+target_link_libraries(px4_rotor_visualizer_node fss_px4_core)
 
 install(TARGETS
   mavros_px4_quadrotor_sim_node

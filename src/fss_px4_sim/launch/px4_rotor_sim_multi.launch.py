@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -15,6 +15,9 @@ def make_drones(context):
     launch_file = PathJoinSubstitution([
         FindPackageShare("fss_px4_sim"), "launch", "px4_rotor_sim_single.launch.py"])
     return [
+        # GroupAction(
+        #     scoped=True,
+        #     actions=[
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(launch_file),
             launch_arguments={
@@ -23,8 +26,8 @@ def make_drones(context):
                 "mav_comp_id": "1",
                 "mavlink_udp_local_port": "0",
                 "mavlink_udp_remote_port": str(24540 + index - 1),
-                "init_x_East_metre": str((index - 1) % drones_per_row),
-                "init_y_North_metre": str((index - 1) // drones_per_row),
+                "init_x_East_metre": f"{(index - 1) % drones_per_row:.1f}",
+                "init_y_North_metre": f"{(index - 1) // drones_per_row:.1f}",
                 "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),
                 "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
                 "enable_mavros": LaunchConfiguration("enable_mavros"),
@@ -33,6 +36,8 @@ def make_drones(context):
                 "enable_time_coordinator": "false",
             }.items(),
         )
+        #     ],
+        # )
         for index in range(1, count + 1)
     ]
 

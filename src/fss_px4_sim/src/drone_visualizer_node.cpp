@@ -18,6 +18,8 @@
 #include "tf2_ros/transform_broadcaster.h"
 #include "visualization_msgs/msg/marker.hpp"
 
+#include "geo/geo.h" // from fss_px4_sim px4_core
+
 class DroneVisualizer : public rclcpp::Node
 {
 public:
@@ -55,12 +57,12 @@ public:
       [this](const sensor_msgs::msg::NavSatFix::SharedPtr message) {
         if (local_pos_source_ != 1) return;
         std::scoped_lock lock(mutex_);
-        // Equirectangular projection matches the small-area map projection
-        // used by the migrated PX4 SITL for visualization purposes.
-        constexpr double earth_radius_m = 6371000.0;
-        const double latitude_rad = origin_latitude_deg_ * M_PI / 180.0;
-        gps_x_east_ = (message->longitude - origin_longitude_deg_) * M_PI / 180.0 * earth_radius_m * std::cos(latitude_rad);
-        gps_y_north_ = (message->latitude - origin_latitude_deg_) * M_PI / 180.0 * earth_radius_m;
+        MapProjection global_local_proj_ref{origin_latitude_deg_, origin_longitude_deg_, 0};
+        float east = 0.0F;
+        float north = 0.0F;
+        global_local_proj_ref.project(message->latitude, message->longitude, north, east);
+        gps_x_east_ = east;
+        gps_y_north_ = north;
         have_gps_ = true;
       });
     joints_pub_ = create_publisher<sensor_msgs::msg::JointState>("visualizer/joint_states", rclcpp::QoS(1).transient_local());
@@ -70,7 +72,7 @@ public:
       "visualizer/switch_visualize_pose_source",
       [this](const std::shared_ptr<mavros_msgs::srv::CommandAck::Request> request,
         std::shared_ptr<mavros_msgs::srv::CommandAck::Response> response) {
-        if (request->command > 1) {
+        if (request->command != 0 && request->command != 1) {
           response->success = false;
           response->result = 1;
           return;
@@ -114,35 +116,43 @@ private:
     joints_pub_->publish(joints);
 
     visualization_msgs::msg::Marker marker;
-    marker.header.stamp = stamp;
-    marker.header.frame_id = frame_id_;
-    marker.ns = "fss_px4_sim";
+    marker.header.stamp = rclcpp::Time(0, 0, RCL_ROS_TIME);
+    marker.header.frame_id = child_frame_id_;
+    marker.ns = "my_namespace";
     marker.id = 0;
     marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
     marker.action = visualization_msgs::msg::Marker::ADD;
-    marker.pose = pose_.pose;
-    marker.pose.position.x = transform.transform.translation.x;
-    marker.pose.position.y = transform.transform.translation.y;
-    marker.pose.position.z += 0.35;
-    marker.scale.z = 0.18;
-    marker.color.a = 1.0F;
-    marker.color.r = 1.0F;
+    marker.pose.position.x = 0.27;
+    marker.pose.position.y = 0.27;
+    marker.pose.position.z = 0.27;
+    marker.pose.orientation = pose_.pose.orientation;
+    marker.scale.x = 0.2;
+    marker.scale.y = 0.2;
+    marker.scale.z = 0.2;
+    marker.color.a = 0.9F;
+    marker.color.r = 0.0F;
+    marker.color.g = 0.0F;
+    marker.color.b = 0.0F;
+    marker.frame_locked = true;
     marker.text = marker_name_;
     marker_pub_->publish(marker);
 
     if (!history_enabled_) return;
+    if (path_pub_->get_subscription_count() == 0) return;
+    if (stamp.seconds() - last_path_publish_seconds_ <= 1.0 / 5.0) return;
     auto path_pose = pose_;
     path_pose.pose.position.x = transform.transform.translation.x;
     path_pose.pose.position.y = transform.transform.translation.y;
     path_pose.header.stamp = stamp;
     path_.push_back(path_pose);
-    const auto oldest = stamp - rclcpp::Duration::from_seconds(history_seconds_);
-    while (!path_.empty() && rclcpp::Time(path_.front().header.stamp) < oldest) path_.pop_front();
+    const auto max_path_size = static_cast<size_t>(std::max(0.0, history_seconds_ * 5.0));
+    while (path_.size() > max_path_size) path_.pop_front();
     nav_msgs::msg::Path path_message;
     path_message.header.stamp = stamp;
     path_message.header.frame_id = frame_id_;
     path_message.poses.assign(path_.begin(), path_.end());
     path_pub_->publish(path_message);
+    last_path_publish_seconds_ = stamp.seconds();
   }
 
   std::mutex mutex_;
@@ -159,7 +169,8 @@ private:
   double gps_y_north_{0.0};
   std::string frame_id_, child_frame_id_, marker_name_;
   std::array<std::string, 4> joint_names_;
-  std::array<double, 4> joint_positions_{};
+  std::array<double, 4> joint_positions_{{0.0, 0.5, 2.6, 1.4}};
+  double last_path_publish_seconds_{0.0};
   geometry_msgs::msg::PoseStamped pose_;
   std::deque<geometry_msgs::msg::PoseStamped> path_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;

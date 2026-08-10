@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -15,19 +15,24 @@ def make_drones(context):
     launch_file = PathJoinSubstitution([
         FindPackageShare("fss_px4_sim"), "launch", "perfect_drone.launch.py"])
     return [
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(launch_file),
-            launch_arguments={
-                "namespace": f"uav{index}",
-                "init_x": str((index - 1) % drones_per_row),
-                "init_y": str((index - 1) // drones_per_row),
-                "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),
-                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                "enable_mavros": LaunchConfiguration("enable_mavros"),
-                "enable_visualizer": LaunchConfiguration("enable_visualizer"),
-                "enable_rviz": "false",
-                "enable_time_coordinator": "false",
-            }.items(),
+        GroupAction(
+            scoped=True,
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(launch_file),
+                    launch_arguments={
+                        "namespace": f"uav{index}",
+                        "init_x": f"{(index - 1) % drones_per_row:.1f}",
+                        "init_y": f"{(index - 1) // drones_per_row:.1f}",
+                        "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),
+                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                        "enable_mavros": LaunchConfiguration("enable_mavros"),
+                        "enable_visualizer": LaunchConfiguration("enable_visualizer"),
+                        "enable_rviz": "false",
+                        "enable_time_coordinator": "false",
+                    }.items(),
+                ),
+            ],
         )
         for index in range(1, count + 1)
     ]

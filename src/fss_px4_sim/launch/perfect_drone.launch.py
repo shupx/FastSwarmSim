@@ -11,7 +11,7 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     namespace = LaunchConfiguration("namespace")
     return LaunchDescription([
-        DeclareLaunchArgument("namespace", default_value="uav1"),
+        DeclareLaunchArgument("namespace", default_value=""),
         DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
         DeclareLaunchArgument("init_x", default_value="0.0"),
         DeclareLaunchArgument("init_y", default_value="0.0"),
