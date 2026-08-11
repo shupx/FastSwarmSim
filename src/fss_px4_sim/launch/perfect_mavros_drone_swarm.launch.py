@@ -13,7 +13,7 @@ def make_drones(context):
     if drones_per_row < 1:
         raise ValueError("drones_per_row must be at least 1")
     launch_file = PathJoinSubstitution([
-        FindPackageShare("fss_px4_sim"), "launch", "perfect_drone.launch.py"])
+        FindPackageShare("fss_px4_sim"), "launch", "perfect_mavros_drone_single.launch.py"])
     return [
         GroupAction(
             scoped=True,
