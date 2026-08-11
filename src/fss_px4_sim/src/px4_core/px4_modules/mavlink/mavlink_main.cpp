@@ -25,7 +25,7 @@
 MAVLINK::MAVLINK(MavrosQuadSimulator::Px4InstanceContext &context,
 	int local_port, int remote_port, uint8_t system_id, uint8_t component_id)
 	: context_(context), local_port_(local_port), remote_port_(remote_port),
-	  system_id_(system_id), component_id_(component_id) // added or modified by Peixuan Shu
+	  system_id_(system_id), component_id_(component_id)
 {
 }
 
@@ -36,7 +36,7 @@ MAVLINK::~MAVLINK()
 
 void MAVLINK::start()
 {
-	// Modified by Peixuan Shu: construct MAVLink components in their owning context.
+	//construct MAVLink components in their owning context.
 	MavrosQuadSimulator::Px4InstanceContext::Scope context_scope(context_);
 	if (socket_fd_ >= 0) {
 		return;
@@ -64,10 +64,10 @@ void MAVLINK::start()
 			throw std::runtime_error("failed to connect MAVLink UDP socket");
 		}
 
-		receiver_ = std::make_unique<MavlinkReceiver>(system_id_, component_id_); // added or modified by Peixuan Shu
+		receiver_ = std::make_unique<MavlinkReceiver>(system_id_, component_id_);
 		streamer_ = std::make_unique<MavlinkStreamer>(MavlinkSender(
 			[this](const mavlink_message_t &message) { send_message(message); },
-			system_id_, component_id_)); // added or modified by Peixuan Shu
+			system_id_, component_id_));
 		receiving_.store(true);
 		receive_thread_ = std::thread(&MAVLINK::receive_loop, this);
 	} catch (...) {
@@ -99,7 +99,7 @@ void MAVLINK::stop()
 
 void MAVLINK::Stream(const uint64_t &time_us)
 {
-	// Added by Peixuan Shu: keep direct MAVLINK callers in the owning context.
+	// keep direct MAVLINK callers in the owning context.
 	MavrosQuadSimulator::Px4InstanceContext::Scope context_scope(context_);
 	if (streamer_) {
 		streamer_->Stream(time_us);
@@ -120,7 +120,7 @@ void MAVLINK::send_message(const mavlink_message_t &message) const
 
 void MAVLINK::receive_loop()
 {
-	// Modified by Peixuan Shu: the receiver executes on another thread, so it
+	// the receiver executes on another thread, so it
 	// must select the complete owning context explicitly.
 	MavrosQuadSimulator::Px4InstanceContext::Scope context_scope(context_);
 	mavlink_status_t status{};
