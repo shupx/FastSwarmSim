@@ -107,7 +107,7 @@ def generate_launch_description():
 
         ### mavros
         Node(
-            package="mavros", executable="mavros_node", name="mavros", output="screen",
+            package="mavros", executable="mavros_node", namespace="mavros", output="screen",
             parameters=[
                 {
                 "fcu_url": PythonExpression([
