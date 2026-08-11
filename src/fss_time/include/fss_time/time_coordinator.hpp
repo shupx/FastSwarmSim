@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -18,6 +19,7 @@
 #include "fss_time_interfaces/srv/sim_clock_control.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rosgraph_msgs/msg/clock.hpp"
+#include "std_srvs/srv/trigger.hpp"
 
 namespace fss_time
 {
@@ -69,6 +71,12 @@ public:
    */
   fss_time_interfaces::msg::SimClockStatus status_message() const;
 
+  /**
+   * @brief Remove participants that have not made a recent time request.
+   * @return Number of participants removed.
+   */
+  std::size_t clear_zombie_participants();
+
 private:
   enum class DebugState
   {
@@ -86,6 +94,7 @@ private:
     int64_t request_time_ns{0};
     bool has_new_request{false};
     bool follows_real_time{true};
+    std::chrono::steady_clock::time_point last_request_walltime{};
   };
 
   void receive_router_loop();
@@ -122,6 +131,7 @@ private:
   rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr clock_pub_;
   rclcpp::Publisher<fss_time_interfaces::msg::SimClockStatus>::SharedPtr status_pub_;
   rclcpp::Service<fss_time_interfaces::srv::SimClockControl>::SharedPtr control_srv_;
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr clear_zombie_participants_srv_;
   rclcpp::TimerBase::SharedPtr regulator_timer_;
   rclcpp::TimerBase::SharedPtr real_time_timer_;
   rclcpp::TimerBase::SharedPtr clock_status_timer_;
@@ -133,6 +143,7 @@ private:
   int64_t real_time_request_ns_{0};
   int64_t speed_regulator_step_ns_{5000000};  // 5 ms
   int64_t min_operation_walltime_{100000};
+  std::chrono::milliseconds zombie_participant_timeout_{500};
   double max_real_time_factor_{1.0};
   double observed_real_time_factor_{0.0};
   int64_t observed_rtf_last_sim_time_ns_{0};

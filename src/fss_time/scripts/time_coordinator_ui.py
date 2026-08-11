@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
     QLayout,
     QMainWindow,
     QSizePolicy,
+    QStyle,
 )
 
 import rclpy
@@ -25,6 +26,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from fss_time_interfaces.msg import SimClockStatus
 from fss_time_interfaces.srv import SimClockControl
 from rosgraph_msgs.msg import Clock
+from std_srvs.srv import Trigger
 
 RTF_SLIDER_MIN = 0
 RTF_SLIDER_ONE_X = 100
@@ -97,6 +99,8 @@ class CoordinatorBridge(QObject):
             Clock, "/clock", self._on_clock, clock_qos
         )
         self.control_client = self.node.create_client(SimClockControl, "fss/clock_control")
+        self.clear_zombie_participants_client = self.node.create_client(
+            Trigger, "fss/clear_zombie_participants")
         self.executor = SingleThreadedExecutor(context=self._context)
         self.executor.add_node(self.node)
         self._ros_ready.set()
@@ -208,6 +212,24 @@ class CoordinatorBridge(QObject):
         else:
             self.message_signal.emit(response.message or "coordinator rejected request")
 
+    def clear_zombie_participants(self):
+        if not self._ros_ready.wait(timeout=2.0):
+            self.message_signal.emit("ROS 2 node not ready")
+            return
+        if not self.clear_zombie_participants_client.wait_for_service(timeout_sec=0.2):
+            self.message_signal.emit("/fss/clear_zombie_participants unavailable")
+            return
+        future = self.clear_zombie_participants_client.call_async(Trigger.Request())
+        future.add_done_callback(self._on_clear_zombie_participants_response)
+
+    def _on_clear_zombie_participants_response(self, future):
+        try:
+            response = future.result()
+        except Exception as exc:
+            self.message_signal.emit("clearing zombie participants failed: {}".format(exc))
+            return
+        self.message_signal.emit(response.message or "zombie participants cleared")
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -224,6 +246,9 @@ class MainWindow(QMainWindow):
         self.target_rtf_input.setAlignment(Qt.AlignRight)
         self.target_rtf_input.setFixedWidth(72)
         self.target_rtf_input.setText("{:.2f}".format(1.0))
+        self.button_layout.setStretch(0, 1)
+        self.button_layout.setStretch(1, 1)
+        self.set_playback_state(False)
         self.label_time_value.mousePressEvent = self._toggle_time_display
         self.speed_dial.mousePressEvent = self._slider_mouse_press
         self.speed_dial.mouseMoveEvent = self._slider_mouse_move
@@ -281,6 +306,12 @@ class MainWindow(QMainWindow):
         self.status_group.adjustSize()
         self.centralwidget.adjustSize()
         self.adjustSize()
+
+    def set_playback_state(self, running: bool):
+        self.play_pause_button.setIcon(self.style().standardIcon(
+            QStyle.SP_MediaPause if running else QStyle.SP_MediaPlay))
+        self.play_pause_button.setToolTip(
+            "Pause simulation" if running else "Start simulation")
 
     def _slider_mouse_press(self, event):
         if event.button() == Qt.LeftButton:
@@ -433,8 +464,9 @@ class TimeCoordinatorUi(QObject):
         self.window.set_dial_value(rtf_to_dial(initial_rtf, self.window.slider_max_rtf()))
         self.window.set_target_rtf(initial_rtf)
 
-        self.window.start_button.clicked.connect(self._start)
-        self.window.pause_button.clicked.connect(self._pause)
+        self.window.play_pause_button.clicked.connect(self._toggle_running)
+        self.window.clear_zombie_participants_button.clicked.connect(
+            self.bridge.clear_zombie_participants)
         self.window.target_rtf_input.editingFinished.connect(self._manual_rtf_changed)
         self.window.speed_dial.valueChanged.connect(self._dial_changed)
         self._connect_scale_labels()
@@ -466,16 +498,14 @@ class TimeCoordinatorUi(QObject):
 
     def _status_updated(self, status: dict):
         self.window.set_status(status)
+        self.window.set_playback_state(status["running"])
         self.window.set_dial_value(rtf_to_dial(
             status["max_real_time_factor"],
             self.window.slider_max_rtf()))
         self.window.set_target_rtf(status["max_real_time_factor"])
 
-    def _start(self):
-        self.bridge.request_control(True, self.bridge.expected_rtf)
-
-    def _pause(self):
-        self.bridge.request_control(False, self.bridge.expected_rtf)
+    def _toggle_running(self):
+        self.bridge.request_control(not self.bridge.running, self.bridge.expected_rtf)
 
     def _dial_changed(self, dial_value: int):
         target_rtf = dial_to_rtf(dial_value, self.window.slider_max_rtf())

@@ -165,6 +165,36 @@ TEST(TimeCoordinator, SupportsTcpEndpoint)
   fss_time::thread_time_participant::reset_current_thread_for_testing();
 }
 
+TEST(TimeCoordinator, ClearsOnlyZombieParticipantsOnDemand)
+{
+  const auto endpoint = reserve_test_endpoint();
+  auto coordinator_node = std::make_shared<rclcpp::Node>("clear_zombie_participants_test");
+  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
+  coordinator_node->declare_parameter("zombie_participant_timeout_ms", 0);
+  fss_time::TimeCoordinator coordinator(*coordinator_node);
+  coordinator.start();
+
+  rclcpp::Node participant_node("clear_zombie_participants_client_test");
+  const auto clock = participant_node.get_clock();
+  fss_time::ZeroMqTimeParticipantBackend idle_participant(
+    {"idle_participant", endpoint}, clock);
+  fss_time::ZeroMqTimeParticipantBackend active_participant(
+    {"active_participant", endpoint}, clock);
+  idle_participant.register_participant();
+  active_participant.register_participant();
+  active_participant.announce_next_safe_time(1000000);
+
+  wait_until([&coordinator]() {
+    const auto status = coordinator.status_message();
+    return status.participant_count == 2 && status.new_request_participant_count == 1;
+  }, std::chrono::seconds(1));
+  ASSERT_EQ(coordinator.status_message().participant_count, 2u);
+  EXPECT_EQ(coordinator.clear_zombie_participants(), 1u);
+  EXPECT_EQ(coordinator.status_message().participant_count, 1u);
+
+  active_participant.unregister_participant();
+}
+
 TEST(TimeCoordinator, ChildCoordinatorAdvancesFromParentGrant)
 {
   const auto parent_endpoint = reserve_test_endpoint();

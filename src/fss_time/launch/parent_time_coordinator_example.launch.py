@@ -24,6 +24,8 @@ from launch.actions import SetEnvironmentVariable
 def generate_launch_description():
     return LaunchDescription([
         SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
+        
+        DeclareLaunchArgument("namespace", default_value="parent1"),
 
         DeclareLaunchArgument("max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("auto_start", default_value="true"),
@@ -41,7 +43,8 @@ def generate_launch_description():
 
         DeclareLaunchArgument("follows_real_time", default_value="true"), # If true, the coordinator applies a wall-time catch-up floor to participant requests so long-running callbacks do not leave observed RTF below 1x when max_real_time_factor allows it. Set false to use only participant requests and the speed regulator.
 
-        DeclareLaunchArgument("namespace", default_value="parent1"),
+        DeclareLaunchArgument("zombie_participant_timeout_ms", default_value="500"),
+
 
         GroupAction(
             scoped=True,
@@ -57,6 +60,7 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "max_real_time_factor": LaunchConfiguration("max_real_time_factor"),
+                "zombie_participant_timeout_ms": LaunchConfiguration("zombie_participant_timeout_ms"),
                 "auto_start": LaunchConfiguration("auto_start"),
                 "publish_clock": LaunchConfiguration("publish_clock"),
                 "speed_regulator_step_ns": LaunchConfiguration("speed_regulator_step_ns"),

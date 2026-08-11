@@ -70,7 +70,9 @@ void ZeroMqTimeParticipantBackend::unregister_participant()
   }
 
   start_locked();
-  request_coordinator_locked("UNREGISTER", false);
+  // ROS shutdown makes rclcpp::ok() false before thread-local destructors run.
+  // Send UNREGISTER best-effort without waiting for a reply in that case.
+  send_coordinator_locked("UNREGISTER", false, true);
   registered_ = false;
 }
 
@@ -144,11 +146,12 @@ void ZeroMqTimeParticipantBackend::start_locked()
 // TODO: only send() does not guarantee that the message is actually received by the coordinator (e.g. if the network is down temporarily). Consider adding a hearbeat mechanism to detect if the coordinator is alive and connected, and keep resending if the coordinator is offline temporarily. 
 bool ZeroMqTimeParticipantBackend::send_coordinator_locked(
   const std::string & message,
-  bool wait_forever)
+  bool wait_forever,
+  bool allow_after_shutdown)
 {
   constexpr auto retry_period = std::chrono::milliseconds(200);
   int attempts = 0;
-  while ((wait_forever || attempts < 3) && rclcpp::ok()) {
+  while ((wait_forever || attempts < 3) && (allow_after_shutdown || rclcpp::ok())) {
     ++attempts;
     try {
       zmq::message_t request(message.begin(), message.end());

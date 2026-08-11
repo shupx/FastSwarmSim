@@ -218,16 +218,37 @@ QToolButton:hover {
        <item>
         <layout class="QHBoxLayout" name="button_layout">
          <item>
-          <widget class="QPushButton" name="start_button">
-           <property name="text">
-            <string>Start</string>
+          <widget class="QToolButton" name="play_pause_button">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Start simulation</string>
+           </property>
+           <property name="toolButtonStyle">
+            <enum>Qt::ToolButtonIconOnly</enum>
+           </property>
+           <property name="autoRaise">
+            <bool>false</bool>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="pause_button">
+          <widget class="QPushButton" name="clear_zombie_participants_button">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Remove participants that have stopped sending time requests</string>
+           </property>
            <property name="text">
-            <string>Pause</string>
+            <string>Clear zombies</string>
            </property>
           </widget>
          </item>

@@ -162,6 +162,16 @@ TimeCoordinator::TimeCoordinator(rclcpp::Node & node)
   speed_regulator_step_ns_ =
     std::max<int64_t>(min_operation_walltime_, configured_speed_regulator_step_ns);
   const auto max_rtf = declare_or_get_parameter<double>(node_, "max_real_time_factor", 1.0);
+  const auto configured_zombie_participant_timeout_ms =
+    declare_or_get_parameter<int64_t>(node_, "zombie_participant_timeout_ms", 500);
+  if (configured_zombie_participant_timeout_ms < 0) {
+    RCLCPP_WARN(
+      node_.get_logger(),
+      "zombie_participant_timeout_ms=%lld is negative. Clamping it to 0 ms.",
+      static_cast<long long>(configured_zombie_participant_timeout_ms));
+  }
+  zombie_participant_timeout_ = std::chrono::milliseconds(
+    std::max<int64_t>(0, configured_zombie_participant_timeout_ms));
   running_ = declare_or_get_parameter<bool>(node_, "auto_start", true);
   follows_real_time_ = declare_or_get_parameter<bool>(node_, "follows_real_time", true);
   publish_clock_ = declare_or_get_parameter<bool>(node_, "publish_clock", true);
@@ -183,6 +193,17 @@ TimeCoordinator::TimeCoordinator(rclcpp::Node & node)
       set_running(request->running);
       response->success = true;
       response->message = "time_coordinator updated";
+    });
+  clear_zombie_participants_srv_ = node_.create_service<std_srvs::srv::Trigger>(
+    "fss/clear_zombie_participants",
+    [this](
+      const std::shared_ptr<std_srvs::srv::Trigger::Request>,
+      std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
+      const auto removed_count = clear_zombie_participants();
+      response->success = true;
+      response->message = removed_count == 0 ?
+        "No zombie participants found." :
+        "Removed " + std::to_string(removed_count) + " zombie participant(s).";
     });
 }
 
@@ -387,6 +408,32 @@ fss_time_interfaces::msg::SimClockStatus TimeCoordinator::status_message() const
   return status;
 }
 
+std::size_t TimeCoordinator::clear_zombie_participants()
+{
+  std::size_t removed_count = 0;
+  const auto now = std::chrono::steady_clock::now();
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto participant = participants_.begin(); participant != participants_.end();) {
+      const auto & state = participant->second;
+      if (!state.has_new_request &&
+        now - state.last_request_walltime >= zombie_participant_timeout_) {
+        participant = participants_.erase(participant);
+        ++removed_count;
+      } else {
+        ++participant;
+      }
+    }
+    if (removed_count > 0) {
+      try_update_clock_locked();
+    }
+  }
+  if (removed_count > 0) {
+    publish_status();
+  }
+  return removed_count;
+}
+
 void TimeCoordinator::receive_router_loop()
 {
   while (!stop_receive_.load() && rclcpp::ok()) {
@@ -486,7 +533,7 @@ std::string TimeCoordinator::handle_message(const std::string & identity, const 
   std::lock_guard<std::mutex> lock(mutex_);
   
   if (command == "REGISTER") {
-    participants_[identity];
+    participants_[identity].last_request_walltime = std::chrono::steady_clock::now();
     return "OK";
   }
 
@@ -500,6 +547,7 @@ std::string TimeCoordinator::handle_message(const std::string & identity, const 
     auto & participant = participants_[identity];
     participant.request_time_ns = request_ns;
     participant.has_new_request = true;
+    participant.last_request_walltime = std::chrono::steady_clock::now();
     try_update_clock_locked();
     return ""; // no reply needed for ANNOUNCE
   }

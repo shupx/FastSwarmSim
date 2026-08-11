@@ -15,6 +15,7 @@ find_package(fss_time_interfaces REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rosgraph_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(std_msgs REQUIRED)
 
 pkg_check_modules(ZMQ REQUIRED libzmq)
@@ -43,6 +44,7 @@ ament_target_dependencies(${PROJECT_NAME}
   fss_time_interfaces
   rclcpp
   rosgraph_msgs
+  std_srvs
 )
 
 add_executable(time_coordinator src/time_coordinator_node.cpp)
@@ -86,7 +88,7 @@ if(BUILD_TESTING)
   ament_add_gtest(test_fss_time test/test_fss_time.cpp)
   if(TARGET test_fss_time)
     target_link_libraries(test_fss_time ${PROJECT_NAME})
-    ament_target_dependencies(test_fss_time rclcpp fss_time_interfaces rosgraph_msgs)
+    ament_target_dependencies(test_fss_time rclcpp fss_time_interfaces rosgraph_msgs std_srvs)
   endif()
 
   install(TARGETS
@@ -132,6 +134,7 @@ ament_export_dependencies(
   fss_time_interfaces
   rclcpp
   rosgraph_msgs
+  std_srvs
   std_msgs
 )
 ament_package()

@@ -42,6 +42,8 @@ def generate_launch_description():
 
         DeclareLaunchArgument("follows_real_time", default_value="true"), # If true, the coordinator applies a wall-time catch-up floor to participant requests so long-running callbacks do not leave observed RTF below 1x when max_real_time_factor allows it. Set false to use only participant requests and the speed regulator.
 
+        DeclareLaunchArgument("zombie_participant_timeout_ms", default_value="500"), # If a time participant does not announce its safe time for this duration, the coordinator can consider it a zombie, and will be removed if the clearzombie service is called.
+
         GroupAction(
             scoped=True,
             actions=[
@@ -56,6 +58,7 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "max_real_time_factor": LaunchConfiguration("max_real_time_factor"),
+                "zombie_participant_timeout_ms": LaunchConfiguration("zombie_participant_timeout_ms"),
                 "auto_start": LaunchConfiguration("auto_start"),
                 "publish_clock": LaunchConfiguration("publish_clock"),
                 "speed_regulator_step_ns": LaunchConfiguration("speed_regulator_step_ns"),
