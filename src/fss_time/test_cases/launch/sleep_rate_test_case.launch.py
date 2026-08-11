@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, SetParameter
@@ -35,13 +35,19 @@ def generate_launch_description():
         TimerAction(
             period=0.2,
             actions=[
-                IncludeLaunchDescription(
-                    PythonLaunchDescriptionSource(time_coordinator_launch),
-                    launch_arguments={
-                        "max_real_time_factor": LaunchConfiguration("coordinator.max_real_time_factor"),
-                        "auto_start": LaunchConfiguration("coordinator.auto_start"),
-                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                    }.items(),
+                # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
+                GroupAction(
+                    scoped=True,
+                    actions=[
+                        IncludeLaunchDescription(
+                            PythonLaunchDescriptionSource(time_coordinator_launch),
+                            launch_arguments={
+                                "max_real_time_factor": LaunchConfiguration("coordinator.max_real_time_factor"),
+                                "auto_start": LaunchConfiguration("coordinator.auto_start"),
+                                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                            }.items(),
+                        ),
+                    ],
                 ),
             ],
         ),

@@ -53,32 +53,44 @@ def generate_launch_description():
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
 
         ### Time coordinator (only when use_fss_sim_time is true and enable_time_coordinator is true)
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([
-                FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
-            condition=IfCondition(PythonExpression([
-                "'", LaunchConfiguration("use_fss_sim_time"),
-                "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
-            ])),
-            launch_arguments={
-                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                "publish_clock": "true",
-            }.items(),
+        # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
+        GroupAction(
+            scoped=True,
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(PathJoinSubstitution([
+                        FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
+                    condition=IfCondition(PythonExpression([
+                        "'", LaunchConfiguration("use_fss_sim_time"),
+                        "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
+                    ])),
+                    launch_arguments={
+                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                        "publish_clock": "true",
+                    }.items(),
+                ),
+            ],
         ),
 
         ### Visualizer
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([
-                FindPackageShare("fss_px4_sim"), "launch", "drone_visualizer_single.launch.py"])),
-            condition=IfCondition(LaunchConfiguration("enable_visualizer")),
-            launch_arguments={
-                "namespace": namespace,
-                "use_sim_time": LaunchConfiguration("use_fss_sim_time"),
-                "local_pos_source": LaunchConfiguration("local_pos_source"),
-                "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"),
-                "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
-                "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),
-            }.items(),
+        # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
+        GroupAction(
+            scoped=True,
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(PathJoinSubstitution([
+                        FindPackageShare("fss_px4_sim"), "launch", "drone_visualizer_single.launch.py"])),
+                    condition=IfCondition(LaunchConfiguration("enable_visualizer")),
+                    launch_arguments={
+                        "namespace": namespace,
+                        "use_sim_time": LaunchConfiguration("use_fss_sim_time"),
+                        "local_pos_source": LaunchConfiguration("local_pos_source"),
+                        "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"),
+                        "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
+                        "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),
+                    }.items(),
+                ),
+            ],
         ),
 
         ### Rviz

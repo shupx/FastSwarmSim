@@ -15,6 +15,7 @@ def make_visualizers(context):
     use_sim_time = LaunchConfiguration("use_sim_time")
 
     return [
+        # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
         GroupAction(
             scoped=True,
             actions=[

@@ -15,29 +15,30 @@ def make_drones(context):
     launch_file = PathJoinSubstitution([
         FindPackageShare("fss_px4_sim"), "launch", "px4_rotor_sim_single.launch.py"])
     return [
-        # GroupAction(
-        #     scoped=True,
-        #     actions=[
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(launch_file),
-            launch_arguments={
-                "namespace": f"uav{index}",
-                "mav_sys_id": str(index),
-                "mav_comp_id": "1",
-                "mavlink_udp_local_port": "0",
-                "mavlink_udp_remote_port": str(24540 + index - 1),
-                "init_x_East_metre": f"{(index - 1) % drones_per_row:.1f}",
-                "init_y_North_metre": f"{(index - 1) // drones_per_row:.1f}",
-                "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),
-                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                "enable_mavros": LaunchConfiguration("enable_mavros"),
-                "enable_visualizer": LaunchConfiguration("enable_visualizer"),
-                "enable_rviz": "false",
-                "enable_time_coordinator": "false",
-            }.items(),
+        # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
+        GroupAction(
+            scoped=True,
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(launch_file),
+                    launch_arguments={
+                        "namespace": f"uav{index}",
+                        "mav_sys_id": str(index),
+                        "mav_comp_id": "1",
+                        "mavlink_udp_local_port": "0",
+                        "mavlink_udp_remote_port": str(24540 + index - 1),
+                        "init_x_East_metre": f"{(index - 1) % drones_per_row:.1f}",
+                        "init_y_North_metre": f"{(index - 1) // drones_per_row:.1f}",
+                        "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),
+                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                        "enable_mavros": LaunchConfiguration("enable_mavros"),
+                        "enable_visualizer": LaunchConfiguration("enable_visualizer"),
+                        "enable_rviz": "false",
+                        "enable_time_coordinator": "false",
+                    }.items(),
+                ),
+            ],
         )
-        #     ],
-        # )
         for index in range(1, count + 1)
     ]
 
@@ -58,17 +59,23 @@ def generate_launch_description():
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
 
         ## Time coordinator (only when use_fss_sim_time is true and enable_time_coordinator is true)
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([
-                FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
-            condition=IfCondition(PythonExpression([
-                "'", LaunchConfiguration("use_fss_sim_time"),
-                "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
-            ])),
-            launch_arguments={
-                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                "publish_clock": "true",
-            }.items(),
+        # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
+        GroupAction(
+            scoped=True,
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(PathJoinSubstitution([
+                        FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
+                    condition=IfCondition(PythonExpression([
+                        "'", LaunchConfiguration("use_fss_sim_time"),
+                        "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
+                    ])),
+                    launch_arguments={
+                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                        "publish_clock": "true",
+                    }.items(),
+                ),
+            ],
         ),
 
         ## Rviz2

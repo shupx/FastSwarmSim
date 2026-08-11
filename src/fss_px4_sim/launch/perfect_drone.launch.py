@@ -28,27 +28,39 @@ def generate_launch_description():
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
 
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([
-                FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
-            condition=IfCondition(PythonExpression([
-                "'", LaunchConfiguration("use_fss_sim_time"),
-                "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
-            ])),
-            launch_arguments={
-                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                "publish_clock": "true",
-            }.items(),
+        # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
+        GroupAction(
+            scoped=True,
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(PathJoinSubstitution([
+                        FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
+                    condition=IfCondition(PythonExpression([
+                        "'", LaunchConfiguration("use_fss_sim_time"),
+                        "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
+                    ])),
+                    launch_arguments={
+                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                        "publish_clock": "true",
+                    }.items(),
+                ),
+            ],
         ),
 
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([
-                FindPackageShare("fss_px4_sim"), "launch", "drone_visualizer_single.launch.py"])),
-            condition=IfCondition(LaunchConfiguration("enable_visualizer")),
-            launch_arguments={
-                "namespace": namespace,
-                "use_sim_time": LaunchConfiguration("use_fss_sim_time"),
-            }.items(),
+        # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
+        GroupAction(
+            scoped=True,
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(PathJoinSubstitution([
+                        FindPackageShare("fss_px4_sim"), "launch", "drone_visualizer_single.launch.py"])),
+                    condition=IfCondition(LaunchConfiguration("enable_visualizer")),
+                    launch_arguments={
+                        "namespace": namespace,
+                        "use_sim_time": LaunchConfiguration("use_fss_sim_time"),
+                    }.items(),
+                ),
+            ],
         ),
 
         Node(

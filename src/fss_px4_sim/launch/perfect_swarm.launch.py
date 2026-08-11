@@ -18,6 +18,7 @@ def make_drones(context):
         GroupAction(
             scoped=True,
             actions=[
+                # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
                 IncludeLaunchDescription(
                     PythonLaunchDescriptionSource(launch_file),
                     launch_arguments={
@@ -52,17 +53,23 @@ def generate_launch_description():
             FindPackageShare("fss_px4_sim"), "rviz", "multi_px4_rotor.rviz"])),
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([
-                FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
-            condition=IfCondition(PythonExpression([
-                "'", LaunchConfiguration("use_fss_sim_time"),
-                "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
-            ])),
-            launch_arguments={
-                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                "publish_clock": "true",
-            }.items(),
+        # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
+        GroupAction(
+            scoped=True,
+            actions=[
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(PathJoinSubstitution([
+                        FindPackageShare("fss_time"), "launch", "time_coordinator.launch.py"])),
+                    condition=IfCondition(PythonExpression([
+                        "'", LaunchConfiguration("use_fss_sim_time"),
+                        "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
+                    ])),
+                    launch_arguments={
+                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                        "publish_clock": "true",
+                    }.items(),
+                ),
+            ],
         ),
         Node(
             package="rviz2", executable="rviz2", name="rviz2", output="screen",
