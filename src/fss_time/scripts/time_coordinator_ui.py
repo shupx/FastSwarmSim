@@ -80,6 +80,11 @@ class CoordinatorBridge(QObject):
     def _spin(self):
         rclpy.init(args=None, context=self._context)
         self.node = Node("fss_time_coordinator_ui", context=self._context)
+        self.node.declare_parameter("always_on_top", True)
+        always_on_top = self.node.get_parameter("always_on_top").value
+        if isinstance(always_on_top, str):
+            always_on_top = always_on_top.strip().lower() not in ("false", "0", "off", "no")
+        self._always_on_top = bool(always_on_top)
         self.status_sub = self.node.create_subscription(
             SimClockStatus, "fss/sim_clock_status", self._on_status, 10
         )
@@ -133,6 +138,11 @@ class CoordinatorBridge(QObject):
         if not self._ros_ready.is_set():
             return ""
         return self.node.get_namespace()
+
+    def always_on_top(self) -> bool:
+        if not self._ros_ready.wait(timeout=2.0):
+            return True
+        return self._always_on_top
 
     def _on_status(self, msg: SimClockStatus):
         sim_time = float(msg.sim_time.sec) + float(msg.sim_time.nanosec) * 1e-9
@@ -234,6 +244,9 @@ class MainWindow(QMainWindow):
         self.status_toggle_button.toggled.connect(self.set_status_details_visible)
         self.set_status_details_visible(False)
         self.statusBar().showMessage("waiting for coordinator status")
+
+    def set_always_on_top(self, enabled: bool):
+        self.setWindowFlag(Qt.WindowStaysOnTopHint, bool(enabled))
 
     def _configure_compact_layout(self):
         for layout in (
@@ -416,6 +429,7 @@ class TimeCoordinatorUi(QObject):
         self.window.setWindowIcon(icon)
         
         self.bridge = CoordinatorBridge(initial_rtf)
+        self.window.set_always_on_top(self.bridge.always_on_top())
         self.window.set_dial_value(rtf_to_dial(initial_rtf, self.window.slider_max_rtf()))
         self.window.set_target_rtf(initial_rtf)
 

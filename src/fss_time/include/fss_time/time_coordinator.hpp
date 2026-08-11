@@ -88,7 +88,8 @@ private:
     bool follows_real_time{true};
   };
 
-  void receive_loop();
+  void receive_router_loop();
+  void receive_parent_loop();
   std::string handle_message(const std::string & identity, const std::string & message);
   void on_regulator_tick();
   void on_real_time_tick();
@@ -100,10 +101,12 @@ private:
   void publish_clock_locked();
   void publish_clock(int64_t sim_time_ns);
   void publish_granted_time(int64_t sim_time_ns);
-  void enqueue_async_task(std::function<void()> task);
+  void enqueue_publish_task(std::function<void()> task);
+  void enqueue_announce_task(std::function<void()> task);
   void start_async_worker();
   void stop_async_worker();
-  void async_worker_loop();
+  void publish_worker_loop();
+  void announce_worker_loop();
   void receive_router_message();
   void receive_parent_grant();
   void publish_status();
@@ -149,13 +152,18 @@ private:
   std::string parent_pub_endpoint_;
   std::unique_ptr<ZeroMqTimeParticipantBackend> parent_participant_;
   bool has_parent_coordinator_{false};
-  std::thread receive_thread_;
+  std::thread receive_router_thread_;
+  std::thread receive_parent_thread_;
   std::atomic<bool> stop_receive_{false};
-  std::thread async_worker_thread_;
-  std::mutex async_mutex_;
-  std::condition_variable async_cv_;
-  std::queue<std::function<void()>> async_tasks_;
-  bool stop_async_worker_{false};
+  std::thread publish_worker_thread_;
+  std::thread announce_worker_thread_;
+  std::mutex publish_mutex_;
+  std::condition_variable publish_cv_;
+  std::queue<std::function<void()>> publish_tasks_;
+  std::mutex announce_mutex_;
+  std::condition_variable announce_cv_;
+  std::queue<std::function<void()>> announce_tasks_;
+  std::atomic<bool> stop_async_worker_{false};
 };
 
 }  // namespace fss_time

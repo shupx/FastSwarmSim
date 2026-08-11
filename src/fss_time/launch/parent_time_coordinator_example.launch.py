@@ -28,6 +28,7 @@ def generate_launch_description():
         DeclareLaunchArgument("max_real_time_factor", default_value="1.0"),
         DeclareLaunchArgument("auto_start", default_value="true"),
         DeclareLaunchArgument("start_coordinator_ui", default_value="true"),
+        DeclareLaunchArgument("ui_always_on_top", default_value="true"),
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="tcp://*:5545"), # The bind endpoint for the time coordinator's ROUTER socket, which is used by time participants to connect to the coordinator. 
 
         DeclareLaunchArgument("fss_time_coordinator_pub_endpoint", default_value="tcp://*:0"), # The bind endpoint for the time coordinator's time zeromq PUB socket, only used when it is a parent coordinator. This endpoint is automatically aquired by the child coordinator and needs not be set by the child. Only make sure it is accessible by the child coordinator.
@@ -36,7 +37,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument("publish_clock", default_value="false"), # If true, the coordinator will publish the /clock topic, which is required for time participants to use sim time.
 
-        DeclareLaunchArgument("speed_regulator_step_ns", default_value="5000000"), # Set between [1e5, min step of all time participants], and a larger value improves RTF. REASON: If all time participants announce infinite safe time (a possible case when using fss_time::executors), the step of the coordinator /clock will be equal to this value. Set to the minimum step of all time participants to avoid time jumps. And do not set it too low to avoid high CPU usage of the coordinator, which may lower the real time factor (RTF). A reasonable value is 5ms (5000000ns) for a coordinator, which supports time participants with a maximum frequency of 200Hz, and a RTF of 50x.
+        DeclareLaunchArgument("speed_regulator_step_ns", default_value="10000000"), # Set between [1e5, min step of all time participants], and a larger value improves RTF. REASON: If all time participants announce infinite safe time (a possible case when using fss_time::executors), the step of the coordinator /clock will be equal to this value. Set to the minimum step of all time participants to avoid time jumps. And do not set it too low to avoid high CPU usage of the coordinator, which may lower the real time factor (RTF). A reasonable value is 5ms (5000000ns) for a coordinator, which supports time participants with a maximum frequency of 200Hz, and a RTF of 50x.
 
         DeclareLaunchArgument("follows_real_time", default_value="true"), # If true, the coordinator applies a wall-time catch-up floor to participant requests so long-running callbacks do not leave observed RTF below 1x when max_real_time_factor allows it. Set false to use only participant requests and the speed regulator.
 
@@ -70,6 +71,9 @@ def generate_launch_description():
             executable="time_coordinator_ui.py",
             name="fss_time_coordinator_ui",
             output="screen",
+            parameters=[{
+                "always_on_top": LaunchConfiguration("ui_always_on_top"),
+            }],
             condition=IfCondition(LaunchConfiguration("start_coordinator_ui")),
         ),
             ],

@@ -1,13 +1,14 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node, SetParameter
 from launch_ros.substitutions import FindPackageShare
 from launch.actions import SetEnvironmentVariable
 
 
 def _create_executor_nodes(context):
+    namespace = LaunchConfiguration("namespace").perform(context)
     spin_count = int(LaunchConfiguration("spin.node_count").perform(context))
     single_count = int(LaunchConfiguration("single.node_count").perform(context))
     multi_count = int(LaunchConfiguration("multi.node_count").perform(context))
@@ -25,7 +26,7 @@ def _create_executor_nodes(context):
                 Node(
                     package="fss_time",
                     executable="executor_time_test_node",
-                    namespace=f"{executor_type}_{index}",
+                    namespace=f"{namespace}/{executor_type}_{index}" if namespace else f"{executor_type}_{index}",
                     name=f"{executor_type}_node_{index}",
                     output="screen",
                     parameters=[{
@@ -60,10 +61,16 @@ def generate_launch_description():
         DeclareLaunchArgument("node.timer_count", default_value="2"),
         DeclareLaunchArgument("node.topic_prefix", default_value="executor_time"),
         DeclareLaunchArgument("node.log_every_n", default_value="100"),
-        DeclareLaunchArgument("coordinator.max_real_time_factor", default_value="1.0"),
+        DeclareLaunchArgument("coordinator.max_real_time_factor", default_value="100.0"),
         DeclareLaunchArgument("coordinator.auto_start", default_value="true"),
         
-        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
+        # DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
+        DeclareLaunchArgument("namespace", default_value=""),
+        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value=PythonExpression([
+                    "'ipc:///tmp/fss_time_coordinator' + ('_' + '", LaunchConfiguration("namespace"),
+                    "'.strip('/').replace('/', '_') if '", LaunchConfiguration("namespace"),
+                    "' else '') + '.ipc'",
+                ])),
 
         DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),

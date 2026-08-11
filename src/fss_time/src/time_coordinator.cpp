@@ -192,8 +192,11 @@ TimeCoordinator::~TimeCoordinator()
   real_time_timer_.reset();
   regulator_timer_.reset();
   stop_receive_.store(true);
-  if (receive_thread_.joinable()) {
-    receive_thread_.join();
+  if (receive_router_thread_.joinable()) {
+    receive_router_thread_.join();
+  }
+  if (receive_parent_thread_.joinable()) {
+    receive_parent_thread_.join();
   }
   stop_async_worker();
   if (impl_) {
@@ -295,8 +298,11 @@ void TimeCoordinator::start()
     advance_time_locked(sim_time_ns_);
   }
 
-  // this thread handles receiving messages from participants (ROUTER recv) and the parent coordinator (SUB recv) (if any)
-  receive_thread_ = std::thread([this]() { receive_loop(); });
+  // Keep the participant ROUTER and parent SUB receive paths independent.
+  receive_router_thread_ = std::thread([this]() { receive_router_loop(); });
+  if (has_parent_coordinator_) {
+    receive_parent_thread_ = std::thread([this]() { receive_parent_loop(); });
+  }
 
   // create a wall timer for regulating the simulation clock
   reset_regulator_timer();
@@ -381,30 +387,37 @@ fss_time_interfaces::msg::SimClockStatus TimeCoordinator::status_message() const
   return status;
 }
 
-void TimeCoordinator::receive_loop()
+void TimeCoordinator::receive_router_loop()
 {
-  std::array<zmq::pollitem_t, 2> poll_items{
-    zmq::pollitem_t{static_cast<void *>(impl_->socket), 0, ZMQ_POLLIN, 0},
-    zmq::pollitem_t{static_cast<void *>(impl_->parent_sub_socket), 0, ZMQ_POLLIN, 0},
-  };
-  const auto poll_item_count = has_parent_coordinator_ ? 2u : 1u;
-
   while (!stop_receive_.load() && rclcpp::ok()) {
     try {
-      poll_items[0].revents = 0;
-      poll_items[1].revents = 0;
-      zmq::poll(poll_items.data(), poll_item_count, std::chrono::milliseconds(100));
-      if ((poll_items[0].revents & ZMQ_POLLIN) != 0) {
+      zmq::pollitem_t poll_item{static_cast<void *>(impl_->socket), 0, ZMQ_POLLIN, 0};
+      zmq::poll(&poll_item, 1, std::chrono::milliseconds(100));
+      if ((poll_item.revents & ZMQ_POLLIN) != 0) {
         receive_router_message();
-      }
-      if (has_parent_coordinator_ && (poll_items[1].revents & ZMQ_POLLIN) != 0) {
-        receive_parent_grant();
       }
     } catch (const zmq::error_t &) {
       if (!stop_receive_.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
       continue;
+    }
+  }
+}
+
+void TimeCoordinator::receive_parent_loop()
+{
+  while (!stop_receive_.load() && rclcpp::ok()) {
+    try {
+      zmq::pollitem_t poll_item{static_cast<void *>(impl_->parent_sub_socket), 0, ZMQ_POLLIN, 0};
+      zmq::poll(&poll_item, 1, std::chrono::milliseconds(100));
+      if ((poll_item.revents & ZMQ_POLLIN) != 0) {
+        receive_parent_grant();
+      }
+    } catch (const zmq::error_t &) {
+      if (!stop_receive_.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
     }
   }
 }
@@ -656,7 +669,7 @@ void TimeCoordinator::advance_time_locked(int64_t target_time_ns)
   if (has_parent_coordinator_) {
     // If we have a parent coordinator, we don't advance the time directly. Instead, we announce the next safe time to the parent coordinator and wait for a grant.
     if (parent_participant_) {
-      enqueue_async_task([this, target_time_ns]() {
+      enqueue_announce_task([this, target_time_ns]() {
         parent_participant_->announce_next_safe_time(target_time_ns);
       });
     }
@@ -671,7 +684,7 @@ void TimeCoordinator::advance_time_locked(int64_t target_time_ns)
 void TimeCoordinator::publish_clock_locked()
 {
   const auto sim_time_ns = sim_time_ns_;
-  enqueue_async_task([this, sim_time_ns]() {
+  enqueue_publish_task([this, sim_time_ns]() {
     publish_clock(sim_time_ns);
   });
 }
@@ -699,55 +712,97 @@ void TimeCoordinator::publish_granted_time(int64_t sim_time_ns)
   }
 }
 
-void TimeCoordinator::enqueue_async_task(std::function<void()> task)
+void TimeCoordinator::enqueue_publish_task(std::function<void()> task)
 {
   {
-    std::lock_guard<std::mutex> lock(async_mutex_);
-    async_tasks_.push(std::move(task));
+    std::lock_guard<std::mutex> lock(publish_mutex_);
+    publish_tasks_.push(std::move(task));
   }
-  async_cv_.notify_one();
+  publish_cv_.notify_one();
+}
+
+void TimeCoordinator::enqueue_announce_task(std::function<void()> task)
+{
+  {
+    std::lock_guard<std::mutex> lock(announce_mutex_);
+    announce_tasks_.push(std::move(task));
+  }
+  announce_cv_.notify_one();
 }
 
 void TimeCoordinator::start_async_worker()
 {
   {
-    std::lock_guard<std::mutex> lock(async_mutex_);
-    if (async_worker_thread_.joinable()) {
+    std::lock_guard<std::mutex> lock(publish_mutex_);
+    if (publish_worker_thread_.joinable() || announce_worker_thread_.joinable()) {
       return;
     }
     stop_async_worker_ = false;
   }
-  async_worker_thread_ = std::thread([this]() { async_worker_loop(); });
+  publish_worker_thread_ = std::thread([this]() { publish_worker_loop(); });
+  announce_worker_thread_ = std::thread([this]() { announce_worker_loop(); });
 }
 
 void TimeCoordinator::stop_async_worker()
 {
   {
-    std::lock_guard<std::mutex> lock(async_mutex_);
+    std::lock_guard<std::mutex> lock(publish_mutex_);
     stop_async_worker_ = true;
   }
-  async_cv_.notify_one();
-  if (async_worker_thread_.joinable()) {
-    async_worker_thread_.join();
+  publish_cv_.notify_one();
+  announce_cv_.notify_one();
+  if (publish_worker_thread_.joinable()) {
+    publish_worker_thread_.join();
+  }
+  if (announce_worker_thread_.joinable()) {
+    announce_worker_thread_.join();
   }
 }
 
-void TimeCoordinator::async_worker_loop()
+void TimeCoordinator::publish_worker_loop()
 {
   while (rclcpp::ok()) {
     std::function<void()> task;
     {
-      std::unique_lock<std::mutex> lock(async_mutex_);
-      async_cv_.wait(lock, [this]() {
-        return stop_async_worker_ || !async_tasks_.empty();
+      std::unique_lock<std::mutex> lock(publish_mutex_);
+      publish_cv_.wait(lock, [this]() {
+        return stop_async_worker_ || !publish_tasks_.empty();
       });
-      if (stop_async_worker_ && async_tasks_.empty()) {
+      if (stop_async_worker_ && publish_tasks_.empty()) {
         return;
       }
-      task = std::move(async_tasks_.front());
-      async_tasks_.pop();
+      task = std::move(publish_tasks_.front());
+      publish_tasks_.pop();
     }
 
+    if (task) {
+      try {
+        task();
+      } catch (const std::exception & error) {
+        RCLCPP_WARN(
+          node_.get_logger(),
+          "failed to execute asynchronous time coordinator task: %s",
+          error.what());
+      }
+    }
+  }
+}
+
+void TimeCoordinator::announce_worker_loop()
+{
+  while (rclcpp::ok()) {
+    std::function<void()> task;
+    {
+      std::unique_lock<std::mutex> lock(announce_mutex_);
+      announce_cv_.wait(lock, [this]() {
+        return stop_async_worker_ || !announce_tasks_.empty();
+      });
+      if (stop_async_worker_ && announce_tasks_.empty()) {
+        return;
+      }
+      task = std::move(announce_tasks_.front());
+      announce_tasks_.pop();
+    }
     if (task) {
       try {
         task();
