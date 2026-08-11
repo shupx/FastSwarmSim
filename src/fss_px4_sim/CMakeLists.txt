@@ -73,11 +73,11 @@ ament_target_dependencies(perfect_mavros_quadrotor_sim_node
   tf2_geometry_msgs
 )
 
-add_executable(mavros_px4_quadrotor_sim_node src/mavros_px4_quadrotor_sim_node.cpp)
-ament_target_dependencies(mavros_px4_quadrotor_sim_node
+add_executable(px4_rotor_sim_node src/px4_rotor_sim_node.cpp)
+ament_target_dependencies(px4_rotor_sim_node
   fss_time geographic_msgs geometry_msgs mavros_msgs nav_msgs rclcpp sensor_msgs std_msgs tf2 tf2_geometry_msgs
 )
-target_link_libraries(mavros_px4_quadrotor_sim_node fss_px4_core)
+target_link_libraries(px4_rotor_sim_node fss_px4_core)
 
 add_executable(px4_rotor_visualizer_node src/drone_visualizer_node.cpp)
 ament_target_dependencies(px4_rotor_visualizer_node
@@ -86,7 +86,7 @@ ament_target_dependencies(px4_rotor_visualizer_node
 target_link_libraries(px4_rotor_visualizer_node fss_px4_core)
 
 install(TARGETS
-  mavros_px4_quadrotor_sim_node
+  px4_rotor_sim_node
   perfect_mavros_quadrotor_sim_node
   px4_rotor_visualizer_node
   DESTINATION lib/${PROJECT_NAME}

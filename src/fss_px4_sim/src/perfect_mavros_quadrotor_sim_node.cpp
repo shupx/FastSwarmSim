@@ -5,8 +5,7 @@
 #include <string>
 #include <thread>
 
-#include "fss_time/rate.hpp"
-#include "fss_time/executors.hpp"
+#include "fss_time/fss_time.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "mavros_msgs/msg/position_target.hpp"
@@ -42,7 +41,10 @@ public:
       [this](
         const std::shared_ptr<mavros_msgs::srv::SetMode::Request> request,
         std::shared_ptr<mavros_msgs::srv::SetMode::Response> response) {
-        current_state_.mode = request->custom_mode;
+        {
+          std::scoped_lock lock(state_mutex_);
+          current_state_.mode = request->custom_mode;
+        }
         response->mode_sent = true;
       });
     arming_srv_ = create_service<mavros_msgs::srv::CommandBool>(
@@ -50,7 +52,10 @@ public:
       [this](
         const std::shared_ptr<mavros_msgs::srv::CommandBool::Request> request,
         std::shared_ptr<mavros_msgs::srv::CommandBool::Response> response) {
-        current_state_.armed = request->value;
+        {
+          std::scoped_lock lock(state_mutex_);
+          current_state_.armed = request->value;
+        }
         response->success = true;
         response->result = 0;
       });
@@ -77,8 +82,12 @@ public:
     fss_time::Rate rate(*this, 100.0);
     while (rclcpp::ok()) {
       const auto stamp = now();
-      std::scoped_lock lock(state_mutex_);
-      publish_due(stamp);
+
+      {
+        std::scoped_lock lock(state_mutex_);
+        publish_due(stamp);
+      }
+
       rate.sleep();
     }
   }
@@ -263,12 +272,17 @@ int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<PerfectMavrosDrone>();
-  fss_time::executors::SingleThreadedExecutor executor;
-  executor.add_node(node);
-  std::thread spin_thread([&executor]() { executor.spin(); });
+
+  std::thread spin_thread([node]() {
+    rclcpp::spin(node);
+  });
+
   node->run();
-  executor.cancel();
+  
   rclcpp::shutdown();
-  spin_thread.join();
+  if (spin_thread.joinable()) {
+    spin_thread.join();
+  }
+
   return 0;
 }

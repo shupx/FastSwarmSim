@@ -1,7 +1,7 @@
 /**
- * @file mavros_px4_quadrotor_sim_node.cpp
+ * @file px4_rotor_sim_node.cpp
  * @author Peixuan Shu (shupeixuan@qq.com)
- * @brief Mavros(sim) + PX4 controller + quadrotor_dynamics. main loop
+ * @brief tailored PX4 core components (pos+att controller, udp mavlink, FSM commander) + quadrotor_dynamics. main loop
  * 
  * Note: This program relies on px4_sitl, quadrotor_dynamics and fss_time
  * 
@@ -38,7 +38,7 @@ class MavrosPx4QuadrotorSim final : public rclcpp::Node
 {
 public:
   MavrosPx4QuadrotorSim()
-  : Node("mavros_px4_quadrotor_sim_node",
+  : Node("px4_rotor_sim_node",
       rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true))
   {
     const auto init_x = parameter("init_x_East_metre", 0.0);
@@ -59,7 +59,7 @@ public:
   void run()
   {
     if (parameter("use_fss_sim_time", false)) {
-      auto & fss_time_participant = fss_time::thread_time_participant::for_current_thread(*this, "mavros_px4_quadrotor_sim_node");
+      auto & fss_time_participant = fss_time::thread_time_participant::for_current_thread(*this, "px4_rotor_sim_node");
       fss_time_participant.set_follows_real_time(false); // If false, the fss_time coordinator will wait for the current loop iteration to finish before proceeding, and will not enforce real-time pacing, even if an iteration takes longer than the real-time period. This is necessary to ensure that each step of the simulated dynamics and PX4 SITL is finished before the next step, otherwise the simulation will be unstable.
     }
     fss_time::Rate rate(*this, 100.0);

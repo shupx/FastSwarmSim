@@ -19,7 +19,6 @@ def generate_launch_description():
         DeclareLaunchArgument("init_yaw", default_value="0.0"),
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
         DeclareLaunchArgument("enable_time_coordinator", default_value="true"),
-        DeclareLaunchArgument("enable_mavros", default_value="true"),
         DeclareLaunchArgument("enable_visualizer", default_value="true"),
         DeclareLaunchArgument("enable_rviz", default_value="true"),
         DeclareLaunchArgument("rviz_config", default_value=PathJoinSubstitution([
@@ -28,6 +27,7 @@ def generate_launch_description():
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
 
+        ## Time coordinator (only when use_fss_sim_time is true and enable_time_coordinator is true)
         # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
         GroupAction(
             scoped=True,
@@ -47,6 +47,7 @@ def generate_launch_description():
             ],
         ),
 
+        ## Visualizer
         # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
         GroupAction(
             scoped=True,
@@ -63,12 +64,14 @@ def generate_launch_description():
             ],
         ),
 
+        ## Rviz
         Node(
             package="rviz2", executable="rviz2", name="rviz2", output="screen",
             arguments=["-d", LaunchConfiguration("rviz_config")],
             condition=IfCondition(LaunchConfiguration("enable_rviz")),
         ),
 
+        ## perfect drone dynamics + mavros like interface
         GroupAction(
             scoped=True,
             actions=[
@@ -85,7 +88,6 @@ def generate_launch_description():
                 "init_yaw": LaunchConfiguration("init_yaw"),
                 "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
             }],
-            condition=IfCondition(LaunchConfiguration("enable_mavros")),
         ),
             ],
         ),

@@ -126,8 +126,8 @@ def generate_launch_description():
         ### PX4 sitl
         Node(
             package="fss_px4_sim",
-            executable="mavros_px4_quadrotor_sim_node",
-            name="mavros_px4_quadrotor_sim_node",
+            executable="px4_rotor_sim_node",
+            name="px4_rotor_sim_node",
             output="screen",
             parameters=[
                 PathJoinSubstitution([FindPackageShare("fss_px4_sim"), "config", "px4_params.yaml"]),

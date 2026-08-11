@@ -27,7 +27,6 @@ def make_drones(context):
                         "init_y": f"{(index - 1) // drones_per_row:.1f}",
                         "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),
                         "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                        "enable_mavros": LaunchConfiguration("enable_mavros"),
                         "enable_visualizer": LaunchConfiguration("enable_visualizer"),
                         "enable_rviz": "false",
                         "enable_time_coordinator": "false",
@@ -46,7 +45,6 @@ def generate_launch_description():
         DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
         DeclareLaunchArgument("enable_time_coordinator", default_value="true"),
-        DeclareLaunchArgument("enable_mavros", default_value="true"),
         DeclareLaunchArgument("enable_visualizer", default_value="true"),
         DeclareLaunchArgument("enable_rviz", default_value="true"),
         DeclareLaunchArgument("rviz_config", default_value=PathJoinSubstitution([
