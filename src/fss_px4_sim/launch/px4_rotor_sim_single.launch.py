@@ -107,18 +107,12 @@ def generate_launch_description():
 
         ### mavros
         Node(
-            package="mavros", executable="mavros_node", namespace="mavros", output="screen",
+            package="fss_px4_sim", executable="mavros_lite_node", namespace="mavros", output="screen",
             parameters=[
                 {
-                "fcu_url": PythonExpression([
-                    "'udp://127.0.0.1:' + str(",
-                    LaunchConfiguration("mavlink_udp_remote_port"), ") + '@'"]), # mavros url rules: https://blog.csdn.net/benchuspx/article/details/156449911?spm=1001.2014.3001.5501
-                "gcs_url": "udp://@127.0.0.1:14550", # for local QGC which listens on 14550, MAVROS will forward telemetry to it.
-                "tgt_system": LaunchConfiguration("mav_sys_id"),
-                "tgt_component": LaunchConfiguration("mav_comp_id"),
-                "plugin_allowlist": ["setpoint_raw", "local_position", "imu",
-                                     "sys_status", "command", "global_position"],
-                "plugin_denylist": ["*"],
+                "udp.bind_port": LaunchConfiguration("mavlink_udp_remote_port"),
+                "target_system": LaunchConfiguration("mav_sys_id"),
+                "target_component": LaunchConfiguration("mav_comp_id"),
                 },
             ],
             condition=IfCondition(LaunchConfiguration("enable_mavros")),

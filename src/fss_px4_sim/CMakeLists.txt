@@ -13,12 +13,14 @@ find_package(fss_time REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(geographic_msgs REQUIRED)
 find_package(mavros_msgs REQUIRED)
+find_package(mavros REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
@@ -85,14 +87,33 @@ ament_target_dependencies(px4_rotor_visualizer_node
 )
 target_link_libraries(px4_rotor_visualizer_node fss_px4_core)
 
+add_executable(mavros_lite_node
+  src/mavros_lite/main.cpp
+  src/mavros_lite/core.cpp
+  src/mavros_lite/setpoint_raw.cpp
+  src/mavros_lite/local_position.cpp
+  src/mavros_lite/imu.cpp
+  src/mavros_lite/sys_status.cpp
+  src/mavros_lite/command.cpp
+  src/mavros_lite/global_position.cpp
+)
+target_include_directories(mavros_lite_node PRIVATE include)
+target_compile_options(mavros_lite_node PRIVATE -Wno-address-of-packed-member -Wno-pedantic)
+ament_target_dependencies(mavros_lite_node
+  geographic_msgs geometry_msgs mavros mavros_msgs nav_msgs rclcpp sensor_msgs std_msgs tf2
+  tf2_eigen tf2_geometry_msgs
+)
+
 install(TARGETS
   px4_rotor_sim_node
   perfect_mavros_quadrotor_sim_node
   px4_rotor_visualizer_node
+  mavros_lite_node
   DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY config model rviz DESTINATION share/${PROJECT_NAME})
+install(FILES MAVROS_LITE.md DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
