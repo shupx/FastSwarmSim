@@ -106,36 +106,40 @@ private:
     transform.transform.rotation = pose_.pose.orientation;
     tf_broadcaster_->sendTransform(transform);
 
-    sensor_msgs::msg::JointState joints;
-    joints.header.stamp = stamp;
-    joints.name.assign(joint_names_.begin(), joint_names_.end());
-    joints.position.resize(joint_names_.size());
-    const auto velocity = armed_ ? 200.0 * 2.0 * M_PI / 60.0 : 0.0;
-    for (auto & position : joint_positions_) position = std::remainder(position + velocity / std::max(1.0, max_frequency_), 2.0 * M_PI);
-    joints.position.assign(joint_positions_.begin(), joint_positions_.end());
-    joints_pub_->publish(joints);
+    if (joints_pub_->get_subscription_count() > 0) {
+      sensor_msgs::msg::JointState joints;
+      joints.header.stamp = stamp;
+      joints.name.assign(joint_names_.begin(), joint_names_.end());
+      joints.position.resize(joint_names_.size());
+      const auto velocity = armed_ ? 200.0 * 2.0 * M_PI / 60.0 : 0.0;
+      for (auto & position : joint_positions_) position = std::remainder(position + velocity / std::max(1.0, max_frequency_), 2.0 * M_PI);
+      joints.position.assign(joint_positions_.begin(), joint_positions_.end());
+      joints_pub_->publish(joints);
+    }
 
-    visualization_msgs::msg::Marker marker;
-    marker.header.stamp = rclcpp::Time(0, 0, RCL_ROS_TIME);
-    marker.header.frame_id = child_frame_id_;
-    marker.ns = "my_namespace";
-    marker.id = 0;
-    marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    marker.pose.position.x = 0.27;
-    marker.pose.position.y = 0.27;
-    marker.pose.position.z = 0.27;
-    marker.pose.orientation = pose_.pose.orientation;
-    marker.scale.x = 0.2;
-    marker.scale.y = 0.2;
-    marker.scale.z = 0.2;
-    marker.color.a = 0.9F;
-    marker.color.r = 0.0F;
-    marker.color.g = 0.0F;
-    marker.color.b = 0.0F;
-    marker.frame_locked = true;
-    marker.text = marker_name_;
-    marker_pub_->publish(marker);
+    if (marker_pub_->get_subscription_count() > 0) {
+      visualization_msgs::msg::Marker marker;
+      marker.header.stamp = rclcpp::Time(0, 0, RCL_ROS_TIME);
+      marker.header.frame_id = child_frame_id_;
+      marker.ns = "my_namespace";
+      marker.id = 0;
+      marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+      marker.action = visualization_msgs::msg::Marker::ADD;
+      marker.pose.position.x = 0.27;
+      marker.pose.position.y = 0.27;
+      marker.pose.position.z = 0.27;
+      marker.pose.orientation = pose_.pose.orientation;
+      marker.scale.x = 0.2;
+      marker.scale.y = 0.2;
+      marker.scale.z = 0.2;
+      marker.color.a = 0.9F;
+      marker.color.r = 0.0F;
+      marker.color.g = 0.0F;
+      marker.color.b = 0.0F;
+      marker.frame_locked = true;
+      marker.text = marker_name_;
+      marker_pub_->publish(marker);
+    }
 
     if (!history_enabled_) return;
     if (path_pub_->get_subscription_count() == 0) return;
