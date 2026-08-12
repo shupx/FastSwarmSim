@@ -16,12 +16,14 @@
  * 
  */
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
 #include <thread>
 
 #include "fss_time/fss_time.hpp"
+#include "fss_px4_sim/mavros_lite/core.hpp"
 #include "fss_px4_sim/px4_sitl.hpp"
 #include "fss_px4_sim/quadrotor_dynamics.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -53,7 +55,30 @@ public:
     dynamics_->setPos(init_x, init_y, init_z);
     dynamics_->setRPY(init_roll * M_PI / 180.0, init_pitch * M_PI / 180.0,
       init_yaw * M_PI / 180.0);
+    
     px4_sitl_ = std::make_shared<PX4SITL>(*this, dynamics_);
+
+    /* create mavros_lite if use direct ros interface (px4_sitl pub and sub mavros-like topics directly instead of using udp) */
+    if (px4_sitl_->uses_direct_ros()) {
+      fss_px4_sim::mavros_lite::MavrosLite::Config config;
+      config.target_system = px4_sitl_->mavlink_system_id();
+      config.target_component = px4_sitl_->mavlink_component_id();
+      config.topic_prefix = "mavros";
+      mavros_lite_ = std::make_shared<fss_px4_sim::mavros_lite::MavrosLite>(*this, config);
+
+      const std::weak_ptr<PX4SITL> px4_sitl_weak = px4_sitl_;
+      const std::weak_ptr<fss_px4_sim::mavros_lite::MavrosLite> mavros_lite_weak = mavros_lite_;
+      mavros_lite_->set_send_callback([px4_sitl_weak](const mavlink_message_t &message) {
+        if (const auto px4_sitl = px4_sitl_weak.lock()) {
+          px4_sitl->receive_mavlink_message(message);
+        }
+      });
+      px4_sitl_->set_mavlink_send_callback([mavros_lite_weak](const mavlink_message_t &message) {
+        if (const auto mavros_lite = mavros_lite_weak.lock()) {
+          mavros_lite->receive_message(message);
+        }
+      });
+    }
   }
 
   void run()
@@ -88,6 +113,13 @@ private:
 
   std::shared_ptr<Dynamics> dynamics_;
   std::shared_ptr<PX4SITL> px4_sitl_;
+  std::shared_ptr<fss_px4_sim::mavros_lite::MavrosLite> mavros_lite_;
+
+public:
+  std::shared_ptr<fss_px4_sim::mavros_lite::MavrosLite> mavros_lite() const
+  {
+    return mavros_lite_;
+  }
 };
 
 int main(int argc, char ** argv)
@@ -96,7 +128,19 @@ int main(int argc, char ** argv)
   auto node = std::make_shared<MavrosPx4QuadrotorSim>();
 
   std::thread spin_thread([node]() {
-    rclcpp::spin(node);
+    if (node->mavros_lite()) {
+      // Some MAVROS Lite plugin services synchronously wait for MAVLink replies.
+      // Keep a second executor thread available for the reply callbacks.
+      const auto executor_threads = std::clamp(std::thread::hardware_concurrency(), 2u, 3u);
+      rclcpp::executors::MultiThreadedExecutor executor(
+        rclcpp::ExecutorOptions(), executor_threads);
+      executor.add_node(node);
+      executor.spin();
+    } else {
+      rclcpp::executors::SingleThreadedExecutor executor;
+      executor.add_node(node);
+      executor.spin();
+    }
   });
 
   node->run(); // main loop controlled by fss_time::Rate to allow synchronization with other nodes in the simulation.

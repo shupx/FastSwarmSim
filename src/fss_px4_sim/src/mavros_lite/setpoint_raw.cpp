@@ -16,7 +16,7 @@ namespace ftf = mavros::ftf;
 class SetpointRaw final : public Module
 {
 public:
-  explicit SetpointRaw(Core & core)
+  explicit SetpointRaw(MavrosLite & core)
   : Module(core)
   {
     thrust_scaling_ = core.declare_parameter<double>("setpoint_raw.thrust_scaling", 1.0);
@@ -176,7 +176,7 @@ private:
   rclcpp::Subscription<mavros_msgs::msg::AttitudeTarget>::SharedPtr attitude_sub_;
 };
 
-std::unique_ptr<Module> make_setpoint_raw(Core & core)
+std::unique_ptr<Module> make_setpoint_raw(MavrosLite & core)
 {
   return std::make_unique<SetpointRaw>(core);
 }

@@ -1,8 +1,9 @@
 /**:
   ros__parameters:
     # # PX4 SITL mavlink UDP related parameters
-    # mavlink_udp_local_port: 0
-    # mavlink_udp_remote_port: 24540
+    # px4.mavlink_transport: empty  # udp, direct_ros, or empty
+    # px4.mavlink_udp_local_port: 0
+    # px4.mavlink_udp_remote_port: 24540
 
     # # PX4 SITL position source related parameters
     

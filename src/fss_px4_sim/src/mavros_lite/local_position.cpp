@@ -13,7 +13,7 @@ namespace ftf = mavros::ftf;
 class LocalPosition final : public Module
 {
 public:
-  explicit LocalPosition(Core & core)
+  explicit LocalPosition(MavrosLite & core)
   : Module(core)
   {
     frame_id_ = core.declare_parameter<std::string>("local_position.frame_id", "map");
@@ -85,7 +85,7 @@ private:
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
 };
 
-std::unique_ptr<Module> make_local_position(Core & core)
+std::unique_ptr<Module> make_local_position(MavrosLite & core)
 {
   return std::make_unique<LocalPosition>(core);
 }

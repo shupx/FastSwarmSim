@@ -17,7 +17,7 @@ namespace ftf = mavros::ftf;
 class Imu final : public Module
 {
 public:
-  explicit Imu(Core & core)
+  explicit Imu(MavrosLite & core)
   : Module(core)
   {
     frame_id_ = core.declare_parameter<std::string>("imu.frame_id", "base_link");
@@ -136,7 +136,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr pressure_pub_;
 };
 
-std::unique_ptr<Module> make_imu(Core & core)
+std::unique_ptr<Module> make_imu(MavrosLite & core)
 {
   return std::make_unique<Imu>(core);
 }

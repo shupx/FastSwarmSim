@@ -15,7 +15,7 @@ namespace fss_px4_sim::mavros_lite
 class SysStatus final : public Module
 {
 public:
-  explicit SysStatus(Core & core)
+  explicit SysStatus(MavrosLite & core)
   : Module(core)
   {
     const auto qos = rclcpp::SensorDataQoS();
@@ -114,5 +114,5 @@ private:
   std::mutex heartbeat_mutex_;
   std::chrono::steady_clock::time_point last_heartbeat_{};
 };
-std::unique_ptr<Module> make_sys_status(Core & core) {return std::make_unique<SysStatus>(core);}
+std::unique_ptr<Module> make_sys_status(MavrosLite & core) {return std::make_unique<SysStatus>(core);}
 }  // namespace fss_px4_sim::mavros_lite

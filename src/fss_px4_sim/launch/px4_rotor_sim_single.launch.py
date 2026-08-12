@@ -1,5 +1,6 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
+from launch.logging import get_logger
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.conditions import IfCondition
@@ -10,6 +11,26 @@ from launch.substitutions import PathJoinSubstitution
 
 def generate_launch_description():
     namespace = LaunchConfiguration("namespace")
+
+    def validate_mavlink_configuration(context):
+        transport = LaunchConfiguration("px4.mavlink_transport").perform(context)
+        mavros_node_type = LaunchConfiguration("mavros_node_type").perform(context)
+        enable_mavros_node = (
+            LaunchConfiguration("enable_mavros_node").perform(context).lower() == "true")
+        if transport not in ("udp", "direct_ros", "empty"):
+            raise ValueError("px4.mavlink_transport must be udp, direct_ros, or empty")
+        if mavros_node_type not in ("official", "lite"):
+            raise ValueError("mavros_node_type must be official or lite")
+        if enable_mavros_node and transport == "direct_ros":
+            raise ValueError(
+                "enable_mavros_node=true conflicts with "
+                "px4.mavlink_transport=direct_ros since direct_ros already uses an embedded MAVROS Lite node")
+        if enable_mavros_node and transport == "empty":
+            get_logger("px4_rotor_sim_single").warning(
+                "enable_mavros_node=true requested an external MAVROS node, but "
+                f"px4.mavlink_transport={transport}; no external MAVROS node will be started")
+        return []
+
     return LaunchDescription([
         # ROS namespace for this vehicle. Empty means use the root namespace.
         DeclareLaunchArgument("namespace", default_value=""),
@@ -19,10 +40,14 @@ def generate_launch_description():
         DeclareLaunchArgument("mav_sys_id", default_value="1"),
         # MAVLink component identifiers, shoulb be fixed to 1 for PX4 SITL.
         DeclareLaunchArgument("mav_comp_id", default_value="1"),
-        # PX4 SITL UDP bind port. 0 lets the operating system choose a port.
-        DeclareLaunchArgument("mavlink_udp_local_port", default_value="0"),
-        # MAVROS UDP port receiving MAVLink packets from PX4 SITL. (for example, mavros binds this port to receive telemetry from PX4 SITL)
-        DeclareLaunchArgument("mavlink_udp_remote_port", default_value="24540"),
+        # PX4 MAVLink transport: udp, direct_ros, or empty.
+        DeclareLaunchArgument("px4.mavlink_transport", default_value="direct_ros"),
+        # PX4 SITL UDP bind port (only when mavlink_transport="udp"). 
+        # 0 lets the operating system choose a port.
+        DeclareLaunchArgument("px4.mavlink_udp_local_port", default_value="0"),
+        # MAVROS UDP port receiving MAVLink packets from PX4 SITL (only when mavlink_transport="udp"). 
+        # For example, mavros binds this port to receive telemetry from PX4 SITL
+        DeclareLaunchArgument("px4.mavlink_udp_remote_port", default_value="24540"),
         # Initial position in the local East/North/Up frame, in metres.
         DeclareLaunchArgument("init_x_East_metre", default_value="1.0"),
         DeclareLaunchArgument("init_y_North_metre", default_value="0.0"),
@@ -42,7 +67,9 @@ def generate_launch_description():
         # Start the time coordinator only when use_fss_sim_time is enabled.
         DeclareLaunchArgument("enable_time_coordinator", default_value="true"),
         # Enable or disable the corresponding runtime component.
-        DeclareLaunchArgument("enable_mavros", default_value="true"),
+        DeclareLaunchArgument("enable_mavros_node", default_value="false"),
+        # External MAVROS node implementation: official or lite.
+        DeclareLaunchArgument("mavros_node_type", default_value="lite"),
         DeclareLaunchArgument("enable_visualizer", default_value="true"),
         DeclareLaunchArgument("enable_rviz", default_value="true"),
         # RViz configuration file used when enable_rviz is true.
@@ -51,6 +78,7 @@ def generate_launch_description():
 
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
+        OpaqueFunction(function=validate_mavlink_configuration),
 
         ### Time coordinator (only when use_fss_sim_time is true and enable_time_coordinator is true)
         # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
@@ -105,17 +133,43 @@ def generate_launch_description():
             actions=[
         PushRosNamespace(namespace),
 
-        ### mavros
+        ### MAVROS Lite node over UDP
         Node(
             package="fss_px4_sim", executable="mavros_lite_node", namespace="mavros", output="screen",
             parameters=[
                 {
-                "udp.bind_port": LaunchConfiguration("mavlink_udp_remote_port"),
+                "udp.bind_port": LaunchConfiguration("px4.mavlink_udp_remote_port"),
                 "target_system": LaunchConfiguration("mav_sys_id"),
                 "target_component": LaunchConfiguration("mav_comp_id"),
                 },
             ],
-            condition=IfCondition(LaunchConfiguration("enable_mavros")),
+            condition=IfCondition(PythonExpression([
+                "'", LaunchConfiguration("enable_mavros_node"), "' == 'true' and '",
+                LaunchConfiguration("px4.mavlink_transport"), "' == 'udp' and '",
+                LaunchConfiguration("mavros_node_type"), "' == 'lite'",
+            ])),
+        ),
+        ### Official MAVROS node over UDP
+        Node(
+            package="mavros", executable="mavros_node", namespace="mavros", output="screen",
+            parameters=[
+                PathJoinSubstitution([
+                    FindPackageShare("fss_px4_sim"), "config", "mavros_official_plugins.yaml"]),
+                {
+                    "fcu_url": PythonExpression([
+                        "'udp://:' + '", LaunchConfiguration("px4.mavlink_udp_remote_port"), "' + '@'",
+                    ]),
+                    "gcs_url": "",
+                    "tgt_system": LaunchConfiguration("mav_sys_id"),
+                    "tgt_component": LaunchConfiguration("mav_comp_id"),
+                    "fcu_protocol": "v2.0",
+                },
+            ],
+            condition=IfCondition(PythonExpression([
+                "'", LaunchConfiguration("enable_mavros_node"), "' == 'true' and '",
+                LaunchConfiguration("px4.mavlink_transport"), "' == 'udp' and '",
+                LaunchConfiguration("mavros_node_type"), "' == 'official'",
+            ])),
         ),
         ### PX4 sitl
         Node(
@@ -132,8 +186,9 @@ def generate_launch_description():
                 "init_roll_deg": LaunchConfiguration("init_roll_deg"),
                 "init_pitch_deg": LaunchConfiguration("init_pitch_deg"),
                 "init_yaw_deg": LaunchConfiguration("init_yaw_deg"),
-                "mavlink_udp_local_port": LaunchConfiguration("mavlink_udp_local_port"), # px4 sitl binds to this port
-                "mavlink_udp_remote_port": LaunchConfiguration("mavlink_udp_remote_port"), # px4 sitl connect to this port
+                "px4.mavlink_udp_local_port": LaunchConfiguration("px4.mavlink_udp_local_port"),
+                "px4.mavlink_udp_remote_port": LaunchConfiguration("px4.mavlink_udp_remote_port"),
+                "px4.mavlink_transport": LaunchConfiguration("px4.mavlink_transport"),
                 "MAV_SYS_ID": LaunchConfiguration("mav_sys_id"),
                 "MAV_COMP_ID": LaunchConfiguration("mav_comp_id"),
                 "local_pos_source": LaunchConfiguration("local_pos_source"),

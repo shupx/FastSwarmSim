@@ -35,7 +35,6 @@
 #include <uORB/uORB_sim.hpp> // simulate uORB publication and subscription. Store the extern(global) simulated uORB messages
 
 #include "fss_px4_sim/px4_instance_context.hpp"
-
 #include "px4_modules/mavlink/mavlink_main.hpp"
 #include "px4_modules/commander/Commander.hpp"
 #include "px4_modules/mc_pos_control/MulticopterPositionControl.hpp"
@@ -66,6 +65,21 @@ public:
      * @param time_us The microseconds (us) now.
      */
     void Run(const uint64_t &time_us);
+
+    bool uses_direct_ros() const
+    {
+        return mavlink_ && mavlink_->transport() == MAVLINK::Transport::DirectRos;
+    }
+    uint8_t mavlink_system_id() const { return mavlink_ ? mavlink_->system_id() : 1; }
+    uint8_t mavlink_component_id() const { return mavlink_ ? mavlink_->component_id() : 1; }
+    void receive_mavlink_message(const mavlink_message_t &message)
+    {
+        if (mavlink_) mavlink_->receive_message(message);
+    }
+    void set_mavlink_send_callback(MAVLINK::SendCallback callback)
+    {
+        if (mavlink_) mavlink_->set_send_callback(std::move(callback));
+    }
 
     /* Get px4 params from px4::parameters */
     template <px4::params p>

@@ -15,7 +15,7 @@ using namespace std::chrono_literals;
 class Command final : public Module
 {
 public:
-  explicit Command(Core & core)
+  explicit Command(MavrosLite & core)
   : Module(core)
   {
     timeout_ = std::chrono::duration<double>(core.declare_parameter<double>("command.ack_timeout", 5.0));
@@ -88,5 +88,5 @@ private:
   rclcpp::Service<mavros_msgs::srv::CommandInt>::SharedPtr int_srv_;
   rclcpp::Service<mavros_msgs::srv::CommandBool>::SharedPtr arm_srv_;
 };
-std::unique_ptr<Module> make_command(Core & core) {return std::make_unique<Command>(core);}
+std::unique_ptr<Module> make_command(MavrosLite & core) {return std::make_unique<Command>(core);}
 }  // namespace fss_px4_sim::mavros_lite

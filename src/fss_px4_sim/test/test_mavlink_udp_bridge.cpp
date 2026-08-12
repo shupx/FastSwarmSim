@@ -262,4 +262,38 @@ TEST(MavlinkUdpSender, SendsCommandAcknowledgement)
 
   close(remote_fd);
 }
+
+TEST(MavlinkDirectTransport, ExchangesDecodedMessagesWithoutSockets)
+{
+  MavrosQuadSimulator::Px4InstanceContext context;
+  MavrosQuadSimulator::Px4InstanceContext::Scope scope(context);
+  MAVLINK mavlink(context, 0, 0, 42, MAV_COMP_ID_AUTOPILOT1,
+    MAVLINK::Transport::DirectRos);
+  mavlink.start();
+
+  mavlink_message_t outgoing{};
+  bool sent = false;
+  mavlink.set_send_callback([&](const mavlink_message_t &message) {
+    outgoing = message;
+    sent = true;
+  });
+  mavlink.Stream(100000);
+
+  ASSERT_TRUE(sent);
+  EXPECT_EQ(outgoing.msgid, MAVLINK_MSG_ID_HEARTBEAT);
+  EXPECT_EQ(outgoing.sysid, 42);
+  EXPECT_EQ(outgoing.compid, MAV_COMP_ID_AUTOPILOT1);
+
+  uORB_sim::Subscription<vehicle_command_s> command_sub{
+    context.uorb_domain, ORB_ID(vehicle_command)};
+  mavlink_message_t incoming{};
+  mavlink_msg_set_mode_pack(1, MAV_COMP_ID_ONBOARD_COMPUTER, &incoming, 42,
+    MAV_MODE_FLAG_CUSTOM_MODE_ENABLED, 0x00060000U);
+  mavlink.receive_message(incoming);
+
+  vehicle_command_s command{};
+  ASSERT_TRUE(command_sub.update(&command));
+  EXPECT_EQ(command.command, vehicle_command_s::VEHICLE_CMD_DO_SET_MODE);
+  EXPECT_EQ(command.target_system, 42);
+}
 }  // namespace

@@ -14,7 +14,7 @@ namespace fss_px4_sim::mavros_lite
 class GlobalPosition final : public Module
 {
 public:
-  explicit GlobalPosition(Core & core)
+  explicit GlobalPosition(MavrosLite & core)
   : Module(core)
   {
     frame_id_ = core.declare_parameter<std::string>("global_position.frame_id", "map");
@@ -124,5 +124,5 @@ private:
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr local_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr rel_alt_pub_, heading_pub_;
 };
-std::unique_ptr<Module> make_global_position(Core & core) {return std::make_unique<GlobalPosition>(core);}
+std::unique_ptr<Module> make_global_position(MavrosLite & core) {return std::make_unique<GlobalPosition>(core);}
 }  // namespace fss_px4_sim::mavros_lite

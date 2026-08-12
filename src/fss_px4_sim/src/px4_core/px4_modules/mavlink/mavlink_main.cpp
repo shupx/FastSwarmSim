@@ -1,10 +1,10 @@
 /**
  * @file mavlink_main.cpp
- * @brief UDP-based MAVLink module entry point for the PX4 simulation.
+ * @brief UDP or direct ROS MAVLink entry point for the PX4 simulation.
  *
  * The module owns the simulated MAVLink receiver and streamer. It sends
- * outgoing messages through a connected loopback UDP socket and processes
- * incoming messages on a dedicated thread.
+ * outgoing messages through a selected transport. Socket and byte-stream
+ * details are isolated in Px4MavlinkUdpTransport.
  *
  * @author Peixuan Shu
  * @date 2026-08-08
@@ -14,18 +14,11 @@
 
 #include "mavlink_main.hpp"
 
-#include <arpa/inet.h>
-#include <cerrno>
-#include <netinet/in.h>
-#include <poll.h>
-#include <stdexcept>
-#include <sys/socket.h>
-#include <unistd.h>
-
 MAVLINK::MAVLINK(MavrosQuadSimulator::Px4InstanceContext &context,
-	int local_port, int remote_port, uint8_t system_id, uint8_t component_id)
-	: context_(context), local_port_(local_port), remote_port_(remote_port),
-	  system_id_(system_id), component_id_(component_id)
+	int local_port, int remote_port, uint8_t system_id, uint8_t component_id, Transport transport)
+	: context_(context),
+	  udp_config_{static_cast<uint16_t>(local_port), static_cast<uint16_t>(remote_port)},
+	  system_id_(system_id), component_id_(component_id), transport_(transport)
 {
 }
 
@@ -38,61 +31,34 @@ void MAVLINK::start()
 {
 	//construct MAVLink components in their owning context.
 	MavrosQuadSimulator::Px4InstanceContext::Scope context_scope(context_);
-	if (socket_fd_ >= 0) {
+	if (receiver_ || streamer_) {
+		return;
+	}
+	receiver_ = std::make_unique<MavlinkReceiver>(system_id_, component_id_);
+	streamer_ = std::make_unique<MavlinkStreamer>(MavlinkSender(
+		[this](const mavlink_message_t &message) { send_message(message); },
+		system_id_, component_id_));
+	if (transport_ == Transport::DirectRos) {
 		return;
 	}
 
-	socket_fd_ = ::socket(AF_INET, SOCK_DGRAM, 0);
-	if (socket_fd_ < 0) {
-		throw std::runtime_error("failed to create MAVLink UDP socket");
-	}
-
 	try {
-		sockaddr_in local{};
-		local.sin_family = AF_INET;
-		local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-		local.sin_port = htons(static_cast<uint16_t>(local_port_));
-		if (::bind(socket_fd_, reinterpret_cast<const sockaddr *>(&local), sizeof(local)) < 0) {
-			throw std::runtime_error("failed to bind MAVLink UDP socket");
-		}
-
-		sockaddr_in remote{};
-		remote.sin_family = AF_INET;
-		remote.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-		remote.sin_port = htons(static_cast<uint16_t>(remote_port_));
-		if (::connect(socket_fd_, reinterpret_cast<const sockaddr *>(&remote), sizeof(remote)) < 0) {
-			throw std::runtime_error("failed to connect MAVLink UDP socket");
-		}
-
-		receiver_ = std::make_unique<MavlinkReceiver>(system_id_, component_id_);
-		streamer_ = std::make_unique<MavlinkStreamer>(MavlinkSender(
-			[this](const mavlink_message_t &message) { send_message(message); },
-			system_id_, component_id_));
-		receiving_.store(true);
-		receive_thread_ = std::thread(&MAVLINK::receive_loop, this);
+		udp_transport_ = std::make_unique<Px4MavlinkUdpTransport>(udp_config_);
+		udp_transport_->set_receive_callback([this](const mavlink_message_t &message) {
+			receive_message(message);
+		});
+		udp_transport_->start();
 	} catch (...) {
-		receiving_.store(false);
+		udp_transport_.reset();
 		streamer_.reset();
 		receiver_.reset();
-		::close(socket_fd_);
-		socket_fd_ = -1;
 		throw;
 	}
 }
 
 void MAVLINK::stop()
 {
-	receiving_.store(false);
-	if (socket_fd_ >= 0) {
-		(void)::shutdown(socket_fd_, SHUT_RDWR);
-	}
-	if (receive_thread_.joinable()) {
-		receive_thread_.join();
-	}
-	if (socket_fd_ >= 0) {
-		::close(socket_fd_);
-		socket_fd_ = -1;
-	}
+	udp_transport_.reset();
 	streamer_.reset();
 	receiver_.reset();
 }
@@ -108,53 +74,27 @@ void MAVLINK::Stream(const uint64_t &time_us)
 
 void MAVLINK::send_message(const mavlink_message_t &message) const
 {
-	if (socket_fd_ < 0) {
+	if (transport_ == Transport::DirectRos) {
+		if (send_callback_) {
+			send_callback_(message);
+		}
 		return;
 	}
-
-	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-	auto mutable_message = message;
-	const auto length = mavlink_msg_to_send_buffer(buffer, &mutable_message);
-	(void)::send(socket_fd_, buffer, length, MSG_DONTWAIT);
+	if (udp_transport_) {
+		udp_transport_->send_message(message);
+	}
 }
 
-void MAVLINK::receive_loop()
+void MAVLINK::receive_message(const mavlink_message_t &message)
 {
-	// the receiver executes on another thread, so it
-	// must select the complete owning context explicitly.
 	MavrosQuadSimulator::Px4InstanceContext::Scope context_scope(context_);
-	mavlink_status_t status{};
-	uint8_t buffer[2048];
-	pollfd poll_fd{socket_fd_, POLLIN, 0};
-
-	while (receiving_.load()) {
-		const int poll_result = ::poll(&poll_fd, 1, 100);
-		if (poll_result == 0) {
-			continue;
-		}
-		if (poll_result < 0) {
-			if (errno == EINTR) {
-				continue;
-			}
-			break;
-		}
-		if ((poll_fd.revents & POLLIN) == 0) {
-			continue;
-		}
-
-		const auto length = ::recv(socket_fd_, buffer, sizeof(buffer), 0);
-		if (length < 0) {
-			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-				continue;
-			}
-			break;
-		}
-
-		for (ssize_t index = 0; index < length; ++index) {
-			mavlink_message_t message{};
-			if (mavlink_parse_char(MAVLINK_COMM_0, buffer[index], &message, &status)) {
-				receiver_->handle_message(&message);
-			}
-		}
+	if (receiver_) {
+		auto mutable_message = message;
+		receiver_->handle_message(&mutable_message);
 	}
+}
+
+void MAVLINK::set_send_callback(SendCallback callback)
+{
+	send_callback_ = std::move(callback);
 }

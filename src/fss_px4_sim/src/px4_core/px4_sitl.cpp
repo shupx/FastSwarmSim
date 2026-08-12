@@ -40,22 +40,35 @@ PX4SITL::PX4SITL(rclcpp::Node &node,
 	int mavlink_udp_remote_port = 24540;
 	int mavlink_system_id = 1; // added or modified by Peixuan Shu
 	int mavlink_component_id = 1; // added or modified by Peixuan Shu
-	node_.get_parameter_or("mavlink_udp_local_port", mavlink_udp_local_port, mavlink_udp_local_port);
-	node_.get_parameter_or("mavlink_udp_remote_port", mavlink_udp_remote_port, mavlink_udp_remote_port);
+	std::string mavlink_transport = "empty";
+	node_.get_parameter_or("px4.mavlink_udp_local_port", mavlink_udp_local_port, mavlink_udp_local_port);
+	node_.get_parameter_or("px4.mavlink_udp_remote_port", mavlink_udp_remote_port, mavlink_udp_remote_port);
 	node_.get_parameter_or("MAV_SYS_ID", mavlink_system_id, mavlink_system_id); // added or modified by Peixuan Shu
 	node_.get_parameter_or("MAV_COMP_ID", mavlink_component_id, mavlink_component_id); // added or modified by Peixuan Shu
+	node_.get_parameter_or("px4.mavlink_transport", mavlink_transport, mavlink_transport);
 	if (mavlink_system_id < 1 || mavlink_system_id > 255 || mavlink_component_id < 1 || mavlink_component_id > 255) {
 		throw std::invalid_argument("MAV_SYS_ID and MAV_COMP_ID must be in [1, 255]");
 	}
+	if (mavlink_transport != "udp" && mavlink_transport != "direct_ros" && mavlink_transport != "empty") {
+		throw std::invalid_argument("px4.mavlink_transport must be 'udp', 'direct_ros', or 'empty'");
+	}
 
-	mavlink_ = std::make_shared<MAVLINK>(context_, mavlink_udp_local_port, mavlink_udp_remote_port,
-		static_cast<uint8_t>(mavlink_system_id), static_cast<uint8_t>(mavlink_component_id));
-    mavlink_->start();
+    /* Create PX4 modules */
+	if (mavlink_transport != "empty") {
+		const auto transport = mavlink_transport == "direct_ros" ? MAVLINK::Transport::DirectRos :
+			MAVLINK::Transport::Udp;
+		mavlink_ = std::make_shared<MAVLINK>(context_, mavlink_udp_local_port,
+			mavlink_udp_remote_port, static_cast<uint8_t>(mavlink_system_id),
+			static_cast<uint8_t>(mavlink_component_id), transport);
+	}
     commander_ = std::make_shared<Commander>();
     mc_pos_control_ = std::make_shared<MulticopterPositionControl>(false);
     mc_att_control_ = std::make_shared<MulticopterAttitudeControl>(false);
 
     /* Init px4 modules */
+	if (mavlink_) {
+		mavlink_->start();
+	}
     mc_pos_control_->init();
     mc_att_control_->init();
 }
@@ -161,7 +174,9 @@ void PX4SITL::Run(const uint64_t &time_us)
 
 void PX4SITL::StreamMavlink(const uint64_t &time_us)
 {
-    mavlink_->Stream(time_us);
+    if (mavlink_) {
+        mavlink_->Stream(time_us);
+    }
 }
 
 void PX4SITL::SendControlInput()
