@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction, SetEnvironmentVariable
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction, SetEnvironmentVariable, TimerAction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -10,11 +10,17 @@ from launch_ros.substitutions import FindPackageShare
 def make_drones(context):
     count = int(LaunchConfiguration("num_drones").perform(context))
     drones_per_row = int(LaunchConfiguration("drones_per_row").perform(context))
+    startup_batch_size = int(LaunchConfiguration("startup_batch_size").perform(context))
+    startup_batch_delay_ms = int(LaunchConfiguration("startup_batch_delay_ms").perform(context))
     if drones_per_row < 1:
         raise ValueError("drones_per_row must be at least 1")
+    if startup_batch_size < 1:
+        raise ValueError("startup_batch_size must be at least 1")
+    if startup_batch_delay_ms < 0:
+        raise ValueError("startup_batch_delay_ms must be non-negative")
     launch_file = PathJoinSubstitution([
         FindPackageShare("fss_px4_sim"), "launch", "px4_rotor_sim_single.launch.py"])
-    return [
+    drone_actions = [
         # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
         GroupAction(
             scoped=True,
@@ -42,6 +48,16 @@ def make_drones(context):
         )
         for index in range(1, count + 1)
     ]
+    if startup_batch_delay_ms == 0:
+        return drone_actions
+
+    return [
+        TimerAction(
+            period=(index - 1) // startup_batch_size * startup_batch_delay_ms / 1000.0,
+            actions=[drone_action],
+        )
+        for index, drone_action in enumerate(drone_actions, start=1)
+    ]
 
 
 def generate_launch_description():
@@ -56,6 +72,16 @@ def generate_launch_description():
             "drones_per_row",
             default_value="10",
             description="Number of vehicles in each formation row; must be at least 1.",
+        ),
+        DeclareLaunchArgument(
+            "startup_batch_delay_ms",
+            default_value="0",
+            description="Delay in milliseconds before starting each vehicle batch. Set large enough if num_drones is large to avoid overloading the system.",
+        ),
+        DeclareLaunchArgument(
+            "startup_batch_size",
+            default_value="10",
+            description="Number of vehicles to start per batch; must be at least 1.",
         ),
         DeclareLaunchArgument(
             "use_fss_sim_time",
