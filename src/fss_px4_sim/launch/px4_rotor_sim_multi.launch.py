@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction, SetEnvironmentVariable
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -32,8 +32,7 @@ def make_drones(context):
                         "init_y_North_metre": f"{(index - 1) // drones_per_row:.1f}",
                         "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),
                         "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                        "enable_mavros_node": LaunchConfiguration("enable_mavros_node"),
-                        "mavros_node_type": LaunchConfiguration("mavros_node_type"),
+                        "mavros_type": LaunchConfiguration("mavros_type"),
                         "enable_visualizer": LaunchConfiguration("enable_visualizer"),
                         "enable_rviz": "false",
                         "enable_time_coordinator": "false",
@@ -47,18 +46,60 @@ def make_drones(context):
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument("num_drones", default_value="5"),
-        DeclareLaunchArgument("drones_per_row", default_value="10"),
-        DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
-        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
-        DeclareLaunchArgument("enable_time_coordinator", default_value="true"),
-        DeclareLaunchArgument("enable_mavros_node", default_value="false"),
-        DeclareLaunchArgument("mavros_node_type", default_value="lite"),
-        DeclareLaunchArgument("px4.mavlink_transport", default_value="direct_ros"),
-        DeclareLaunchArgument("enable_visualizer", default_value="true"),
-        DeclareLaunchArgument("enable_rviz", default_value="true"),
+        SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
+        DeclareLaunchArgument(
+            "num_drones",
+            default_value="5",
+            description="Number of vehicles to launch.",
+        ),
+        DeclareLaunchArgument(
+            "drones_per_row",
+            default_value="10",
+            description="Number of vehicles in each formation row; must be at least 1.",
+        ),
+        DeclareLaunchArgument(
+            "use_fss_sim_time",
+            default_value="true",
+            choices=["true", "false"],
+            description="Use the FastSwarmSim coordinated simulation clock.",
+        ),
+        DeclareLaunchArgument(
+            "fss_time_coordinator_endpoint",
+            default_value="ipc:///tmp/fss_time_coordinator.ipc",
+            description="IPC endpoint of the FastSwarmSim time coordinator.",
+        ),
+        DeclareLaunchArgument(
+            "enable_time_coordinator",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start the time coordinator when FastSwarmSim simulation time is enabled.",
+        ),
+        DeclareLaunchArgument(
+            "mavros_type",
+            default_value="disabled",
+            choices=["disabled", "official", "lite"],
+            description="External MAVROS bridge: disabled starts none, official starts MAVROS, lite starts MAVROS Lite.",
+        ),
+        DeclareLaunchArgument(
+            "px4.mavlink_transport",
+            default_value="direct_ros",
+            choices=["udp", "direct_ros", "empty"],
+            description="PX4 MAVLink transport.",
+        ),
+        DeclareLaunchArgument(
+            "enable_visualizer",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start vehicle visualizers.",
+        ),
+        DeclareLaunchArgument(
+            "enable_rviz",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start RViz.",
+        ),
         DeclareLaunchArgument("rviz_config", default_value=PathJoinSubstitution([
-            FindPackageShare("fss_px4_sim"), "rviz", "multi_px4_rotor.rviz"])),
+            FindPackageShare("fss_px4_sim"), "rviz", "multi_px4_rotor.rviz"]), description="RViz configuration file used when RViz is enabled."),
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
 

@@ -12,8 +12,17 @@ def generate_launch_description():
         "local_pointcloud_sim.yaml",
     ])
     return LaunchDescription([
-        DeclareLaunchArgument("use_sim_time", default_value="true"),
-        DeclareLaunchArgument("config_path", default_value=default_config_path),
+        DeclareLaunchArgument(
+            "use_sim_time",
+            default_value="true",
+            choices=["true", "false"],
+            description="Use ROS simulation time.",
+        ),
+        DeclareLaunchArgument(
+            "config_path",
+            default_value=default_config_path,
+            description="Path to the local pointcloud simulator configuration file.",
+        ),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_sim_time")),
         Node(
             package="fss_sensing",

@@ -41,16 +41,54 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument("test.node_count", default_value="3"),
-        DeclareLaunchArgument("node.thread_count", default_value="4"),
-        DeclareLaunchArgument("node.base_period_ms", default_value="10"),
-        DeclareLaunchArgument("node.period_step_ms", default_value="5"),
-        DeclareLaunchArgument("node.topic_prefix", default_value="load"),
-        DeclareLaunchArgument("node.enable_fss_time", default_value="true"),
-        DeclareLaunchArgument("coordinator.max_real_time_factor", default_value="1.0"),
-        DeclareLaunchArgument("coordinator.auto_start", default_value="true"),
+        DeclareLaunchArgument(
+            "test.node_count",
+            default_value="3",
+            description="Number of load-test nodes.",
+        ),
+        DeclareLaunchArgument(
+            "node.thread_count",
+            default_value="4",
+            description="Thread count for each load-test node.",
+        ),
+        DeclareLaunchArgument(
+            "node.base_period_ms",
+            default_value="10",
+            description="Base timer period in milliseconds.",
+        ),
+        DeclareLaunchArgument(
+            "node.period_step_ms",
+            default_value="5",
+            description="Timer period increment between nodes in milliseconds.",
+        ),
+        DeclareLaunchArgument(
+            "node.topic_prefix",
+            default_value="load",
+            description="Topic prefix used by load-test nodes.",
+        ),
+        DeclareLaunchArgument(
+            "node.enable_fss_time",
+            default_value="true",
+            choices=["true", "false"],
+            description="Enable FastSwarmSim time in load-test nodes.",
+        ),
+        DeclareLaunchArgument(
+            "coordinator.max_real_time_factor",
+            default_value="1.0",
+            description="Maximum real-time factor passed to the coordinator.",
+        ),
+        DeclareLaunchArgument(
+            "coordinator.auto_start",
+            default_value="true",
+            choices=["true", "false"],
+            description="Automatically start the coordinator.",
+        ),
         
-        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
+        DeclareLaunchArgument(
+            "fss_time_coordinator_endpoint",
+            default_value="ipc:///tmp/fss_time_coordinator.ipc",
+            description="IPC endpoint of the FastSwarmSim time coordinator.",
+        ),
         SetParameter(name="fss_time_coordinator_endpoint", value=LaunchConfiguration("fss_time_coordinator_endpoint")),
         
         SetParameter(name="use_sim_time", value=True),

@@ -42,8 +42,9 @@ ros2 run fss_px4_sim mavros_lite_node --ros-args \
 PX4 simulator launch transport:
 
 ```bash
-# Existing behavior: PX4 and a separate mavros_lite process communicate by UDP.
-ros2 launch fss_px4_sim px4_rotor_sim_single.launch.py px4.mavlink_transport:=udp
+# PX4 and a separate MAVROS Lite process communicate by UDP.
+ros2 launch fss_px4_sim px4_rotor_sim_single.launch.py \
+  px4.mavlink_transport:=udp mavros_type:=lite
 
 # In-process behavior: PX4 owns mavros_lite and exchanges decoded messages.
 ros2 launch fss_px4_sim px4_rotor_sim_single.launch.py \
@@ -53,13 +54,11 @@ ros2 launch fss_px4_sim px4_rotor_sim_single.launch.py \
 PX4 accepts `px4.mavlink_transport` values `udp`, `direct_ros`, and `empty`.
 In `direct_ros` mode the UDP port parameters are unused and MAVROS Lite is
 embedded in the PX4 process. In `empty` mode PX4 does not create its MAVLink
-module. For UDP, `mavros_node_type:=official` selects the installed MAVROS node
-while `mavros_node_type:=lite` selects `mavros_lite_node`. The launch-level
-`enable_mavros_node` flag defaults to false and only requests starting that
-external node. Neither argument modifies PX4 transport parameters. Enabling an
-external node with `direct_ros` is a configuration error because that transport
-already embeds MAVROS Lite. With `empty`, launch warns that no external node
-can be started.
+module. The `mavros_type` launch argument defaults to `disabled`; use
+`official` to start the installed MAVROS node or `lite` to start
+`mavros_lite_node`. The latter two options require
+`px4.mavlink_transport:=udp`; otherwise launch prints a warning and starts no
+external MAVROS node. This argument does not modify PX4 transport parameters.
 
 The official MAVROS branch is allowlisted to the same six plugins. Its
 `sys_status` plugin requests `AUTOPILOT_VERSION`; the reduced PX4 simulator does

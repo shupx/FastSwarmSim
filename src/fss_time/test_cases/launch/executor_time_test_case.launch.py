@@ -53,26 +53,76 @@ def generate_launch_description():
 
     return LaunchDescription([
         SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
-        DeclareLaunchArgument("spin.node_count", default_value="1"),
-        DeclareLaunchArgument("single.node_count", default_value="1"),
-        DeclareLaunchArgument("multi.node_count", default_value="1"),
-        DeclareLaunchArgument("multi.thread_count", default_value="2"),
-        DeclareLaunchArgument("node.timer_period_ms", default_value="10"),
-        DeclareLaunchArgument("node.timer_count", default_value="2"),
-        DeclareLaunchArgument("node.topic_prefix", default_value="executor_time"),
-        DeclareLaunchArgument("node.log_every_n", default_value="100"),
-        DeclareLaunchArgument("coordinator.max_real_time_factor", default_value="100.0"),
-        DeclareLaunchArgument("coordinator.auto_start", default_value="true"),
+        DeclareLaunchArgument(
+            "spin.node_count",
+            default_value="1",
+            description="Number of fss_spin executor test nodes.",
+        ),
+        DeclareLaunchArgument(
+            "single.node_count",
+            default_value="1",
+            description="Number of single-threaded executor test nodes.",
+        ),
+        DeclareLaunchArgument(
+            "multi.node_count",
+            default_value="1",
+            description="Number of multi-threaded executor test nodes.",
+        ),
+        DeclareLaunchArgument(
+            "multi.thread_count",
+            default_value="2",
+            description="Thread count for multi-threaded executor test nodes.",
+        ),
+        DeclareLaunchArgument(
+            "node.timer_period_ms",
+            default_value="10",
+            description="Test node timer period in milliseconds.",
+        ),
+        DeclareLaunchArgument(
+            "node.timer_count",
+            default_value="2",
+            description="Number of timers per test node.",
+        ),
+        DeclareLaunchArgument(
+            "node.topic_prefix",
+            default_value="executor_time",
+            description="Topic prefix used by test nodes.",
+        ),
+        DeclareLaunchArgument(
+            "node.log_every_n",
+            default_value="100",
+            description="Log every N timer callbacks.",
+        ),
+        DeclareLaunchArgument(
+            "coordinator.max_real_time_factor",
+            default_value="100.0",
+            description="Maximum real-time factor passed to the coordinator.",
+        ),
+        DeclareLaunchArgument(
+            "coordinator.auto_start",
+            default_value="true",
+            choices=["true", "false"],
+            description="Automatically start the coordinator.",
+        ),
         
         # DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
-        DeclareLaunchArgument("namespace", default_value=""),
+        DeclareLaunchArgument(
+            "namespace",
+            default_value="",
+            description="Namespace used to derive the default coordinator endpoint.",
+        ),
         DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value=PythonExpression([
                     "'ipc:///tmp/fss_time_coordinator' + ('_' + '", LaunchConfiguration("namespace"),
                     "'.strip('/').replace('/', '_') if '", LaunchConfiguration("namespace"),
                     "' else '') + '.ipc'",
-                ])),
+                ]), description="Coordinator IPC endpoint; defaults to a namespace-specific path."),
 
-        DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
+        DeclareLaunchArgument(
+            "use_fss_sim_time",
+            default_value="true",
+            choices=["true", "false"],
+            description="Use the FastSwarmSim coordinated simulation clock.",
+        ),
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
 

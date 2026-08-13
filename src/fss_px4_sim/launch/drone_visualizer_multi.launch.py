@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import SetParameter
@@ -38,12 +38,39 @@ def make_visualizers(context):
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument("num_drones", default_value="5"),
-        DeclareLaunchArgument("use_sim_time", default_value="false"),
-        DeclareLaunchArgument("local_pos_source", default_value="0"),
-        DeclareLaunchArgument("world_origin_latitude_deg", default_value="39.978861"),
-        DeclareLaunchArgument("world_origin_longitude_deg", default_value="116.339803"),
-        DeclareLaunchArgument("world_origin_AMSL_alt_metre", default_value="53.0"),
+        SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
+        DeclareLaunchArgument(
+            "num_drones",
+            default_value="5",
+            description="Number of vehicle visualizers to launch.",
+        ),
+        DeclareLaunchArgument(
+            "use_sim_time",
+            default_value="false",
+            choices=["true", "false"],
+            description="Use ROS simulation time.",
+        ),
+        DeclareLaunchArgument(
+            "local_pos_source",
+            default_value="0",
+            choices=["0", "1"],
+            description="Position source: 0 for mocap/local position, 1 for GPS/global position.",
+        ),
+        DeclareLaunchArgument(
+            "world_origin_latitude_deg",
+            default_value="39.978861",
+            description="Geographic origin latitude in degrees.",
+        ),
+        DeclareLaunchArgument(
+            "world_origin_longitude_deg",
+            default_value="116.339803",
+            description="Geographic origin longitude in degrees.",
+        ),
+        DeclareLaunchArgument(
+            "world_origin_AMSL_alt_metre",
+            default_value="53.0",
+            description="Geographic origin AMSL altitude in metres.",
+        ),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_sim_time")),
         OpaqueFunction(function=make_visualizers),
     ])

@@ -14,21 +14,72 @@ def generate_launch_description():
 
     return LaunchDescription([
         SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
-        DeclareLaunchArgument("rate.topic_name", default_value="fss_rate"),
-        DeclareLaunchArgument("rate.period_ms", default_value="10"),
-        DeclareLaunchArgument("rate.enable_loop_sleep_for", default_value="false"),
-        DeclareLaunchArgument("rate.loop_sleep_for_ms", default_value="1"),
-        DeclareLaunchArgument("timer.topic_name", default_value="timer_sleep"),
-        DeclareLaunchArgument("timer.period_ms", default_value="10"),
-        DeclareLaunchArgument("timer.callback_sleep_for_ms", default_value="5"),
-        DeclareLaunchArgument("node.log_every_n", default_value="100"),
-        DeclareLaunchArgument("coordinator.max_real_time_factor", default_value="1.0"),
-        DeclareLaunchArgument("coordinator.auto_start", default_value="true"),
+        DeclareLaunchArgument(
+            "rate.topic_name",
+            default_value="fss_rate",
+            description="Topic name used by the rate test.",
+        ),
+        DeclareLaunchArgument(
+            "rate.period_ms",
+            default_value="10",
+            description="Rate test period in milliseconds.",
+        ),
+        DeclareLaunchArgument(
+            "rate.enable_loop_sleep_for",
+            default_value="false",
+            choices=["true", "false"],
+            description="Enable deliberate sleep in the rate test loop.",
+        ),
+        DeclareLaunchArgument(
+            "rate.loop_sleep_for_ms",
+            default_value="1",
+            description="Deliberate rate-loop sleep duration in milliseconds.",
+        ),
+        DeclareLaunchArgument(
+            "timer.topic_name",
+            default_value="timer_sleep",
+            description="Topic name used by the timer test.",
+        ),
+        DeclareLaunchArgument(
+            "timer.period_ms",
+            default_value="10",
+            description="Timer test period in milliseconds.",
+        ),
+        DeclareLaunchArgument(
+            "timer.callback_sleep_for_ms",
+            default_value="5",
+            description="Deliberate timer callback sleep duration in milliseconds.",
+        ),
+        DeclareLaunchArgument(
+            "node.log_every_n",
+            default_value="100",
+            description="Log every N callbacks.",
+        ),
+        DeclareLaunchArgument(
+            "coordinator.max_real_time_factor",
+            default_value="1.0",
+            description="Maximum real-time factor passed to the coordinator.",
+        ),
+        DeclareLaunchArgument(
+            "coordinator.auto_start",
+            default_value="true",
+            choices=["true", "false"],
+            description="Automatically start the coordinator.",
+        ),
         
-        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
+        DeclareLaunchArgument(
+            "fss_time_coordinator_endpoint",
+            default_value="ipc:///tmp/fss_time_coordinator.ipc",
+            description="IPC endpoint of the FastSwarmSim time coordinator.",
+        ),
         SetParameter(name="fss_time_coordinator_endpoint", value=LaunchConfiguration("fss_time_coordinator_endpoint")),
 
-        DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
+        DeclareLaunchArgument(
+            "use_fss_sim_time",
+            default_value="true",
+            choices=["true", "false"],
+            description="Use the FastSwarmSim coordinated simulation clock.",
+        ),
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
 

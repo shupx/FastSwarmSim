@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, SetEnvironmentVariable
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
@@ -11,18 +11,63 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     namespace = LaunchConfiguration("namespace")
     return LaunchDescription([
-        DeclareLaunchArgument("namespace", default_value=""),
-        DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
-        DeclareLaunchArgument("init_x", default_value="0.0"),
-        DeclareLaunchArgument("init_y", default_value="0.0"),
-        DeclareLaunchArgument("init_z", default_value="1.0"),
-        DeclareLaunchArgument("init_yaw", default_value="0.0"),
-        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
-        DeclareLaunchArgument("enable_time_coordinator", default_value="true"),
-        DeclareLaunchArgument("enable_visualizer", default_value="true"),
-        DeclareLaunchArgument("enable_rviz", default_value="true"),
+        SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
+        DeclareLaunchArgument(
+            "namespace",
+            default_value="",
+            description="ROS namespace for this vehicle; empty uses the root namespace.",
+        ),
+        DeclareLaunchArgument(
+            "use_fss_sim_time",
+            default_value="true",
+            choices=["true", "false"],
+            description="Use the FastSwarmSim coordinated simulation clock.",
+        ),
+        DeclareLaunchArgument(
+            "init_x",
+            default_value="0.0",
+            description="Initial x position in metres.",
+        ),
+        DeclareLaunchArgument(
+            "init_y",
+            default_value="0.0",
+            description="Initial y position in metres.",
+        ),
+        DeclareLaunchArgument(
+            "init_z",
+            default_value="1.0",
+            description="Initial z position in metres.",
+        ),
+        DeclareLaunchArgument(
+            "init_yaw",
+            default_value="0.0",
+            description="Initial yaw in radians.",
+        ),
+        DeclareLaunchArgument(
+            "fss_time_coordinator_endpoint",
+            default_value="ipc:///tmp/fss_time_coordinator.ipc",
+            description="IPC endpoint of the FastSwarmSim time coordinator.",
+        ),
+        DeclareLaunchArgument(
+            "enable_time_coordinator",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start the time coordinator when FastSwarmSim simulation time is enabled.",
+        ),
+        DeclareLaunchArgument(
+            "enable_visualizer",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start the drone visualizer.",
+        ),
+        DeclareLaunchArgument(
+            "enable_rviz",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start RViz.",
+        ),
         DeclareLaunchArgument("rviz_config", default_value=PathJoinSubstitution([
-            FindPackageShare("fss_px4_sim"), "rviz", "single_px4_rotor.rviz"])),
+            FindPackageShare("fss_px4_sim"), "rviz", "single_px4_rotor.rviz"]), description="RViz configuration file used when RViz is enabled."),
 
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),

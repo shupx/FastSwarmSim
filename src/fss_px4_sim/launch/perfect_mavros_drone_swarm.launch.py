@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction, SetEnvironmentVariable
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -40,15 +40,48 @@ def make_drones(context):
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument("num_drones", default_value="3"),
-        DeclareLaunchArgument("drones_per_row", default_value="10"),
-        DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
-        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
-        DeclareLaunchArgument("enable_time_coordinator", default_value="true"),
-        DeclareLaunchArgument("enable_visualizer", default_value="true"),
-        DeclareLaunchArgument("enable_rviz", default_value="true"),
+        SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
+        DeclareLaunchArgument(
+            "num_drones",
+            default_value="3",
+            description="Number of vehicles to launch.",
+        ),
+        DeclareLaunchArgument(
+            "drones_per_row",
+            default_value="10",
+            description="Number of vehicles in each formation row; must be at least 1.",
+        ),
+        DeclareLaunchArgument(
+            "use_fss_sim_time",
+            default_value="true",
+            choices=["true", "false"],
+            description="Use the FastSwarmSim coordinated simulation clock.",
+        ),
+        DeclareLaunchArgument(
+            "fss_time_coordinator_endpoint",
+            default_value="ipc:///tmp/fss_time_coordinator.ipc",
+            description="IPC endpoint of the FastSwarmSim time coordinator.",
+        ),
+        DeclareLaunchArgument(
+            "enable_time_coordinator",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start the time coordinator when FastSwarmSim simulation time is enabled.",
+        ),
+        DeclareLaunchArgument(
+            "enable_visualizer",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start vehicle visualizers.",
+        ),
+        DeclareLaunchArgument(
+            "enable_rviz",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start RViz.",
+        ),
         DeclareLaunchArgument("rviz_config", default_value=PathJoinSubstitution([
-            FindPackageShare("fss_px4_sim"), "rviz", "multi_px4_rotor.rviz"])),
+            FindPackageShare("fss_px4_sim"), "rviz", "multi_px4_rotor.rviz"]), description="RViz configuration file used when RViz is enabled."),
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.

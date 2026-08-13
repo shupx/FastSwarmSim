@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction, SetEnvironmentVariable
 from launch.logging import get_logger
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -14,67 +14,137 @@ def generate_launch_description():
 
     def validate_mavlink_configuration(context):
         transport = LaunchConfiguration("px4.mavlink_transport").perform(context)
-        mavros_node_type = LaunchConfiguration("mavros_node_type").perform(context)
-        enable_mavros_node = (
-            LaunchConfiguration("enable_mavros_node").perform(context).lower() == "true")
-        if transport not in ("udp", "direct_ros", "empty"):
-            raise ValueError("px4.mavlink_transport must be udp, direct_ros, or empty")
-        if mavros_node_type not in ("official", "lite"):
-            raise ValueError("mavros_node_type must be official or lite")
-        if enable_mavros_node and transport == "direct_ros":
-            raise ValueError(
-                "enable_mavros_node=true conflicts with "
-                "px4.mavlink_transport=direct_ros since direct_ros already uses an embedded MAVROS Lite node")
-        if enable_mavros_node and transport == "empty":
+        mavros_type = LaunchConfiguration("mavros_type").perform(context)
+        if mavros_type != "disabled" and transport != "udp":
             get_logger("px4_rotor_sim_single").warning(
-                "enable_mavros_node=true requested an external MAVROS node, but "
-                f"px4.mavlink_transport={transport}; no external MAVROS node will be started")
+                "\033[33m"
+                f"mavros_type={mavros_type} requested a MAVROS node, but "
+                f"px4.mavlink_transport={transport}; no MAVROS node will be started. "
+                "px4.mavlink_transport must be udp"
+                "\033[0m")
         return []
 
     return LaunchDescription([
-        # ROS namespace for this vehicle. Empty means use the root namespace.
-        DeclareLaunchArgument("namespace", default_value=""),
-        # Use the FastSwarmSim coordinated simulation clock when true. If ture, run 'ros2 launch fss_time time_coordinator.launch.py ' first.
-        DeclareLaunchArgument("use_fss_sim_time", default_value="true"),
-        # MAVLink system identifiers; valid values are 1-255.
-        DeclareLaunchArgument("mav_sys_id", default_value="1"),
-        # MAVLink component identifiers, shoulb be fixed to 1 for PX4 SITL.
-        DeclareLaunchArgument("mav_comp_id", default_value="1"),
-        # PX4 MAVLink transport: udp, direct_ros, or empty.
-        DeclareLaunchArgument("px4.mavlink_transport", default_value="direct_ros"),
-        # PX4 SITL UDP bind port (only when mavlink_transport="udp"). 
-        # 0 lets the operating system choose a port.
-        DeclareLaunchArgument("px4.mavlink_udp_local_port", default_value="0"),
-        # MAVROS UDP port receiving MAVLink packets from PX4 SITL (only when mavlink_transport="udp"). 
-        # For example, mavros binds this port to receive telemetry from PX4 SITL
-        DeclareLaunchArgument("px4.mavlink_udp_remote_port", default_value="24540"),
-        # Initial position in the local East/North/Up frame, in metres.
-        DeclareLaunchArgument("init_x_East_metre", default_value="1.0"),
-        DeclareLaunchArgument("init_y_North_metre", default_value="0.0"),
-        DeclareLaunchArgument("init_z_Up_metre", default_value="0.0"),
-        # Initial vehicle attitude in degrees.
-        DeclareLaunchArgument("init_roll_deg", default_value="0.0"),
-        DeclareLaunchArgument("init_pitch_deg", default_value="0.0"),
-        DeclareLaunchArgument("init_yaw_deg", default_value="0.0"),
-        # Position source: 0 uses mocap/local position; 1 uses GPS/global position.
-        DeclareLaunchArgument("local_pos_source", default_value="0"),
-        # Geographic origin used to convert GPS coordinates to the local frame.
-        DeclareLaunchArgument("world_origin_latitude_deg", default_value="39.978861"),
-        DeclareLaunchArgument("world_origin_longitude_deg", default_value="116.339803"),
-        DeclareLaunchArgument("world_origin_AMSL_alt_metre", default_value="53.0"),
-        # IPC endpoint of the FastSwarmSim time coordinator.
-        DeclareLaunchArgument("fss_time_coordinator_endpoint", default_value="ipc:///tmp/fss_time_coordinator.ipc"),
-        # Start the time coordinator only when use_fss_sim_time is enabled.
-        DeclareLaunchArgument("enable_time_coordinator", default_value="true"),
-        # Enable or disable the corresponding runtime component.
-        DeclareLaunchArgument("enable_mavros_node", default_value="false"),
-        # External MAVROS node implementation: official or lite.
-        DeclareLaunchArgument("mavros_node_type", default_value="lite"),
-        DeclareLaunchArgument("enable_visualizer", default_value="true"),
-        DeclareLaunchArgument("enable_rviz", default_value="true"),
-        # RViz configuration file used when enable_rviz is true.
+        SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
+        DeclareLaunchArgument(
+            "namespace",
+            default_value="",
+            description="ROS namespace for this vehicle; empty uses the root namespace.",
+        ),
+        DeclareLaunchArgument(
+            "use_fss_sim_time",
+            default_value="true",
+            choices=["true", "false"],
+            description="Use the FastSwarmSim coordinated simulation clock.",
+        ),
+        DeclareLaunchArgument(
+            "mav_sys_id",
+            default_value="1",
+            description="MAVLink system identifier (1-255).",
+        ),
+        DeclareLaunchArgument(
+            "mav_comp_id",
+            default_value="1",
+            description="MAVLink component identifier; PX4 SITL normally uses 1.",
+        ),
+        DeclareLaunchArgument(
+            "px4.mavlink_transport",
+            default_value="direct_ros",
+            choices=["udp", "direct_ros", "empty"],
+            description="PX4 MAVLink transport.",
+        ),
+        DeclareLaunchArgument(
+            "px4.mavlink_udp_local_port",
+            default_value="0",
+            description="PX4 SITL UDP bind port when transport is udp; 0 selects an available port.",
+        ),
+        DeclareLaunchArgument(
+            "px4.mavlink_udp_remote_port",
+            default_value="24540",
+            description="MAVROS UDP receive port when transport is udp.",
+        ),
+        DeclareLaunchArgument(
+            "init_x_East_metre",
+            default_value="1.0",
+            description="Initial east position in metres.",
+        ),
+        DeclareLaunchArgument(
+            "init_y_North_metre",
+            default_value="0.0",
+            description="Initial north position in metres.",
+        ),
+        DeclareLaunchArgument(
+            "init_z_Up_metre",
+            default_value="0.0",
+            description="Initial up position in metres.",
+        ),
+        DeclareLaunchArgument(
+            "init_roll_deg",
+            default_value="0.0",
+            description="Initial roll in degrees.",
+        ),
+        DeclareLaunchArgument(
+            "init_pitch_deg",
+            default_value="0.0",
+            description="Initial pitch in degrees.",
+        ),
+        DeclareLaunchArgument(
+            "init_yaw_deg",
+            default_value="0.0",
+            description="Initial yaw in degrees.",
+        ),
+        DeclareLaunchArgument(
+            "local_pos_source",
+            default_value="0",
+            choices=["0", "1"],
+            description="Position source: 0 for mocap/local position, 1 for GPS/global position.",
+        ),
+        DeclareLaunchArgument(
+            "world_origin_latitude_deg",
+            default_value="39.978861",
+            description="Geographic origin latitude in degrees.",
+        ),
+        DeclareLaunchArgument(
+            "world_origin_longitude_deg",
+            default_value="116.339803",
+            description="Geographic origin longitude in degrees.",
+        ),
+        DeclareLaunchArgument(
+            "world_origin_AMSL_alt_metre",
+            default_value="53.0",
+            description="Geographic origin AMSL altitude in metres.",
+        ),
+        DeclareLaunchArgument(
+            "fss_time_coordinator_endpoint",
+            default_value="ipc:///tmp/fss_time_coordinator.ipc",
+            description="IPC endpoint of the FastSwarmSim time coordinator.",
+        ),
+        DeclareLaunchArgument(
+            "enable_time_coordinator",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start the time coordinator when FastSwarmSim simulation time is enabled.",
+        ),
+        DeclareLaunchArgument(
+            "mavros_type",
+            default_value="disabled",
+            choices=["disabled", "official", "lite"],
+            description="External MAVROS bridge: disabled starts none, official starts MAVROS, lite starts MAVROS Lite.",
+        ),
+        DeclareLaunchArgument(
+            "enable_visualizer",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start the drone visualizer.",
+        ),
+        DeclareLaunchArgument(
+            "enable_rviz",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start RViz.",
+        ),
         DeclareLaunchArgument("rviz_config", default_value=PathJoinSubstitution([
-            FindPackageShare("fss_px4_sim"), "rviz", "single_px4_rotor.rviz"])),
+            FindPackageShare("fss_px4_sim"), "rviz", "single_px4_rotor.rviz"]), description="RViz configuration file used when RViz is enabled."),
 
         SetParameter(name="use_fss_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
         SetParameter(name="use_sim_time", value=LaunchConfiguration("use_fss_sim_time")),
@@ -144,9 +214,8 @@ def generate_launch_description():
                 },
             ],
             condition=IfCondition(PythonExpression([
-                "'", LaunchConfiguration("enable_mavros_node"), "' == 'true' and '",
-                LaunchConfiguration("px4.mavlink_transport"), "' == 'udp' and '",
-                LaunchConfiguration("mavros_node_type"), "' == 'lite'",
+                "'", LaunchConfiguration("mavros_type"), "' == 'lite' and '",
+                LaunchConfiguration("px4.mavlink_transport"), "' == 'udp'",
             ])),
         ),
         ### Official MAVROS node over UDP
@@ -166,9 +235,8 @@ def generate_launch_description():
                 },
             ],
             condition=IfCondition(PythonExpression([
-                "'", LaunchConfiguration("enable_mavros_node"), "' == 'true' and '",
-                LaunchConfiguration("px4.mavlink_transport"), "' == 'udp' and '",
-                LaunchConfiguration("mavros_node_type"), "' == 'official'",
+                "'", LaunchConfiguration("mavros_type"), "' == 'official' and '",
+                LaunchConfiguration("px4.mavlink_transport"), "' == 'udp'",
             ])),
         ),
         ### PX4 sitl
@@ -193,7 +261,7 @@ def generate_launch_description():
                 "MAV_COMP_ID": LaunchConfiguration("mav_comp_id"),
                 "local_pos_source": LaunchConfiguration("local_pos_source"),
                 "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"),
+                "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"), # python only has float (float64 = double precision), so it is safe to use float for latitude/longitude
                 "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
                 "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),
                 },
