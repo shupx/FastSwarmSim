@@ -18,11 +18,12 @@ public:
   explicit SysStatus(MavrosLite & core)
   : Module(core)
   {
-    const auto qos = rclcpp::SensorDataQoS();
-    state_pub_ = core.create_publisher<mavros_msgs::msg::State>("state", qos);
-    sys_pub_ = core.create_publisher<mavros_msgs::msg::SysStatus>("sys_status", qos);
-    battery_pub_ = core.create_publisher<sensor_msgs::msg::BatteryState>("battery", qos);
-    text_pub_ = core.create_publisher<mavros_msgs::msg::StatusText>("statustext/recv", qos);
+    const auto state_qos = rclcpp::QoS(10).transient_local();
+    const auto sensor_qos = rclcpp::SensorDataQoS();
+    state_pub_ = core.create_publisher<mavros_msgs::msg::State>("state", state_qos);
+    sys_pub_ = core.create_publisher<mavros_msgs::msg::SysStatus>("sys_status", state_qos);
+    battery_pub_ = core.create_publisher<sensor_msgs::msg::BatteryState>("battery", sensor_qos);
+    text_pub_ = core.create_publisher<mavros_msgs::msg::StatusText>("statustext/recv", sensor_qos);
     mode_srv_ = core.create_service<mavros_msgs::srv::SetMode>("set_mode",
       [this](const std::shared_ptr<rmw_request_id_t>,
         mavros_msgs::srv::SetMode::Request::SharedPtr request,

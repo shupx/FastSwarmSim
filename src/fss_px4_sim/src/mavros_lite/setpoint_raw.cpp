@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include <mavros/frame_tf.hpp>
 #include <mavros_msgs/msg/attitude_target.hpp>
@@ -19,7 +20,8 @@ public:
   explicit SetpointRaw(MavrosLite & core)
   : Module(core)
   {
-    thrust_scaling_ = core.declare_parameter<double>("setpoint_raw.thrust_scaling", 1.0);
+    thrust_scaling_ = core.declare_parameter<double>(
+      "setpoint_raw.thrust_scaling", std::numeric_limits<double>::quiet_NaN());
     auto qos = rclcpp::SensorDataQoS();
     local_pub_ = core.create_publisher<mavros_msgs::msg::PositionTarget>(
       "setpoint_raw/target_local", qos);
@@ -152,6 +154,17 @@ private:
 
   void send_attitude(const mavros_msgs::msg::AttitudeTarget & input)
   {
+    if (input.thrust != 0.0 && std::isnan(thrust_scaling_)) {
+      RCLCPP_ERROR_THROTTLE(
+        core_.logger(), *core_.clock(), 5000,
+        "Received thrust without setpoint_raw.thrust_scaling; actuation is ignored");
+      return;
+    }
+
+    if (std::isnan(thrust_scaling_)) {
+      thrust_scaling_ = 1.0;
+    }
+
     const auto orientation = ftf::transform_orientation_enu_ned(
       ftf::transform_orientation_baselink_aircraft(ftf::to_eigen(input.orientation)));
     const auto rate = ftf::transform_frame_baselink_aircraft(ftf::to_eigen(input.body_rate));
