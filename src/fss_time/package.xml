@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>fss_time</name>
-  <version>0.2.0</version>
-  <description>ZeroMQ based conservative simulation time for FastSwarmSim.</description>
+  <version>0.1.0</version>
+  <description>ZeroMQ based conservative lock-step simulation time for FastSwarmSim.</description>
   <maintainer email="shupeixuan@qq.com">Peixuan Shu</maintainer>
   <license>BSD-3-Clause</license>
 
