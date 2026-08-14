@@ -16,6 +16,7 @@ find_package(mavros_msgs REQUIRED)
 find_package(mavros REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
@@ -76,6 +77,7 @@ add_library(fss_px4_core
   ${PX4_CORE_DIR}/px4_modules/mavlink/mavlink_streamer.cpp
   ${PX4_CORE_DIR}/px4_modules/mavlink/mavlink_receiver.cpp
 )
+set_target_properties(fss_px4_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(fss_px4_core PUBLIC
   include
   ${PX4_CORE_DIR}
@@ -95,28 +97,45 @@ ament_target_dependencies(fss_px4_core
   tf2_geometry_msgs
 )
 
-add_executable(perfect_mavros_quadrotor_sim_node src/perfect_mavros_quadrotor_sim_node.cpp)
-ament_target_dependencies(perfect_mavros_quadrotor_sim_node
-  geometry_msgs
+add_library(fss_px4_sim_components SHARED
+  src/px4_rotor_sim_node.cpp
+  src/drone_visualizer_node.cpp
+  src/perfect_mavros_quadrotor_sim_node.cpp
+  src/mavros_lite/mavros_lite_component.cpp
+)
+target_include_directories(fss_px4_sim_components PRIVATE include)
+ament_target_dependencies(fss_px4_sim_components
   fss_time
+  geometry_msgs
   mavros_msgs
   nav_msgs
   rclcpp
+  rclcpp_components
+  sensor_msgs
   tf2
   tf2_geometry_msgs
+  tf2_ros
+  visualization_msgs
 )
-
-add_executable(px4_rotor_sim_node src/px4_rotor_sim_node.cpp)
-ament_target_dependencies(px4_rotor_sim_node
-  fss_time geographic_msgs geometry_msgs mavros_msgs nav_msgs rclcpp sensor_msgs std_msgs tf2 tf2_geometry_msgs
+target_link_libraries(fss_px4_sim_components fss_px4_core fss_mavros_lite_udp)
+rclcpp_components_register_node(fss_px4_sim_components
+  PLUGIN "fss_px4_sim::MavrosPx4QuadrotorSim"
+  EXECUTABLE px4_rotor_sim_node
+  EXECUTOR MultiThreadedExecutor
 )
-target_link_libraries(px4_rotor_sim_node fss_px4_core)
-
-add_executable(px4_rotor_visualizer_node src/drone_visualizer_node.cpp)
-ament_target_dependencies(px4_rotor_visualizer_node
-  geometry_msgs mavros_msgs nav_msgs rclcpp sensor_msgs tf2_ros visualization_msgs
+rclcpp_components_register_nodes(fss_px4_sim_components
+  "fss_px4_sim::mavros_lite::MavrosLiteUdp"
 )
-target_link_libraries(px4_rotor_visualizer_node fss_px4_core)
+rclcpp_components_register_node(fss_px4_sim_components
+  PLUGIN "fss_px4_sim::DroneVisualizer"
+  EXECUTABLE px4_rotor_visualizer_node
+  EXECUTOR SingleThreadedExecutor
+)
+rclcpp_components_register_node(fss_px4_sim_components
+  PLUGIN "fss_px4_sim::PerfectMavrosDrone"
+  EXECUTABLE perfect_mavros_quadrotor_sim_node
+  EXECUTOR SingleThreadedExecutor
+)
 
 add_executable(mavros_lite_node src/mavros_lite/main.cpp)
 target_include_directories(mavros_lite_node PRIVATE include)
@@ -127,11 +146,13 @@ target_link_libraries(mavros_lite_node fss_mavros_lite fss_mavros_lite_udp)
 install(TARGETS
   fss_mavros_lite
   fss_mavros_lite_udp
-  px4_rotor_sim_node
-  perfect_mavros_quadrotor_sim_node
-  px4_rotor_visualizer_node
   mavros_lite_node
   EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+install(TARGETS fss_px4_sim_components
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -143,7 +164,7 @@ install(FILES MAVROS_LITE.md DESTINATION share/${PROJECT_NAME})
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  geometry_msgs mavros mavros_msgs nav_msgs rclcpp sensor_msgs std_msgs tf2 tf2_eigen
+  geometry_msgs mavros mavros_msgs nav_msgs rclcpp rclcpp_components sensor_msgs std_msgs tf2 tf2_eigen
   tf2_geometry_msgs
 )
 

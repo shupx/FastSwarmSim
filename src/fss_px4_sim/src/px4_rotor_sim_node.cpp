@@ -16,6 +16,7 @@
  * 
  */
 
+#include <atomic>
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -27,21 +28,21 @@
 #include "fss_px4_sim/px4_sitl.hpp"
 #include "fss_px4_sim/quadrotor_dynamics.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_components/register_node_macro.hpp"
 
-namespace
+namespace fss_px4_sim
 {
 using MavrosQuadSimulator::Dynamics;
 using MavrosQuadSimulator::PX4SITL;
-}
 
 // Modified by Peixuan Shu: one node owns the PX4 runtime and physics for
 // one vehicle; MAVROS communicates directly with PX4SITL over UDP.
 class MavrosPx4QuadrotorSim final : public rclcpp::Node
 {
 public:
-  MavrosPx4QuadrotorSim()
+  explicit MavrosPx4QuadrotorSim(rclcpp::NodeOptions options)
   : Node("px4_rotor_sim_node",
-      rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true))
+      options.automatically_declare_parameters_from_overrides(true))
   {
     const auto init_x = parameter("init_x_East_metre", 0.0);
     const auto init_y = parameter("init_y_North_metre", 0.0);
@@ -79,8 +80,19 @@ public:
         }
       });
     }
+
+    simulation_thread_ = std::thread(&MavrosPx4QuadrotorSim::run, this);
   }
 
+  ~MavrosPx4QuadrotorSim() override
+  {
+    running_ = false;
+    if (simulation_thread_.joinable()) {
+      simulation_thread_.join();
+    }
+  }
+
+private:
   void run()
   {
     if (parameter("use_fss_sim_time", false)) {
@@ -89,7 +101,7 @@ public:
     }
     fss_time::Rate rate(*this, 100.0);
     double last_time = now().seconds();
-    while (rclcpp::ok()) {
+    while (running_ && rclcpp::ok()) {
       const auto stamp = now();
       const double current_time = stamp.seconds();
       if (current_time < last_time) {
@@ -103,7 +115,6 @@ public:
     }
   }
 
-private:
   template<typename T>
   T parameter(const std::string & name, const T & default_value)
   {
@@ -114,42 +125,10 @@ private:
   std::shared_ptr<Dynamics> dynamics_;
   std::shared_ptr<PX4SITL> px4_sitl_;
   std::shared_ptr<fss_px4_sim::mavros_lite::MavrosLite> mavros_lite_;
-
-public:
-  std::shared_ptr<fss_px4_sim::mavros_lite::MavrosLite> mavros_lite() const
-  {
-    return mavros_lite_;
-  }
+  std::atomic_bool running_{true};
+  std::thread simulation_thread_;
 };
 
-int main(int argc, char ** argv)
-{
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<MavrosPx4QuadrotorSim>();
+}  // namespace fss_px4_sim
 
-  std::thread spin_thread([node]() {
-    if (node->mavros_lite()) {
-      // Some MAVROS Lite plugin services synchronously wait for MAVLink replies.
-      // Keep a second executor thread available for the reply callbacks.
-      const auto executor_threads = std::clamp(std::thread::hardware_concurrency(), 2u, 3u);
-      rclcpp::executors::MultiThreadedExecutor executor(
-        rclcpp::ExecutorOptions(), executor_threads);
-      executor.add_node(node);
-      executor.spin();
-    } else {
-      rclcpp::executors::SingleThreadedExecutor executor;
-      executor.add_node(node);
-      executor.spin();
-    }
-  });
-
-  node->run(); // main loop controlled by fss_time::Rate to allow synchronization with other nodes in the simulation.
-
-  rclcpp::shutdown();
-
-  if (spin_thread.joinable()) {
-    spin_thread.join();
-  }
-
-  return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(fss_px4_sim::MavrosPx4QuadrotorSim)

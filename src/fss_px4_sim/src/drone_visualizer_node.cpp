@@ -13,6 +13,7 @@
 #include "nav_msgs/msg/path.hpp"
 #include "rclcpp/create_timer.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_components/register_node_macro.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "tf2_ros/transform_broadcaster.h"
@@ -20,11 +21,14 @@
 
 #include "geo/geo.h" // from fss_px4_sim px4_core
 
+namespace fss_px4_sim
+{
+
 class DroneVisualizer : public rclcpp::Node
 {
 public:
-  DroneVisualizer()
-  : Node("px4_rotor_visualizer_node")
+  explicit DroneVisualizer(const rclcpp::NodeOptions & options)
+  : Node("px4_rotor_visualizer_node", options)
   {
     max_frequency_ = declare_parameter<double>("visualize_max_freq", 20.0);
     history_seconds_ = declare_parameter<double>("visualize_path_time", 30.0);
@@ -188,10 +192,6 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
 };
 
-int main(int argc, char ** argv)
-{
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<DroneVisualizer>());
-  rclcpp::shutdown();
-  return 0;
-}
+}  // namespace fss_px4_sim
+
+RCLCPP_COMPONENTS_REGISTER_NODE(fss_px4_sim::DroneVisualizer)

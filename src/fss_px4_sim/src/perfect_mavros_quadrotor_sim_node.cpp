@@ -1,5 +1,6 @@
 #include <cmath>
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -14,15 +15,19 @@
 #include "mavros_msgs/srv/set_mode.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_components/register_node_macro.hpp"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
+namespace fss_px4_sim
+{
+
 class PerfectMavrosDrone : public rclcpp::Node
 {
 public:
-  PerfectMavrosDrone()
-  : Node("perfect_mavros_quadrotor_sim")
+  explicit PerfectMavrosDrone(const rclcpp::NodeOptions & options)
+  : Node("perfect_mavros_quadrotor_sim", options)
   {
     pose_publish_rate_ = declare_parameter<double>("pose_publish_rate", 30.0);
     velocity_publish_rate_ = declare_parameter<double>("velocity_publish_rate", 30.0);
@@ -75,12 +80,22 @@ public:
     last_state_publish_ = now();
 
     RCLCPP_INFO(get_logger(), "Perfect MAVROS drone ready on relative namespace '%s'", get_namespace());
+    simulation_thread_ = std::thread(&PerfectMavrosDrone::run, this);
   }
 
+  ~PerfectMavrosDrone() override
+  {
+    running_ = false;
+    if (simulation_thread_.joinable()) {
+      simulation_thread_.join();
+    }
+  }
+
+private:
   void run()
   {
     fss_time::Rate rate(*this, 100.0);
-    while (rclcpp::ok()) {
+    while (running_ && rclcpp::ok()) {
       const auto stamp = now();
 
       {
@@ -92,7 +107,6 @@ public:
     }
   }
 
-private:
   void initialize_state(double x, double y, double z, double yaw)
   {
     current_pose_.header.frame_id = "map";
@@ -266,23 +280,10 @@ private:
   rclcpp::Time last_velocity_publish_{0, 0, RCL_ROS_TIME};
   rclcpp::Time last_odom_publish_{0, 0, RCL_ROS_TIME};
   rclcpp::Time last_state_publish_{0, 0, RCL_ROS_TIME};
+  std::atomic_bool running_{true};
+  std::thread simulation_thread_;
 };
 
-int main(int argc, char ** argv)
-{
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<PerfectMavrosDrone>();
+}  // namespace fss_px4_sim
 
-  std::thread spin_thread([node]() {
-    rclcpp::spin(node);
-  });
-
-  node->run();
-  
-  rclcpp::shutdown();
-  if (spin_thread.joinable()) {
-    spin_thread.join();
-  }
-
-  return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(fss_px4_sim::PerfectMavrosDrone)

@@ -81,9 +81,9 @@ private:
       return;
     }
 
-    if (local_pc_pub_->get_subscription_count() == 0) {
-      return;
-    }
+    // if (local_pc_pub_->get_subscription_count() == 0) {
+    //   return;
+    // }
 
     try {
       pcl::PointCloud<marsim::PointType>::Ptr local_cloud(new pcl::PointCloud<marsim::PointType>);
