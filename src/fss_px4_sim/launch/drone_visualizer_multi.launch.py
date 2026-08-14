@@ -24,6 +24,10 @@ def make_visualizers(context):
                     launch_arguments={
                         "namespace": f"uav{index}",
                         "use_sim_time": use_sim_time,
+                        "visualize_max_freq": LaunchConfiguration("visualize_max_freq"),
+                        "enable_history_path": LaunchConfiguration("enable_history_path"),
+                        "visualize_path_time": LaunchConfiguration("visualize_path_time"),
+                        "vis.color": LaunchConfiguration("vis.color"),
                         "local_pos_source": LaunchConfiguration("local_pos_source"),
                         "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"),
                         "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
@@ -49,6 +53,28 @@ def generate_launch_description():
             default_value="false",
             choices=["true", "false"],
             description="Use ROS simulation time.",
+        ),
+        DeclareLaunchArgument(
+            "visualize_max_freq",
+            default_value="20.0",
+            description="Maximum visualization update frequency in Hz.",
+        ),
+        DeclareLaunchArgument(
+            "enable_history_path",
+            default_value="true",
+            choices=["true", "false"],
+            description="Publish the vehicle history path.",
+        ),
+        DeclareLaunchArgument(
+            "visualize_path_time",
+            default_value="30.0",
+            description="History path duration in seconds.",
+        ),
+        DeclareLaunchArgument(
+            "vis.color",
+            default_value="red",
+            choices=["red", "green", "blue", "grey"],
+            description="Vehicle color used to select the Iris URDF model.",
         ),
         DeclareLaunchArgument(
             "local_pos_source",

@@ -7,7 +7,10 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    default_urdf = get_package_share_directory("fss_px4_sim") + "/model/iris.urdf"
+    model_directory = get_package_share_directory("fss_px4_sim") + "/model"
+    color_urdf_model_path = PythonExpression([
+        "'", model_directory, "/iris_' + '", LaunchConfiguration("vis.color"), "' + '.urdf'",
+    ])
     return LaunchDescription([
         SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
         GroupAction(
@@ -39,6 +42,17 @@ def generate_launch_description():
                 "visualize_path_time",
                 default_value="30.0",
                 description="History path duration in seconds.",
+            ),
+            DeclareLaunchArgument(
+                "vis.color",
+                default_value="red",
+                choices=["red", "green", "blue", "grey"],
+                description="Vehicle color used to select the Iris URDF model.",
+            ),
+            DeclareLaunchArgument(
+                "urdf_model_path",
+                default_value=color_urdf_model_path,
+                description="Path to the vehicle URDF model.",
             ),
             DeclareLaunchArgument(
                 "visualize_tf_frame",
@@ -103,12 +117,6 @@ def generate_launch_description():
                 default_value="53.0",
                 description="Geographic origin AMSL altitude in metres.",
             ),
-            DeclareLaunchArgument(
-                "urdf_model_path",
-                default_value=default_urdf,
-                description="Path to the vehicle URDF model.",
-            ),
-
             SetParameter(name="use_sim_time", value=LaunchConfiguration("use_sim_time")),
             GroupAction(
                 scoped=True, # specify the PushRosNamespace scope

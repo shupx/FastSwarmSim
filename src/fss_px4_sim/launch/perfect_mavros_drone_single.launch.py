@@ -56,6 +56,28 @@ def generate_launch_description():
             description="Start the drone visualizer.",
         ),
         DeclareLaunchArgument(
+            "vis.visualize_max_freq",
+            default_value="20.0",
+            description="Maximum visualization update frequency in Hz.",
+        ),
+        DeclareLaunchArgument(
+            "vis.enable_history_path",
+            default_value="true",
+            choices=["true", "false"],
+            description="Publish the vehicle history path.",
+        ),
+        DeclareLaunchArgument(
+            "vis.visualize_path_time",
+            default_value="30.0",
+            description="History path duration in seconds.",
+        ),
+        DeclareLaunchArgument(
+            "vis.color",
+            default_value="red",
+            choices=["red", "green", "blue", "grey"],
+            description="Vehicle color used to select the Iris URDF model.",
+        ),
+        DeclareLaunchArgument(
             "enable_rviz",
             default_value="true",
             choices=["true", "false"],
@@ -98,6 +120,10 @@ def generate_launch_description():
                     launch_arguments={
                         "namespace": namespace,
                         "use_sim_time": LaunchConfiguration("use_fss_sim_time"),
+                        "visualize_max_freq": LaunchConfiguration("vis.visualize_max_freq"),
+                        "enable_history_path": LaunchConfiguration("vis.enable_history_path"),
+                        "visualize_path_time": LaunchConfiguration("vis.visualize_path_time"),
+                        "vis.color": LaunchConfiguration("vis.color"),
                     }.items(),
                 ),
             ],
