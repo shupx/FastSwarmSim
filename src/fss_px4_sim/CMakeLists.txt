@@ -123,8 +123,10 @@ rclcpp_components_register_node(fss_px4_sim_components
   EXECUTABLE px4_rotor_sim_node
   EXECUTOR MultiThreadedExecutor
 )
-rclcpp_components_register_nodes(fss_px4_sim_components
-  "fss_px4_sim::mavros_lite::MavrosLiteUdp"
+rclcpp_components_register_node(fss_px4_sim_components
+  PLUGIN "fss_px4_sim::mavros_lite::MavrosLiteUdp"
+  EXECUTABLE mavros_lite_node
+  EXECUTOR SingleThreadedExecutor
 )
 rclcpp_components_register_node(fss_px4_sim_components
   PLUGIN "fss_px4_sim::DroneVisualizer"
@@ -137,16 +139,9 @@ rclcpp_components_register_node(fss_px4_sim_components
   EXECUTOR SingleThreadedExecutor
 )
 
-add_executable(mavros_lite_node src/mavros_lite/main.cpp)
-target_include_directories(mavros_lite_node PRIVATE include)
-target_compile_options(mavros_lite_node PRIVATE -Wno-address-of-packed-member -Wno-pedantic)
-ament_target_dependencies(mavros_lite_node rclcpp)
-target_link_libraries(mavros_lite_node fss_mavros_lite fss_mavros_lite_udp)
-
 install(TARGETS
   fss_mavros_lite
   fss_mavros_lite_udp
-  mavros_lite_node
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

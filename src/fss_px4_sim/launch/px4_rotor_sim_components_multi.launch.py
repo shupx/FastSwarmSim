@@ -190,6 +190,7 @@ def make_drones(context):
                 plugin="fss_px4_sim::MavrosPx4QuadrotorSim",
                 name="px4_rotor_sim_node",
                 namespace=namespace,
+                extra_arguments=[{"use_intra_process_comms": True}],
                 parameters=[
                     px4_parameters,
                     {
@@ -221,6 +222,7 @@ def make_drones(context):
                     plugin="fss_px4_sim::mavros_lite::MavrosLiteUdp",
                     name="mavros_lite_node",
                     namespace=f"{namespace}/mavros",
+                    extra_arguments=[{"use_intra_process_comms": True}],
                     parameters=[{
                         "udp.bind_port": mavlink_remote_port,
                         "target_system": mav_sys_id,
@@ -271,6 +273,7 @@ def make_drones(context):
                     plugin="fss_px4_sim::DroneVisualizer",
                     name="px4_rotor_visualizer_node",
                     namespace=namespace,
+                    extra_arguments=[{"use_intra_process_comms": True}],
                     parameters=[{
                         "visualize_max_freq": visualize_max_freq,
                         "enable_history_path": enable_history_path,

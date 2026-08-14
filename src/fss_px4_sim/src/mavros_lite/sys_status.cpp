@@ -20,8 +20,12 @@ public:
   {
     const auto state_qos = rclcpp::QoS(10).transient_local();
     const auto sensor_qos = rclcpp::SensorDataQoS();
-    state_pub_ = core.create_publisher<mavros_msgs::msg::State>("state", state_qos);
-    sys_pub_ = core.create_publisher<mavros_msgs::msg::SysStatus>("sys_status", state_qos);
+    rclcpp::PublisherOptions durable_publisher_options;
+    durable_publisher_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+    state_pub_ = core.create_publisher<mavros_msgs::msg::State>(
+      "state", state_qos, durable_publisher_options);
+    sys_pub_ = core.create_publisher<mavros_msgs::msg::SysStatus>(
+      "sys_status", state_qos, durable_publisher_options);
     battery_pub_ = core.create_publisher<sensor_msgs::msg::BatteryState>("battery", sensor_qos);
     text_pub_ = core.create_publisher<mavros_msgs::msg::StatusText>("statustext/recv", sensor_qos);
     mode_srv_ = core.create_service<mavros_msgs::srv::SetMode>("set_mode",

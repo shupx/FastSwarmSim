@@ -69,9 +69,14 @@ public:
         gps_y_north_ = north;
         have_gps_ = true;
       });
-    joints_pub_ = create_publisher<sensor_msgs::msg::JointState>("visualizer/joint_states", rclcpp::QoS(1).transient_local());
-    path_pub_ = create_publisher<nav_msgs::msg::Path>("visualizer/history_path", rclcpp::QoS(1).transient_local());
-    marker_pub_ = create_publisher<visualization_msgs::msg::Marker>("visualizer/marker_name", rclcpp::QoS(1).transient_local());
+    rclcpp::PublisherOptions durable_publisher_options;
+    durable_publisher_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+    joints_pub_ = create_publisher<sensor_msgs::msg::JointState>(
+      "visualizer/joint_states", rclcpp::QoS(1).transient_local(), durable_publisher_options);
+    path_pub_ = create_publisher<nav_msgs::msg::Path>(
+      "visualizer/history_path", rclcpp::QoS(1).transient_local(), durable_publisher_options);
+    marker_pub_ = create_publisher<visualization_msgs::msg::Marker>(
+      "visualizer/marker_name", rclcpp::QoS(1).transient_local(), durable_publisher_options);
     switch_source_srv_ = create_service<mavros_msgs::srv::CommandAck>(
       "visualizer/switch_visualize_pose_source",
       [this](const std::shared_ptr<mavros_msgs::srv::CommandAck::Request> request,

@@ -23,11 +23,20 @@
 namespace fss_px4_sim
 {
 
+namespace
+{
+rclcpp::NodeOptions enable_intra_process(rclcpp::NodeOptions options)
+{
+  options.use_intra_process_comms(true);
+  return options;
+}
+}  // namespace
+
 class PerfectMavrosDrone : public rclcpp::Node
 {
 public:
   explicit PerfectMavrosDrone(const rclcpp::NodeOptions & options)
-  : Node("perfect_mavros_quadrotor_sim", options)
+  : Node("perfect_mavros_quadrotor_sim", enable_intra_process(options))
   {
     pose_publish_rate_ = declare_parameter<double>("pose_publish_rate", 30.0);
     velocity_publish_rate_ = declare_parameter<double>("velocity_publish_rate", 30.0);
