@@ -126,7 +126,7 @@ rclcpp_components_register_node(fss_px4_sim_components
 rclcpp_components_register_node(fss_px4_sim_components
   PLUGIN "fss_px4_sim::mavros_lite::MavrosLiteUdp"
   EXECUTABLE mavros_lite_node
-  EXECUTOR SingleThreadedExecutor
+  EXECUTOR MultiThreadedExecutor
 )
 rclcpp_components_register_node(fss_px4_sim_components
   PLUGIN "fss_px4_sim::DroneVisualizer"

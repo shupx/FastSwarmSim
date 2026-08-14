@@ -175,13 +175,17 @@ def make_drones(context):
     mavros_parameters = str(package_share / "config" / "mavros_official_plugins.yaml")
     robot_description = (package_share / "model" / f"iris_{color}.urdf").read_text()
 
-    components = []
+    drone_containers = []
     external_mavros_nodes = []
+    container_parameters = []
+    if executor_threads > 0:
+        container_parameters.append({"thread_num": executor_threads})
     for index in range(1, count + 1):
         namespace = f"uav{index}"
         mav_sys_id = index
         mav_comp_id = 1
         mavlink_remote_port = 24540 + index - 1
+        components = []
 
         ### PX4 sitl
         components.append(
@@ -216,13 +220,13 @@ def make_drones(context):
 
         ### MAVROS Lite node over UDP
         if mavros_type == "lite" and mavlink_transport == "udp":
-            components.append(
-                ComposableNode(
+            external_mavros_nodes.append(
+                Node(
                     package="fss_px4_sim",
-                    plugin="fss_px4_sim::mavros_lite::MavrosLiteUdp",
+                    executable="mavros_lite_node",
                     name="mavros_lite_node",
                     namespace=f"{namespace}/mavros",
-                    extra_arguments=[{"use_intra_process_comms": True}],
+                    output="screen",
                     parameters=[{
                         "udp.bind_port": mavlink_remote_port,
                         "target_system": mav_sys_id,
@@ -294,17 +298,17 @@ def make_drones(context):
                 ),
             ])
 
-    ### Composable node container shared by all vehicles
-    container_parameters = []
-    if executor_threads > 0:
-        container_parameters.append({"thread_num": executor_threads})
-    container = ComposableNodeContainer(
-        package="rclcpp_components",
-        executable="component_container_mt",
-        name="px4_rotor_sim_container",
-        namespace="",
-        output="screen",
-        parameters=container_parameters,
-        composable_node_descriptions=components,
-    )
-    return [container, *external_mavros_nodes]
+        ### Composable node container for this vehicle
+        drone_containers.append(
+            ComposableNodeContainer(
+                package="rclcpp_components",
+                executable="component_container_mt",
+                name="px4_rotor_sim_container",
+                namespace=namespace,
+                output="screen",
+                parameters=container_parameters,
+                composable_node_descriptions=components,
+            )
+        )
+
+    return [*drone_containers, *external_mavros_nodes]
