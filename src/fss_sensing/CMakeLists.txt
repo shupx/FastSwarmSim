@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(fss_time REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(PCL REQUIRED)
@@ -32,6 +33,7 @@ target_include_directories(local_pointcloud_sim_node PRIVATE
 )
 ament_target_dependencies(local_pointcloud_sim_node
   ament_index_cpp
+  fss_time
   geometry_msgs
   nav_msgs
   pcl_conversions

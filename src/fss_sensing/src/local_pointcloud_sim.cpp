@@ -11,6 +11,7 @@
 
 #include "ament_index_cpp/get_package_share_directory.hpp"
 #include "fss_sensing/local_pointcloud_sim_config.hpp"
+#include "fss_time/executors.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "marsim_render/marsim_render.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -47,20 +48,21 @@ public:
     };
     render_ptr_ = std::make_shared<marsim::MarsimRender>(config_path, std::move(resources));
 
+    const auto sensor_qos = rclcpp::SensorDataQoS();
     if (config_.use_odom) {
       odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
         config_.odom_topic,
-        rclcpp::QoS(10),
+        sensor_qos,
         [this](const nav_msgs::msg::Odometry::SharedPtr msg) { odom_callback(msg); });
     } else {
       pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
         config_.pose_topic,
-        rclcpp::QoS(10),
+        sensor_qos,
         [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) { pose_callback(msg); });
     }
 
     local_pc_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
-      config_.local_pc_topic, rclcpp::QoS(10));
+      config_.local_pc_topic, sensor_qos);
     global_pc_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
       config_.global_pc_topic, rclcpp::QoS(1).transient_local());
 
@@ -177,7 +179,7 @@ private:
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<fss_sensing::LocalPointCloudSimulator>());
+  fss_time::spin(std::make_shared<fss_sensing::LocalPointCloudSimulator>());
   rclcpp::shutdown();
   return 0;
 }

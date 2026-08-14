@@ -32,7 +32,6 @@ def make_drones(context):
                         "init_x": f"{(index - 1) % drones_per_row:.1f}",
                         "init_y": f"{(index - 1) // drones_per_row:.1f}",
                         "use_fss_sim_time": LaunchConfiguration("use_fss_sim_time"),
-                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
                         "enable_visualizer": LaunchConfiguration("enable_visualizer"),
                         "enable_rviz": "false",
                         "enable_time_coordinator": "false",
@@ -84,11 +83,6 @@ def generate_launch_description():
             description="Use the FastSwarmSim coordinated simulation clock.",
         ),
         DeclareLaunchArgument(
-            "fss_time_coordinator_endpoint",
-            default_value="ipc:///tmp/fss_time_coordinator.ipc",
-            description="IPC endpoint of the FastSwarmSim time coordinator.",
-        ),
-        DeclareLaunchArgument(
             "enable_time_coordinator",
             default_value="true",
             choices=["true", "false"],
@@ -122,7 +116,6 @@ def generate_launch_description():
                         "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
                     ])),
                     launch_arguments={
-                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
                         "publish_clock": "true",
                     }.items(),
                 ),

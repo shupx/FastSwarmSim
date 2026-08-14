@@ -115,11 +115,6 @@ def generate_launch_description():
             description="Geographic origin AMSL altitude in metres.",
         ),
         DeclareLaunchArgument(
-            "fss_time_coordinator_endpoint",
-            default_value="ipc:///tmp/fss_time_coordinator.ipc",
-            description="IPC endpoint of the FastSwarmSim time coordinator.",
-        ),
-        DeclareLaunchArgument(
             "enable_time_coordinator",
             default_value="true",
             choices=["true", "false"],
@@ -163,7 +158,6 @@ def generate_launch_description():
                         "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
                     ])),
                     launch_arguments={
-                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
                         "publish_clock": "true",
                     }.items(),
                 ),
@@ -260,7 +254,6 @@ def generate_launch_description():
                 "MAV_SYS_ID": LaunchConfiguration("mav_sys_id"),
                 "MAV_COMP_ID": LaunchConfiguration("mav_comp_id"),
                 "local_pos_source": LaunchConfiguration("local_pos_source"),
-                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
                 "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"), # python only has float (float64 = double precision), so it is safe to use float for latitude/longitude
                 "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
                 "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),

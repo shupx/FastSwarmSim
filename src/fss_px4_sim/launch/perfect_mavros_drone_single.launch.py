@@ -44,11 +44,6 @@ def generate_launch_description():
             description="Initial yaw in radians.",
         ),
         DeclareLaunchArgument(
-            "fss_time_coordinator_endpoint",
-            default_value="ipc:///tmp/fss_time_coordinator.ipc",
-            description="IPC endpoint of the FastSwarmSim time coordinator.",
-        ),
-        DeclareLaunchArgument(
             "enable_time_coordinator",
             default_value="true",
             choices=["true", "false"],
@@ -85,7 +80,6 @@ def generate_launch_description():
                         "' == 'true' and '", LaunchConfiguration("enable_time_coordinator"), "' == 'true'",
                     ])),
                     launch_arguments={
-                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
                         "publish_clock": "true",
                     }.items(),
                 ),
@@ -131,7 +125,6 @@ def generate_launch_description():
                 "init_y": LaunchConfiguration("init_y"),
                 "init_z": LaunchConfiguration("init_z"),
                 "init_yaw": LaunchConfiguration("init_yaw"),
-                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
             }],
         ),
             ],
