@@ -7,6 +7,7 @@ Panels:
         - /Global Options1
         - /Status1
         - /drone_visualizer1
+        - /local PointCloud1/Topic1
       Splitter Ratio: 0.5
     Tree Height: 549
   - Class: rviz_common/Selection
@@ -26,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: local PointCloud
 Visualization Manager:
   Class: ""
   Displays:
@@ -94,7 +95,7 @@ Visualization Manager:
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Best Effort
-            Value: /uav1/mavros/local_position/odom
+            Value: /mavros/local_position/odom
           Value: false
         - Alpha: 1
           Class: rviz_default_plugins/RobotModel
@@ -106,7 +107,7 @@ Visualization Manager:
             Durability Policy: Volatile
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /uav1/visualizer/robot_description
+            Value: /visualizer/robot_description
           Enabled: true
           Links:
             All Links Enabled: true
@@ -151,7 +152,7 @@ Visualization Manager:
             Inertia: false
             Mass: false
           Name: RobotModel
-          TF Prefix: uav1
+          TF Prefix: ""
           Update Interval: 0
           Value: true
           Visual Enabled: true
@@ -159,14 +160,14 @@ Visualization Manager:
           Enabled: true
           Name: Name Marker
           Namespaces:
-            fss_px4_sim: true
+            my_namespace: true
           Topic:
             Depth: 5
             Durability Policy: Volatile
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /uav1/visualizer/marker_name
+            Value: /visualizer/marker_name
           Value: true
         - Alpha: 1
           Buffer Length: 1
@@ -194,10 +195,78 @@ Visualization Manager:
             Filter size: 10
             History Policy: Keep Last
             Reliability Policy: Reliable
-            Value: /uav1/visualizer/history_path
+            Value: /visualizer/history_path
           Value: true
       Enabled: true
       Name: drone_visualizer
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 0
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: local PointCloud
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /cloud_registered
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 0
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: global PointCloud
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /global_pc
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 255; 255; 255
@@ -244,16 +313,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 4.742313385009766
+      Distance: 8.533945083618164
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.9469732046127319
-        Y: 0.39036884903907776
-        Z: 0.49180254340171814
+        X: 0.9983563423156738
+        Y: 0.23921480774879456
+        Z: 0.2948669195175171
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -262,7 +331,7 @@ Visualization Manager:
       Pitch: 0.64479660987854
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.667386054992676
+      Yaw: 4.65738582611084
     Saved: ~
 Window Geometry:
   Displays:
