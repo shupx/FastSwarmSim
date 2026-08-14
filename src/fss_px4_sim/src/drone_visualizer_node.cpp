@@ -69,10 +69,10 @@ public:
         gps_y_north_ = north;
         have_gps_ = true;
       });
+    joints_pub_ = create_publisher<sensor_msgs::msg::JointState>(
+      "visualizer/joint_states", rclcpp::SensorDataQoS());
     rclcpp::PublisherOptions durable_publisher_options;
     durable_publisher_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
-    joints_pub_ = create_publisher<sensor_msgs::msg::JointState>(
-      "visualizer/joint_states", rclcpp::QoS(1).transient_local(), durable_publisher_options);
     path_pub_ = create_publisher<nav_msgs::msg::Path>(
       "visualizer/history_path", rclcpp::QoS(1).transient_local(), durable_publisher_options);
     marker_pub_ = create_publisher<visualization_msgs::msg::Marker>(

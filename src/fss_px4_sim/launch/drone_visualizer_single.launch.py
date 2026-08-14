@@ -1,7 +1,8 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, SetEnvironmentVariable
 from launch.substitutions import Command, LaunchConfiguration, PythonExpression
-from launch_ros.actions import Node, PushRosNamespace, SetParameter
+from launch_ros.actions import ComposableNodeContainer, PushRosNamespace
+from launch_ros.descriptions import ComposableNode
 from launch_ros.parameter_descriptions import ParameterValue
 from ament_index_python.packages import get_package_share_directory
 
@@ -117,44 +118,58 @@ def generate_launch_description():
                 default_value="53.0",
                 description="Geographic origin AMSL altitude in metres.",
             ),
-            SetParameter(name="use_sim_time", value=LaunchConfiguration("use_sim_time")),
             GroupAction(
                 scoped=True, # specify the PushRosNamespace scope
                 actions=[
                 PushRosNamespace(LaunchConfiguration("namespace")),
-                Node(
-                    package="robot_state_publisher", executable="robot_state_publisher",
-                    name="robot_state_publisher", output="screen",
-                    parameters=[{
-                        "robot_description": ParameterValue(
-                            Command(["cat ", LaunchConfiguration("urdf_model_path")]), value_type=str),
-                        # The visualizer emits the namespaced base-link transform.
-                        "frame_prefix": PythonExpression([
-                            "'", LaunchConfiguration("base_link_tf_prefix"),
-                            "' + '/' if '", LaunchConfiguration("base_link_tf_prefix"), "' else ''"]),
-                    }],
-                    namespace="visualizer",
-                ),
-                Node(
-                    package="fss_px4_sim", executable="px4_rotor_visualizer_node",
-                    name="px4_rotor_visualizer_node", output="screen",
-                    parameters=[{
-                        "visualize_max_freq": LaunchConfiguration("visualize_max_freq"),
-                        "enable_history_path": LaunchConfiguration("enable_history_path"),
-                        "visualize_path_time": LaunchConfiguration("visualize_path_time"),
-                        "visualize_tf_frame": LaunchConfiguration("visualize_tf_frame"),
-                        "visualize_marker_name": LaunchConfiguration("visualize_marker_name"),
-                        "base_link_name": LaunchConfiguration("base_link_name"),
-                        "base_link_tf_prefix": LaunchConfiguration("base_link_tf_prefix"),
-                        "rotor_0_joint_name": LaunchConfiguration("rotor_0_joint_name"),
-                        "rotor_1_joint_name": LaunchConfiguration("rotor_1_joint_name"),
-                        "rotor_2_joint_name": LaunchConfiguration("rotor_2_joint_name"),
-                        "rotor_3_joint_name": LaunchConfiguration("rotor_3_joint_name"),
-                        "local_pos_source": LaunchConfiguration("local_pos_source"),
-                        "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"), # python only has float (float64 = double precision), so it is safe to use float for latitude/longitude
-                        "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
-                        "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),
-                    }],
+                # ComposableNodeContainer can decrease process number and thus reduce memory usage and launch time.
+                ComposableNodeContainer(
+                    package="rclcpp_components",
+                    executable="component_container", # single-threaded executor 
+                    name="drone_visualizer_container",
+                    namespace="",
+                    output="screen",
+                    composable_node_descriptions=[
+                        ComposableNode(
+                            package="robot_state_publisher",
+                            plugin="robot_state_publisher::RobotStatePublisher",
+                            name="robot_state_publisher",
+                            namespace="visualizer",
+                            parameters=[{
+                                "use_sim_time": LaunchConfiguration("use_sim_time"),
+                                "robot_description": ParameterValue(
+                                    Command(["cat ", LaunchConfiguration("urdf_model_path")]), value_type=str),
+                                # The visualizer emits the namespaced base-link transform.
+                                "frame_prefix": PythonExpression([
+                                    "'", LaunchConfiguration("base_link_tf_prefix"),
+                                    "' + '/' if '", LaunchConfiguration("base_link_tf_prefix"), "' else ''"]),
+                            }],
+                        ),
+                        ComposableNode(
+                            package="fss_px4_sim",
+                            plugin="fss_px4_sim::DroneVisualizer",
+                            name="px4_rotor_visualizer_node",
+                            extra_arguments=[{"use_intra_process_comms": True}],
+                            parameters=[{
+                                "use_sim_time": LaunchConfiguration("use_sim_time"),
+                                "visualize_max_freq": LaunchConfiguration("visualize_max_freq"),
+                                "enable_history_path": LaunchConfiguration("enable_history_path"),
+                                "visualize_path_time": LaunchConfiguration("visualize_path_time"),
+                                "visualize_tf_frame": LaunchConfiguration("visualize_tf_frame"),
+                                "visualize_marker_name": LaunchConfiguration("visualize_marker_name"),
+                                "base_link_name": LaunchConfiguration("base_link_name"),
+                                "base_link_tf_prefix": LaunchConfiguration("base_link_tf_prefix"),
+                                "rotor_0_joint_name": LaunchConfiguration("rotor_0_joint_name"),
+                                "rotor_1_joint_name": LaunchConfiguration("rotor_1_joint_name"),
+                                "rotor_2_joint_name": LaunchConfiguration("rotor_2_joint_name"),
+                                "rotor_3_joint_name": LaunchConfiguration("rotor_3_joint_name"),
+                                "local_pos_source": LaunchConfiguration("local_pos_source"),
+                                "world_origin_latitude_deg": LaunchConfiguration("world_origin_latitude_deg"), # python only has float (float64 = double precision), so it is safe to use float for latitude/longitude
+                                "world_origin_longitude_deg": LaunchConfiguration("world_origin_longitude_deg"),
+                                "world_origin_AMSL_alt_metre": LaunchConfiguration("world_origin_AMSL_alt_metre"),
+                            }],
+                        ),
+                    ],
                 ),
                 ],
             ),

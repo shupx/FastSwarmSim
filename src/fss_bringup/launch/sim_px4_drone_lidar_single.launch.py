@@ -113,6 +113,7 @@ def generate_launch_description():
             description="RViz configuration file used when RViz is enabled.",
         ),
 
+        # local pointcloud simulator
         GroupAction(
             scoped=True,
             actions=[
@@ -129,6 +130,7 @@ def generate_launch_description():
         GroupAction(
             scoped=True,
             actions=[
+                # perfect MAVROS-compatible drone, if use_perfect_drone is true
                 IncludeLaunchDescription(
                     PythonLaunchDescriptionSource(perfect_drone_launch),
                     condition=IfCondition(use_perfect_drone),
@@ -149,6 +151,7 @@ def generate_launch_description():
                         "enable_rviz": "false",
                     }.items(),
                 ),
+                # PX4 SITL drone, if use_perfect_drone is false
                 IncludeLaunchDescription(
                     PythonLaunchDescriptionSource(px4_drone_launch),
                     condition=IfCondition(PythonExpression([
@@ -171,7 +174,8 @@ def generate_launch_description():
                 ),
             ],
         ),
-
+        
+        # RViz, if enabled
         GroupAction(
             scoped=True,
             actions=[

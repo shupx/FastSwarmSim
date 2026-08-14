@@ -1,3 +1,10 @@
+'''
+This file composes multiple PX4 rotor sim components into a single multi-threaded executor container for each vehicle.
+
+It will decrease the launch time and memory usage when launching 100+ vehicles, 
+but it will also make the real RTF lower because nodes share a single executor thread pool instead of each node having its own executor thread.
+'''
+
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
@@ -300,6 +307,9 @@ def make_drones(context):
 
         ### Composable node container for this vehicle
         drone_containers.append(
+            # ComposableNodeContainer can decrease process number and thus reduce memory usage and launch time.
+            # But all nodes will share a single executor thread pool, 
+            # which may reduce performance at run time.
             ComposableNodeContainer(
                 package="rclcpp_components",
                 executable="component_container_mt",

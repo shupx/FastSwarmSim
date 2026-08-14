@@ -121,12 +121,12 @@ target_link_libraries(fss_px4_sim_components fss_px4_core fss_mavros_lite_udp)
 rclcpp_components_register_node(fss_px4_sim_components
   PLUGIN "fss_px4_sim::MavrosPx4QuadrotorSim"
   EXECUTABLE px4_rotor_sim_node
-  EXECUTOR MultiThreadedExecutor
+  EXECUTOR MultiThreadedExecutor # since may include mavros_lite modules
 )
 rclcpp_components_register_node(fss_px4_sim_components
   PLUGIN "fss_px4_sim::mavros_lite::MavrosLiteUdp"
   EXECUTABLE mavros_lite_node
-  EXECUTOR MultiThreadedExecutor
+  EXECUTOR MultiThreadedExecutor # since mavros_lite may include blocked callbacks
 )
 rclcpp_components_register_node(fss_px4_sim_components
   PLUGIN "fss_px4_sim::DroneVisualizer"
