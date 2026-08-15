@@ -7,7 +7,6 @@ Panels:
         - /Global Options1
         - /Status1
         - /drone_visualizer1
-        - /local PointCloud1/Topic1
       Splitter Ratio: 0.5
     Tree Height: 549
   - Class: rviz_common/Selection
@@ -208,8 +207,8 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz_default_plugins/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color: 220; 138; 221
+      Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
@@ -220,13 +219,13 @@ Visualization Manager:
       Name: local PointCloud
       Position Transformer: XYZ
       Selectable: true
-      Size (Pixels): 3
+      Size (Pixels): 1
       Size (m): 0.009999999776482582
-      Style: Flat Squares
+      Style: Points
       Topic:
-        Depth: 5
+        Depth: 1
         Durability Policy: Volatile
-        Filter size: 10
+        Filter size: 1
         History Policy: Keep Last
         Reliability Policy: Best Effort
         Value: /cloud_registered
@@ -242,8 +241,8 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz_default_plugins/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color: 119; 118; 123
+      Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
@@ -254,15 +253,15 @@ Visualization Manager:
       Name: global PointCloud
       Position Transformer: XYZ
       Selectable: true
-      Size (Pixels): 3
+      Size (Pixels): 1
       Size (m): 0.009999999776482582
-      Style: Flat Squares
+      Style: Points
       Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
+        Depth: 1
+        Durability Policy: Transient Local
+        Filter size: 1
         History Policy: Keep Last
-        Reliability Policy: Best Effort
+        Reliability Policy: Reliable
         Value: /global_pc
       Use Fixed Frame: true
       Use rainbow: true
@@ -313,25 +312,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 8.533945083618164
+      Distance: 16.183238983154297
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.9983563423156738
-        Y: 0.23921480774879456
-        Z: 0.2948669195175171
+        X: 0.9651956558227539
+        Y: 0.7034425735473633
+        Z: 0.16066686809062958
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.64479660987854
+      Pitch: 0.7947965860366821
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.65738582611084
+      Yaw: 4.672402858734131
     Saved: ~
 Window Geometry:
   Displays:
@@ -349,5 +348,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1200
-  X: 1113
-  Y: 297
+  X: 585
+  Y: 309

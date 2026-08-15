@@ -27,7 +27,7 @@ frame_id: "map"
 # ============================================================================
 
 # Point cloud file path (relative to pcd/ directory)
-pcd_name: "random_map_150.pcd"
+pcd_name: "random_map.pcd"
 
 # LiDAR Type
 # UNDEFINED = 0, AVIA = 1, GENERAL_360 = 2, MID_360 = 3

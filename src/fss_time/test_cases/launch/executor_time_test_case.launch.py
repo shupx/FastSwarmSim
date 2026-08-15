@@ -55,7 +55,7 @@ def generate_launch_description():
         SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"), # force rcl log color
         DeclareLaunchArgument(
             "spin.node_count",
-            default_value="1",
+            default_value="10",
             description="Number of fss_spin executor test nodes.",
         ),
         DeclareLaunchArgument(
@@ -100,7 +100,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "coordinator.auto_start",
-            default_value="true",
+            default_value="false",
             choices=["true", "false"],
             description="Automatically start the coordinator.",
         ),
@@ -129,24 +129,27 @@ def generate_launch_description():
         # for all time participants
         SetParameter(name="fss_time_coordinator_endpoint", value=LaunchConfiguration("fss_time_coordinator_endpoint")),
 
-        TimerAction(
-            period=0.2,
+        # Start the time coordinator
+        GroupAction(
+            scoped=True,
             actions=[
-                # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
-                GroupAction(
-                    scoped=True,
-                    actions=[
-                        IncludeLaunchDescription(
-                            PythonLaunchDescriptionSource(time_coordinator_launch),
-                            launch_arguments={
-                                "max_real_time_factor": LaunchConfiguration("coordinator.max_real_time_factor"),
-                                "auto_start": LaunchConfiguration("coordinator.auto_start"),
-                                "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
-                            }.items(),
-                        ),
-                    ],
+                IncludeLaunchDescription(
+                    PythonLaunchDescriptionSource(time_coordinator_launch),
+                    launch_arguments={
+                        "max_real_time_factor": LaunchConfiguration("coordinator.max_real_time_factor"),
+                        "auto_start": LaunchConfiguration("coordinator.auto_start"),
+                        "fss_time_coordinator_endpoint": LaunchConfiguration("fss_time_coordinator_endpoint"),
+                    }.items(),
                 ),
             ],
         ),
-        OpaqueFunction(function=_create_executor_nodes),
+
+        # Start the executor test nodes after a short delay to allow the coordinator to start. Useful when nodes are many.
+        TimerAction(
+            period=0.5,
+            actions=[
+                # Recommended: scope each included launch to isolate its parameters and actions and prevent leakage.
+                OpaqueFunction(function=_create_executor_nodes),
+            ],
+        ),
     ])

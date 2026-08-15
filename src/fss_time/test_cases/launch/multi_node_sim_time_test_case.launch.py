@@ -43,7 +43,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             "test.node_count",
-            default_value="3",
+            default_value="10",
             description="Number of load-test nodes.",
         ),
         DeclareLaunchArgument(
