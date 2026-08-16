@@ -333,11 +333,11 @@ void MulticopterPositionControl::Run()
 		/***************** Added by Peixuan Shu ******************************/
 		if ((time_stamp_now - _time_stamp_last_loop) * 1e-6f < 0.002f && _time_stamp_last_loop!=0)
 		{
-			std::cout << "[MulticopterPositionControl::Run] Warn! loop period is too small and less than 0.002s! time_stamp_now - _time_stamp_last_loop = " << (time_stamp_now - _time_stamp_last_loop) * 1e-6f << " s" << std::endl;
+			std::cout << "[MulticopterPositionControl::Run] Warn! loop period is too small and less than 2ms! time_stamp_now - _time_stamp_last_loop = " << (time_stamp_now - _time_stamp_last_loop) * 1e-3f << " ms" << std::endl;
 		}
 		if ((time_stamp_now - _time_stamp_last_loop) * 1e-6f > 0.04f && _time_stamp_last_loop!=0)
 		{
-			std::cout << "[MulticopterPositionControl::Run] Warn! loop period is too large and large than 0.04s! time_stamp_now - _time_stamp_last_loop = " << (time_stamp_now - _time_stamp_last_loop) * 1e-6f << " s" << std::endl;
+			std::cout << "[MulticopterPositionControl::Run] Warn! loop period is too large and large than 40ms! time_stamp_now - _time_stamp_last_loop = " << (time_stamp_now - _time_stamp_last_loop) * 1e-3f << " ms" << std::endl;
 		}
 		/********************************************************************/
 

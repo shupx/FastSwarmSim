@@ -266,11 +266,11 @@ MulticopterAttitudeControl::Run()
 		/***************** Added by Peixuan Shu ******************************/
 		if ((v_att.timestamp_sample - _last_run) * 1e-6f < 0.0002f && _last_run!=0)
 		{
-			std::cout << "[MulticopterAttitudeControl::Run] Warn! loop period is too small and less than 0.0002s! loop period = " << (v_att.timestamp_sample - _last_run) * 1e-6f << " s" << std::endl;
+			std::cout << "[MulticopterAttitudeControl::Run] Warn! loop period is too small and less than 0.2ms! loop period = " << (v_att.timestamp_sample - _last_run) * 1e-3f << " ms" << std::endl;
 		}
 		if ((v_att.timestamp_sample - _last_run) * 1e-6f > 0.02f && _last_run!=0)
 		{
-			std::cout << "[MulticopterAttitudeControl::Run] Warn! loop period is too large and large than 0.02s! loop period = " << (v_att.timestamp_sample - _last_run) * 1e-6f << " s" << std::endl;
+			std::cout << "[MulticopterAttitudeControl::Run] Warn! loop period is too large and large than 20ms! loop period = " << (v_att.timestamp_sample - _last_run) * 1e-3f << " ms" << std::endl;
 		}
 		/********************************************************************/
 
