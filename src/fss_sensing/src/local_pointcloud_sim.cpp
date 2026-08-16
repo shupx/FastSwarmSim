@@ -73,15 +73,20 @@ public:
 
     t_start_ = now();
     const auto period = std::chrono::duration<double>(1.0 / std::max(1, config_.sensing_rate));
-    local_pc_timer_ = create_wall_timer(
-      std::chrono::duration_cast<std::chrono::nanoseconds>(period),
+    local_pc_timer_ = rclcpp::create_timer(
+      this,
+      this->get_clock(), // use ROS time clock instead of wall time steady clock
+      rclcpp::Duration::from_nanoseconds(std::chrono::duration_cast<std::chrono::nanoseconds>(period).count()),
       [this]() { publish_local_pointcloud(); });
+    // local_pc_timer_ = this->create_timer(
+    //   rclcpp::Duration::from_nanoseconds(std::chrono::duration_cast<std::chrono::nanoseconds>(period).count()),
+    //   [this]() { publish_local_pointcloud(); }); // jazzy+ API in node_impl.hpp
   }
 
 private:
   void publish_local_pointcloud()
   {
-    const auto total_start = std::chrono::steady_clock::now();
+    // const auto total_start = std::chrono::steady_clock::now();
     if (!pose_received_) {
       RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "Waiting for pose or odom input");
       return;
@@ -93,37 +98,37 @@ private:
 
     try {
       pcl::PointCloud<marsim::PointType>::Ptr local_cloud(new pcl::PointCloud<marsim::PointType>);
-      const auto cloud_allocated = std::chrono::steady_clock::now();
+      // const auto cloud_allocated = std::chrono::steady_clock::now();
       render_ptr_->renderOnceInWorld(
         current_position_,
         current_quaternion_,
         (last_pose_time_ - t_start_).seconds(),
         local_cloud);
-      const auto rendered = std::chrono::steady_clock::now();
+      // const auto rendered = std::chrono::steady_clock::now();
 
       sensor_msgs::msg::PointCloud2 pc_msg;
       pcl::toROSMsg(*local_cloud, pc_msg);
-      const auto converted = std::chrono::steady_clock::now();
+      // const auto converted = std::chrono::steady_clock::now();
       pc_msg.header.frame_id = config_.frame_id;
       pc_msg.header.stamp = last_pose_time_;
-      const auto header_set = std::chrono::steady_clock::now();
+      // const auto header_set = std::chrono::steady_clock::now();
       local_pc_pub_->publish(pc_msg);
-      const auto published = std::chrono::steady_clock::now();
+      // const auto published = std::chrono::steady_clock::now();
 
-      const auto elapsed_ms = [](const auto start, const auto end) {
-          return std::chrono::duration<double, std::milli>(end - start).count();
-        };
-      RCLCPP_INFO(
-        get_logger(),
-        "Local point cloud timing: allocate=%.3f ms, render=%.3f ms, "
-        "toROSMsg=%.3f ms, set_header=%.3f ms, publish=%.3f ms, total=%.3f ms, points=%zu",
-        elapsed_ms(total_start, cloud_allocated),
-        elapsed_ms(cloud_allocated, rendered),
-        elapsed_ms(rendered, converted),
-        elapsed_ms(converted, header_set),
-        elapsed_ms(header_set, published),
-        elapsed_ms(total_start, published),
-        local_cloud->size());
+      // const auto elapsed_ms = [](const auto start, const auto end) {
+      //     return std::chrono::duration<double, std::milli>(end - start).count();
+      //   };
+      // RCLCPP_INFO(
+      //   get_logger(),
+      //   "Local point cloud timing: allocate=%.3f ms, render=%.3f ms, "
+      //   "toROSMsg=%.3f ms, set_header=%.3f ms, publish=%.3f ms, total=%.3f ms, points=%zu",
+      //   elapsed_ms(total_start, cloud_allocated),
+      //   elapsed_ms(cloud_allocated, rendered),
+      //   elapsed_ms(rendered, converted),
+      //   elapsed_ms(converted, header_set),
+      //   elapsed_ms(header_set, published),
+      //   elapsed_ms(total_start, published),
+      //   local_cloud->size());
     } catch (const std::exception & e) {
       RCLCPP_ERROR(get_logger(), "Error publishing local point cloud: %s", e.what());
     }
