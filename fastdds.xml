@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <dds xmlns="http://www.eprosima.com">
   <profiles>
+
     <transport_descriptors>
       <transport_descriptor>
-        <transport_id>shm_transport</transport_id>
+        <transport_id>shm_transport_64MB</transport_id>
         <type>SHM</type>
         <segment_size>67108864</segment_size>
+      </transport_descriptor>
+    </transport_descriptors>
+
+    <transport_descriptors>
+      <transport_descriptor>
+        <transport_id>shm_transport_8MB</transport_id>
+        <type>SHM</type>
+        <segment_size>8388608</segment_size> <!-- default is 256KB, too small for pointcloud topics. Every DDS participants (1 per process) preallocates this amount of memory. -->
       </transport_descriptor>
     </transport_descriptors>
 
@@ -14,7 +23,7 @@
       <rtps>
       
         <userTransports>
-          <transport_id>shm_transport</transport_id>
+          <transport_id>shm_transport_8MB</transport_id>
         </userTransports>
         
         <builtin>

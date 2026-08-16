@@ -7,3 +7,5 @@
         </SharedMemory>
     </Domain>
 </CycloneDDS>
+
+<!-- Shared Memory Configuration, need roudi started. Services and transient_local topics have serious problems! NOT recommended for use -->
