@@ -115,6 +115,8 @@ private:
       local_pc_pub_->publish(pc_msg);
       // const auto published = std::chrono::steady_clock::now();
 
+      // std::this_thread::sleep_for(std::chrono::seconds(1)); // for test
+
       // const auto elapsed_ms = [](const auto start, const auto end) {
       //     return std::chrono::duration<double, std::milli>(end - start).count();
       //   };

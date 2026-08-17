@@ -106,6 +106,7 @@ private:
   void update_real_time_request_locked();
   void update_observed_real_time_factor_locked();
   void try_update_clock_locked();
+  bool should_advance(int64_t & output_request_time_ns);
   void advance_time_locked(int64_t target_time_ns);
   void publish_clock_locked();
   void publish_clock(int64_t sim_time_ns);

@@ -103,6 +103,7 @@ private:
     double last_time = now().seconds();
     while (running_ && rclcpp::ok()) {
       const auto stamp = now();
+      // auto t0 = std::chrono::steady_clock::now();
       const double current_time = stamp.seconds();
       if (current_time < last_time) {
         RCLCPP_ERROR(get_logger(), "fss_time moved backwards from %.9f to %.9f", last_time, current_time);
@@ -111,6 +112,11 @@ private:
       px4_sitl_->Run(static_cast<uint64_t>(stamp.nanoseconds() / 1000));
       dynamics_->step(last_time, current_time);
       last_time = current_time;
+
+      // auto t1 = std::chrono::steady_clock::now();
+      // const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+      // RCLCPP_INFO(get_logger(), "PX4 SITL and dynamics step took %ld microseconds", elapsed);
+      
       rate.sleep();
     }
   }

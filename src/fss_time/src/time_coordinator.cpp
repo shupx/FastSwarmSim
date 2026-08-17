@@ -594,7 +594,7 @@ void TimeCoordinator::on_real_time_tick()
       return;
     }
     update_real_time_request_locked();
-    // try_update_clock_locked(); // not needed, as the speed regulator will trigger a clock update on the next tick. Decrease the pub clock frequency.
+    try_update_clock_locked();
   }
 }
 
@@ -628,12 +628,12 @@ void TimeCoordinator::update_real_time_request_locked()
     return;
   }
 
-  const auto base_ns = std::max(real_time_request_ns_, sim_time_ns_);
+  const auto base_ns = real_time_request_ns_; // last real time request 
   if (base_ns >= kInfiniteTimeNs - wall_dt_ns) {
     real_time_request_ns_ = kInfiniteTimeNs;
     return;
   }
-  real_time_request_ns_ = base_ns + wall_dt_ns;
+  real_time_request_ns_ = base_ns + wall_dt_ns; // new real time request 
 }
 
 void TimeCoordinator::update_observed_real_time_factor_locked()
@@ -662,54 +662,91 @@ void TimeCoordinator::update_observed_real_time_factor_locked()
 
 void TimeCoordinator::try_update_clock_locked()
 {
-  if (participants_.empty()) {
-    debug_state_ = DebugState::NoParticipants;
-    return;
+  int64_t request_ns = 0;
+  if (should_advance(request_ns)){
+    advance_time_locked(request_ns);
+    debug_state_ = DebugState::Advanced;
+
+    // Clear the new request flags for participants whose requests have been satisfied.
+    if (!has_parent_coordinator_) {
+      for (auto & entry : participants_) {
+        auto & participant = entry.second;
+        if (participant.request_time_ns <= sim_time_ns_) {
+          participant.has_new_request = false;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * @brief Determine whether the simulation time should be advanced based on participant requests and regulator/real-time constraints.
+ * @param[out] output_request_time_ns The target simulation time to advance to if advancement is needed.
+ * @return true if the simulation time should be advanced, false otherwise.
+ */
+bool TimeCoordinator::should_advance(int64_t & output_request_time_ns)
+{
+  if (!running_) {
+    debug_state_ = DebugState::RequestNotAdvanced;
+    return false; // do not advance if the coordinator is stopped
   }
 
-  int64_t min_request_ns = regulator_request_ns_;
-  if (follows_real_time_ && max_real_time_factor_ >= 1.0) {
-    min_request_ns = std::max(min_request_ns, real_time_request_ns_);
+  if (participants_.empty()) {
+    debug_state_ = DebugState::NoParticipants;
+    return false; // do not advance if there are no participants
   }
+
+  // if follows real time, advance to the real time if it is greater than the current sim time and the regulator request time.
+  if (follows_real_time_) {
+    int64_t max_time_ns_follow_real_time = real_time_request_ns_;
+    if (max_real_time_factor_ < 1.0) {
+      // if max_real_time_factor_ < 1, the request should follow regulator instead of real time, as the sim time is limited by the regulator now.
+      max_time_ns_follow_real_time = std::min(max_time_ns_follow_real_time, regulator_request_ns_);
+    }
+    if (max_time_ns_follow_real_time > sim_time_ns_) {
+      // prepare to advance to real time
+      for (const auto & entry : participants_) {
+        const auto & participant = entry.second;
+        if (!participant.follows_real_time && !participant.has_new_request) {
+          debug_state_ = DebugState::WaitingForParticipant;
+          return false; // do not advance if any participant that does not follow real time has not made a new request
+        }
+      }
+      output_request_time_ns = max_time_ns_follow_real_time;
+      return true; // advance to real time
+    }
+  }
+
+  // get the minimum request time from all participants and the regulator
+  int64_t min_request_ns = regulator_request_ns_;
   bool all_have_new_request = true;
   for (const auto & entry : participants_) {
     const auto & participant = entry.second;
     if (!participant.has_new_request) {
       all_have_new_request = false;
-      break;
+      break; // break if any participant has not made a new request
     }
-    const auto participant_request_ns = follows_real_time_ && participant.follows_real_time ?
-      std::max(real_time_request_ns_, participant.request_time_ns) :
-      participant.request_time_ns;
-    min_request_ns = std::min(min_request_ns, participant_request_ns);
+    min_request_ns = std::min(min_request_ns, participant.request_time_ns);
   }
 
   if (!all_have_new_request) {
     debug_state_ = DebugState::WaitingForParticipant;
-    return;
+    return false; // do not advance if any participant has not made a new request
   }
 
   if (min_request_ns >= kInfiniteTimeNs - speed_regulator_step_ns_) {
     debug_state_ = DebugState::InfiniteRequest;
-    return;
+    return false; // do not advance if the minimum request is infinite or near infinite
   }
 
   if (min_request_ns <= sim_time_ns_) {
     debug_state_ = DebugState::RequestNotAdvanced;
     debug_min_request_ns_ = min_request_ns;
-    return;
+    return false; // do not advance if the minimum request is not greater than the current sim time
   }
 
-  advance_time_locked(min_request_ns);
-  debug_state_ = DebugState::Advanced;
-  if (!has_parent_coordinator_) {
-    for (auto & entry : participants_) {
-      auto & participant = entry.second;
-      if (participant.request_time_ns <= sim_time_ns_) {
-        participant.has_new_request = false;
-      }
-    }
-  }
+  output_request_time_ns = min_request_ns;
+  return true;
 }
 
 void TimeCoordinator::advance_time_locked(int64_t target_time_ns)
@@ -907,7 +944,7 @@ void TimeCoordinator::reset_real_time_timer()
   if (!follows_real_time_) {
     return;
   }
-  int64_t real_time_timer_period_ns = std::max(int64_t(speed_regulator_step_ns_ / 10), int64_t(1e6));  // minimum 1 ms
+  int64_t real_time_timer_period_ns = std::max(int64_t(speed_regulator_step_ns_ / 2), int64_t(1e6));  // minimum 1 ms
   real_time_timer_ = node_.create_wall_timer(
     std::chrono::nanoseconds(real_time_timer_period_ns),
     [this]() {
