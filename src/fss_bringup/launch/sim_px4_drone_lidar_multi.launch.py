@@ -85,7 +85,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             "num_drones",
-            default_value="5",
+            default_value="3",
             description="Number of vehicles to launch.",
         ),
         DeclareLaunchArgument(
@@ -105,7 +105,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "use_perfect_drone",
-            default_value="true",
+            default_value="false",
             choices=["true", "false"],
             description="Use perfect MAVROS-compatible drones instead of PX4 SITL.",
         ),
