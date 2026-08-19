@@ -1,166 +1,99 @@
 # FastSwarmSim
 
-FastSwarmSim 是 `sim_px4_drone` 的 ROS 2 版本原型，用于轻量级多无人机仿真、MAVROS-like 接口测试、局部点云感知仿真，以及分布式逻辑时间同步实验。
+FastSwarmSim (fss) is a lightweight ROS 2 simulator for PX4-compatible multi-rotor vehicles. It combines a streamlined PX4 runtime, MAVROS-compatible ROS interfaces, local LiDAR point-cloud rendering, RViz visualization, and a conservative lock-step simulation clock. The simulator is intended for multi-UAV algorithm development, repeatable simulation-time experiments, and large-scale swarm prototyping.
 
-当前版本已经包含：
+**Performance:**
+On a desktop-class computer with LiDAR simulation disabled, FastSwarmSim can run a single vehicle at up to 100x real time, five vehicles at 50x, ten vehicles at 30x, and one hundred vehicles at 4x. This performance comes from the trimmed PX4 core, lightweight MAVROS modules, and efficient lock-step simulation-time system.
 
-- `fss_time`: HELICS 封装、仿真时间 broker、`/clock` 发布和倍速/暂停控制接口。
-- `fss_px4_sim`: ROS 2 版理想 MAVROS 无人机节点，保留 `mavros/...` 话题和服务命名。
-- `fss_sensing`: ROS 2 版局部点云渲染节点。
-- `marsim_render`: 点云渲染库和示例地图资源。
-- `fss_bringup`: 常用 launch 文件。
+## Packages
 
-完整 trimmed PX4 控制器和动力学栈仍在迁移中；当前 `fss_px4_sim` 先提供 perfect MAVROS drone 作为上层算法和时间同步的验证基线。
+| Package | Purpose |
+| --- | --- |
+| `fss_bringup` | Integrated launch files for complete single- and multi-drone PX4/LiDAR/RViz simulations. |
+| `fss_px4_sim` | PX4-based quadrotor simulation runtime, MAVROS Lite bridge, ideal quadrotor dynamics, MAVROS-compatible perfect-drone baseline, and RViz vehicle visualization. |
+| `fss_sensing` | Local LiDAR point-cloud simulator. It renders the visible cloud from a vehicle pose against a static PCD map through the bundled `marsim_render` library. |
+| `fss_time` | ZeroMQ-based conservative lock-step time coordinator, `/clock` publisher, simulation-speed controls, and C++ helpers/executors for time-synchronized ROS 2 nodes. **NOT only for FastSwarmSim, but for all types of ROS nodes**  |
+| `fss_time_interfaces` | ROS 2 message and service definitions used by `fss_time`, including simulation clock control interfaces. |
 
-## 安装
+The standard PX4 simulation uses a trimmed PX4 v1.13.3 control stack with MAVROS Lite. For algorithm tests that do not require PX4 control or vehicle dynamics, the perfect-drone launch provides immediate MAVROS-compatible command tracking.
 
-推荐环境：Ubuntu 22.04 + ROS 2 Humble。
+## Installation
 
-[安装 ROS 2, colcon, rosdep](https://gitee.com/shu-peixuan/install_ros2) （网络问题解决方法见链接）
+The project is developed for Ubuntu 22.04 with ROS 2 Humble. Ubuntu 24.04 with ROS 2 Jazzy follows the same process, although package names can differ by ROS distribution.
+
+Install ROS 2, `colcon`, and `rosdep` by following the [ROS 2 installation guide](https://gitee.com/shu-peixuan/install_ros2). The guide also includes solutions for common network issues.
+
+Initialize `rosdep` once on a new machine, then clone and build the workspace. `rosdep install` resolves the required system and ROS dependencies:
 
 ```bash
-sudo apt update
-sudo apt install -y curl software-properties-common python3-colcon-common-extensions python3-rosdep
 sudo rosdep init
 rosdep update
-```
 
-`fss_time` 使用 HELICS 作为分布式仿真时间协调层。线程参与者通过非阻塞 async request 声明下一安全时间；`sim_time_broker` 通过内部 regulator federate 维护全局仿真时间并发布状态。HELICS 源码已经 vendored 在 `src/fss_time/third_party/HELICS`，默认会随 `fss_time` 一起编译。
+git clone https://github.com/shupx/FastSwarmSim.git
 
-`fss_time` 只使用仓库内的 HELICS 源码，不查找系统安装的 HELICS。HELICS 构建会优先使用系统 apt 包提供的 `fmt`、`spdlog` 和 ZeroMQ，以减少 vendored third-party 的编译时间：
+# for chinese users
+git clone https://gitee.com/shu-peixuan/FastSwarmSim.git  
 
-```bash
-sudo apt update
-sudo apt install -y cmake libfmt-dev libspdlog-dev libzmq3-dev
-cmake --version  # 需要 3.22 或更新版本
-```
-
-说明：Ubuntu 22.04 apt 中虽然有 `libtoml11-dev` 和 `nlohmann-json3-dev`，但版本/API 与 HELICS 3.6.1 不兼容；`toml11`、`nlohmann_json` 以及 HELICS/GMLC 自有的 `networking`、`concurrency`、`containers`、`utilities`、`units` 仍保留在 `src/fss_time/third_party/HELICS/ThirdParty`。已禁用或由系统包替代的较大子依赖只保留 license 文件。
-
-拉取并构建：
-
-```bash
-git clone git@gitee.com:shu-peixuan/FastSwarmSim.git
 cd FastSwarmSim
+
+source /opt/ros/$ROS_DISTRO/setup.bash
 rosdep install --from-paths src --ignore-src -r -y
 colcon build --symlink-install
 source install/setup.bash
 ```
 
-如果使用的是 Ubuntu 24.04 + ROS 2 Jazzy，整体结构相同，但部分依赖包名可能需要按本机 ROS 发行版调整。
+Source `install/setup.bash` in every new terminal before running the commands below. 
 
-## 启动
+## Common Launch Commands
 
-启动分布式仿真时钟：
-
-```bash
-ros2 launch fss_bringup distributed_clock.launch.py max_real_time_factor:=1.0
-```
-
-`distributed_clock.launch.py` 默认启动 `sim_time_broker_node` 和 `ros_clock_publisher_node`，并在本机创建 HELICS broker：
+### [Time coordinator](src/fss_time/README.md)
 
 ```bash
-ros2 launch fss_bringup distributed_clock.launch.py \
-  helics_core_type:=zmq \
-  broker_address:=127.0.0.1 \
-  broker_port:=23404 \
-  helics_time_delta_ns:=1000000 \
-  speed_regulator_tick_ns:=1000000 \
-  start_broker:=true
+ros2 launch fss_time time_coordinator.launch.py
 ```
 
-`max_real_time_factor` 含义：
-
-- `1.0`: 按真实时间 1x 运行。
-- `10.0`: 最高 10x 倍速运行。
-- `0.0`: as-fast-as-safe，不按真实时间限速。
-
-启动单架理想 MAVROS 无人机：
+Set a maximum simulation speed when needed:
 
 ```bash
-ros2 launch fss_bringup perfect_drone.launch.py namespace:=uav1 init_z:=1.0
+ros2 launch fss_time time_coordinator.launch.py max_real_time_factor:=2.0
 ```
 
-启动多架理想无人机：
+### [PX4 and perfect-drone simulation](src/fss_px4_sim/README.md)
 
 ```bash
-ros2 launch fss_bringup perfect_swarm.launch.py num_drones:=5
+ros2 launch fss_px4_sim px4_rotor_sim_single.launch.py
+ros2 launch fss_px4_sim px4_rotor_sim_multi.launch.py num_drones:=5
+ros2 launch fss_px4_sim perfect_mavros_drone_swarm.launch.py num_drones:=5
 ```
 
-跨机器运行时，可以手动启动一个外部 HELICS broker，并让每台机器上的 clock bridge 和仿真参与者连接同一个 broker：
+![Multi-drone PX4 simulation in RViz](misc/px4_rotor_sim_multi.png)
+
+### [Local LiDAR point cloud](src/fss_sensing/README.md)
 
 ```bash
-helics_broker -t zmq --port 23404 --terminate_on_disconnect
-ros2 launch fss_bringup distributed_clock.launch.py \
-  start_broker:=false \
-  broker_address:=<broker-host> \
-  broker_port:=23404
-ros2 launch fss_bringup perfect_drone.launch.py \
-  broker_address:=<broker-host> \
-  broker_port:=23404
+ros2 launch fss_sensing fss_local_pointcloud_sim.launch.py
 ```
 
-启动局部点云感知节点：
+### [Integrated PX4, LiDAR, and RViz scenes](src/fss_bringup/README.md)
 
 ```bash
-ros2 launch fss_bringup sensing.launch.py
+ros2 launch fss_bringup sim_px4_drone_lidar_single.launch.py
+ros2 launch fss_bringup sim_px4_drone_lidar_multi.launch.py num_drones:=3
 ```
 
-常用话题示例：
+![Single-drone PX4 and LiDAR simulation in RViz](misc/sim_px4_drone_lidar_single.png)
 
-```bash
-ros2 topic echo /clock
-ros2 topic echo /uav1/mavros/state
-ros2 topic echo /uav1/mavros/local_position/pose
-ros2 topic echo /cloud_registered
-```
+## Further Documentation
 
-向理想无人机发送位置 setpoint：
+- [Time coordination and multi-machine setup](src/fss_time/README.md)
+- [Local point-cloud configuration and DDS tuning](src/fss_sensing/README.md)
+- [PX4 simulator capabilities and scaling notes](src/fss_px4_sim/README.md)
+- [Integrated PX4/LiDAR launch details](src/fss_bringup/README.md)
+- [Time-coordinator test cases](src/fss_time/test_cases/README.md)
 
-```bash
-ros2 topic pub /uav1/mavros/setpoint_raw/local mavros_msgs/msg/PositionTarget "{
-  coordinate_frame: 1,
-  type_mask: 3576,
-  position: {x: 1.0, y: 2.0, z: 1.5},
-  yaw: 0.0
-}"
-```
-
-暂停或恢复仿真时钟：
-
-```bash
-ros2 service call /fss/clock_control fss_time_interfaces/srv/SimClockControl "{running: false, max_real_time_factor: 0.0}"
-ros2 service call /fss/clock_control fss_time_interfaces/srv/SimClockControl "{running: true, max_real_time_factor: 10.0}"
-```
-
-## 开发备注
-
-构建测试：
+Run the test suite with:
 
 ```bash
 colcon test
 colcon test-result --verbose
 ```
-
-只验证 `fss_time` 和 HELICS time coordination：
-
-```bash
-scripts/verify_fss_time_helics.sh
-```
-
-`fss_time` 的 HELICS time coordination 细节见：
-
-```bash
-src/fss_time/README.md
-```
-
-完整 PX4/MAVROS dynamics 栈的迁移边界见：
-
-```bash
-src/fss_px4_sim/MIGRATION.md
-```
-
-HELICS 参考文档：
-
-- Timing configuration：<https://docs.helics.org/en/latest/user-guide/fundamental_topics/timing_configuration.html>
-- Linking：<https://docs.helics.org/en/latest/user-guide/installation/linking.html>
