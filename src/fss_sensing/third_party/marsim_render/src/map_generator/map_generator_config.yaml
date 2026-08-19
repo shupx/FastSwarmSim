@@ -1,0 +1,44 @@
+# Map Generator Configuration
+
+# Random seed for reproducibility
+seed: 12
+
+# Field dimensions (meters)
+field_x: 11.0  # Width
+field_y: 10.0  # Length
+field_z: 5.0   # Height
+
+# Number of obstacles
+num_cylinders: 10
+num_torus: 20
+
+# Cylinder parameters
+cyl_radius_range: [0.2, 0.4]      # Min and max radius (meters)
+cyl_height_range: [1.7, 2.0]      # Min and max height (meters)
+cyl_points: 3000                   # Points to sample per cylinder
+
+# Torus (ring) parameters
+torus_major_radius_range: [0.9, 1.5]   # Min and max major radius (meters) (center to tube center)
+torus_minor_radius_range: [0.1, 0.2]  # Min and max minor radius (meters) (tube radius)
+torus_points: 3000                      # Points to sample per torus
+
+# Optional features
+add_boundaries: false     # Add walls around the field
+boundary_points: 10000    # Points for boundary walls
+
+add_ground: false          # Add ground plane
+ground_points: 50000       # Points for ground plane
+
+# Obstacle distribution
+min_obstacle_distance: 2.0      # Minimum distance between obstacles (meters)
+max_placement_attempts: 100     # Maximum attempts to place each obstacle
+
+# Output file (relative to the script directory)
+output_file: "./random_map.pcd"
+
+# Optional obstacle layout import/export.
+# Leave obstacle_config_file empty/null to generate obstacles randomly.
+# Set obstacle_config_file to a saved layout YAML to reuse exact cylinder/ring positions.
+
+# obstacle_config_file: "./obstacle_positions.yaml"
+# save_obstacle_config_file: "./obstacle_positions_out.yaml"
