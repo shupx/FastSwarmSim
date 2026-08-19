@@ -3,6 +3,9 @@
 /install/
 /log/
 
+# MkDocs build output
+/site/
+
 /src/fss_time_backup/
 
 # Python caches
