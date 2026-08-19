@@ -1,0 +1,23 @@
+site_name: FastSwarmSim Documentation
+site_description: Documentation for the FastSwarmSim ROS 2 multi-UAV simulator.
+repo_name: shupx/FastSwarmSim
+repo_url: https://github.com/shupx/FastSwarmSim
+
+theme:
+  name: material
+
+plugins:
+  - search
+
+nav:
+  - Overview: README.md
+  - Packages:
+      - Bringup: src/fss_bringup/README.md
+      - PX4 Simulation: src/fss_px4_sim/README.md
+      - MAVROS Lite: src/fss_px4_sim/MAVROS_LITE.md
+      - Sensing: src/fss_sensing/README.md
+      - Time Coordination: src/fss_time/README.md
+  - Tools:
+      - Map Generator: src/fss_sensing/third_party/marsim_render/src/map_generator/MAP_GENERATOR_README.md
+  - Testing:
+      - Time Test Cases: src/fss_time/test_cases/README.md
