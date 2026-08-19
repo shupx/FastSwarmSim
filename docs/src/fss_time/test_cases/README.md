@@ -1,40 +1,40 @@
 # fss_time Test Cases
 
-这个目录放 `fss_time` 的联调用测试场景，重点验证两件事：
+This directory contains integration test scenarios for `fss_time`. They primarily verify two things:
 
-- coordinator 能否随 launch 一起启动并发布 `/clock`
-- 多节点、多线程、不同循环周期下，仿真时间是否真的驱动业务循环推进
+- whether the coordinator starts with the launch file and publishes `/clock`
+- whether simulation time actually drives application loops with multiple nodes, multiple threads, and different loop periods
 
-## 场景说明
+## Scenario Overview
 
-`launch/multi_node_sim_time_test_case.launch.py` 会启动：
+`launch/multi_node_sim_time_test_case.launch.py` starts:
 
 - `time_coordinator`
-- 多个 `sim_time_test_load_node`
+- multiple `sim_time_test_load_node` instances
 
-每个 `sim_time_test_load_node` 会启动多个线程。每个线程都会：
+Each `sim_time_test_load_node` starts multiple threads. Every thread:
 
-- 连接到同一个 ZeroMQ IPC coordinator
-- 使用 `thread_time_participant` 申请下一个安全仿真时间
-- 在自己的 while 循环里按不同周期推进
-- 周期性发布 `std_msgs/msg/UInt64MultiArray`
+- connects to the same ZeroMQ IPC coordinator
+- requests the next safe simulation time with `thread_time_participant`
+- advances its own while loop at a different period
+- periodically publishes `std_msgs/msg/UInt64MultiArray`
 
-消息字段依次为：
+The message fields are, in order:
 
-1. 线程编号
-2. 序号
-3. 当前发布时刻的仿真时间，单位 ns
-4. 当前线程周期，单位 ns
+1. Thread ID
+2. Sequence number
+3. Simulation time at publication, in ns
+4. Current thread period, in ns
 
-主要参数直接由 launch argument 控制，不再额外依赖测试 YAML 配置文件。
+The main parameters are controlled directly by launch arguments and no longer depend on an additional test YAML configuration file.
 
-## 启动
+## Start the Test
 
 ```bash
 ros2 launch fss_time multi_node_sim_time_test_case.launch.py
 ```
 
-常用参数：
+Common parameters:
 
 ```bash
 ros2 launch fss_time multi_node_sim_time_test_case.launch.py \
@@ -45,46 +45,44 @@ ros2 launch fss_time multi_node_sim_time_test_case.launch.py \
   coordinator.max_real_time_factor:=1.0
 ```
 
-## 判断仿真时间是否生效
+## Check Whether Simulation Time Is Working
 
-- 终端日志里 `sim_time` 应持续增长，而不是一直停在 `0`
-- `max_real_time_factor:=1.0` 时，仿真时间推进速度应接近真实时间
-- `max_real_time_factor:=0.0` 时，coordinator 不再周期性推进 regulator request
-- 不同线程发布频率不同，但发布时间戳都应随 coordinator 授时单调增加
+- `sim_time` should keep increasing in the terminal logs rather than remaining at `0`.
+- With `max_real_time_factor:=1.0`, simulation time should advance at approximately real-time speed.
+- With `max_real_time_factor:=0.0`, the coordinator stops periodically advancing regulator requests.
+- Threads publish at different frequencies, but all publication timestamps should increase monotonically with the time granted by the coordinator.
 
-可直接观察：
+You can observe the topics directly:
 
 ```bash
 ros2 topic echo /clock
 ros2 topic echo /sim_time_test/node_0/load/thread_0
 ```
 
-## Executor 测试场景
+## Executor Test Scenario
 
-`launch/executor_time_test_case.launch.py` 会启动：
+`launch/executor_time_test_case.launch.py` starts:
 
 - `time_coordinator`
-- 使用 `fss_time::spin()` 的节点
-- 使用 `fss_time::executors::SingleThreadedExecutor` 的节点
-- 使用 `fss_time::executors::MultiThreadedExecutor` 的节点
+- a node using `fss_time::spin()`
+- a node using `fss_time::executors::SingleThreadedExecutor`
+- a node using `fss_time::executors::MultiThreadedExecutor`
 
-每个节点默认创建 2 个 ROS-time timer，可用 `node.timer_count` 调整数量；每个 timer
-按 `node.timer_period_ms` 指定的仿真时间周期发布
-`std_msgs/msg/UInt64MultiArray`。消息字段依次为：
+Each node creates two ROS-time timers by default. Use `node.timer_count` to change the number of timers. Each timer publishes `std_msgs/msg/UInt64MultiArray` at the simulation-time period specified by `node.timer_period_ms`. The message fields are, in order:
 
-1. executor 类型编号：`1=fss_spin`，`2=single_threaded`，`3=multi_threaded`
-2. 序号
-3. 当前 timer callback 的仿真时间，单位 ns
-4. timer 周期，单位 ns
-5. timer 编号
+1. Executor type ID: `1=fss_spin`, `2=single_threaded`, `3=multi_threaded`
+2. Sequence number
+3. Simulation time in the current timer callback, in ns
+4. Timer period, in ns
+5. Timer ID
 
-启动：
+Start the scenario:
 
 ```bash
 ros2 launch fss_time executor_time_test_case.launch.py
 ```
 
-常用参数：
+Common parameters:
 
 ```bash
 ros2 launch fss_time executor_time_test_case.launch.py \
@@ -97,7 +95,7 @@ ros2 launch fss_time executor_time_test_case.launch.py \
   coordinator.max_real_time_factor:=1.0
 ```
 
-可直接观察：
+You can observe the topics directly:
 
 ```bash
 ros2 topic echo /fss_spin_0/executor_time/fss_spin/timer_0
@@ -105,85 +103,80 @@ ros2 topic echo /single_threaded_0/executor_time/single_threaded/timer_0
 ros2 topic echo /multi_threaded_0/executor_time/multi_threaded/timer_0
 ```
 
-## 超过100个节点仿真的额外配置
+## Additional Configuration for More Than 100 Simulated Nodes
 
-fastdds 默认的 participant 限制是 100 个，超过会报错。可通过设置环境变量 `FASTRTPS_DEFAULT_PROFILES_FILE` 指向自定义 XML 配置文件来修改 participant 限制。
+Fast DDS has a default participant limit of 100. When this limit is exceeded, participant creation may fail. Set the `FASTRTPS_DEFAULT_PROFILES_FILE` environment variable to point to a custom XML configuration file to change the participant limit.
 
-#### 解决方法1： 增加fastdds的udp端口范围（100个以内节点首选）
+### Solution 1: Increase the Fast DDS UDP port range (recommended for up to 100 nodes)
 
-`config/fastdds_large_scale_configuration.xml` 中已经设置了 `mutation_tries` 为 10000（至少超过节点数，多了无害），避免 participant 创建失败。参考 https://docs.ros.org/en/humble/Tutorials/Advanced/Discovery-Server/Discovery-Server.html#large-number-of-participants
+`config/fastdds_large_scale_configuration.xml` already sets `mutation_tries` to 10000 (at least the number of nodes; a larger value is harmless) to avoid participant-creation failures. See the [ROS 2 large-number-of-participants guide](https://docs.ros.org/en/humble/Tutorials/Advanced/Discovery-Server/Discovery-Server.html#large-number-of-participants).
 
-在 `~/.bashrc` 或 `~/.zshrc` 中添加：
+Add the following to `~/.bashrc` or `~/.zshrc`:
 
 ```bash
 export FASTDDS_DEFAULT_PROFILES_FILE=$(ros2 pkg prefix fss_time)/share/fss_time/config/fastdds_large_scale_configuration.xml
-export FASTRTPS_DEFAULT_PROFILES_FILE=$(ros2 pkg prefix fss_time)/share/fss_time/config/fastdds_large_scale_configuration.xml # for old version (ROS humble)
+export FASTRTPS_DEFAULT_PROFILES_FILE=$(ros2 pkg prefix fss_time)/share/fss_time/config/fastdds_large_scale_configuration.xml # for older versions (ROS Humble)
 ```
 
-Then run 
+Then run:
 
 ```bash
 source ~/.bashrc
 
-# make ros2 cli tools take effect
+# Apply the settings to ROS 2 CLI tools
 ros2 daemon stop
 ros2 daemon start
 ```
 
-优点：
+Advantages:
 
-- 实测启动100个节点左右的仿真是可行的。
+- Tests have shown that simulations with approximately 100 nodes can start successfully.
+- No RMW implementation changes are required, so other Fast DDS nodes remain compatible.
 
-- 不用改rmw实现，兼容现有fastdds的其他节点。
+Disadvantages:
 
-缺点：
+- Above 100 nodes, port conflicts can still occur, startup becomes significantly slower, and packet loss may appear. This is because Simple Discovery uses UDP broadcasts in which every node participates; too many nodes can congest the network. Fast DDS can use [Discovery Server mode](https://docs.ros.org/en/humble/Tutorials/Advanced/Discovery-Server/Discovery-Server.html#setup-discovery-server), but tests have still shown startup problems, and running an additional Discovery Server is inconvenient.
 
-- 超过100个后仍然容易出现端口占用问题，而且启动速度明显变慢，甚至出现丢包。
-这是因为它采用的是Simple Discovery,每个节点都参与UDP广播的discovery机制，节点数过多时会导致网络拥塞。即使fastdds可以改用[Discovery Server](https://docs.ros.org/en/humble/Tutorials/Advanced/Discovery-Server/Discovery-Server.html#setup-discovery-server)模式来解决这个问题，但实测仍然会出现启动问题，而且额外启动Discovery Server并不方便。
+### Solution 2: Switch the RMW implementation to Cyclone DDS (recommended for 100–200 nodes)
 
-#### 解决方法2： rmw改用cyclonedds（100-200个节点首选）
-
-不同于fastdds的simple discovery机制，cyclonedds会[共享 discovery 信息](https://cyclonedds.io/docs/cyclonedds/latest/config/discovery-behavior.html?utm_source=chatgpt.com)，而不是简单让每个 participant 独立完成全部 discovery, 对大规模 participant 更友好。
+Unlike Fast DDS Simple Discovery, Cyclone DDS [shares discovery information](https://cyclonedds.io/docs/cyclonedds/latest/config/discovery-behavior.html) instead of requiring each participant to complete all discovery independently, making it more suitable for a large number of participants.
 
 ```bash
 sudo apt install ros-${ROS_DISTRO}-rmw-cyclonedds-cpp -y
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp # 添加到 ~/.bashrc 或 ~/.zshrc
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp # Add this to ~/.bashrc or ~/.zshrc
 ```
 
-优点：
+Advantages:
 
-- 实测启动200个节点左右的仿真是可行的，不用额外启动Discovery Server，启动速度也比fastdds快。
+- Tests have shown that simulations with approximately 200 nodes can start successfully without an additional Discovery Server, and startup is faster than with Fast DDS.
 
-缺点：
+Disadvantages:
 
-- 节点数量较少时，cyclonedds的性能上限低于fastdds，仿真时间最大RTF推进速度可能会慢一些。但是数量较多时，差异不明显。
+- With fewer nodes, Cyclone DDS has a lower performance ceiling than Fast DDS, so the maximum RTF may be lower. The difference is less noticeable with more nodes.
+- Above 200 nodes, ROS 2 startup and runtime overhead still increases significantly and can saturate the CPU. At that point, discovery is no longer the main limiting factor.
 
-- 多于200个节点后，ros启动和运行开销仍然会明显增加，容易打满cpu。但这已经和发现机制关系不大了。
+### Solution 3: Switch the RMW implementation to Zenoh (for 200+ nodes)
 
-#### 解决方案3： rmw改用zenoh（200+节点选择）
+In ROS 2 Lyrical (the 2026 release), Zenoh is supported as a first-class RMW implementation. Its advantages include:
 
-在2026版本的ros2 lyrical中，zenoh已经被支持为一等rmw实现。优势：
+- More efficient node discovery, with the potential to support a large number of nodes. Zenoh's router-gossip discovery mechanism is similar to the ROS 1 master: nodes discover one another through the router gossip mechanism, which theoretically supports more participants. Zenoh also supports UDP multicast discovery, similar to Fast DDS Simple Discovery, but with lower overhead and better performance.
+- Shared-memory transport for faster inter-process topic communication. This is particularly beneficial for the `/clock` topic published and subscribed by the `fss_time` coordinator.
 
-- 节点Discovery效率更高，有望支持大规模节点。zenoh的router gossip发现机制类似ROS1的master节点，所有节点都通过router gossip来发现其他节点，理论上可以支持更多的participant。当然zenoh也支持udp multicast discovery机制，类似fastdds的simple discovery机制，但是overhead更低，性能更好。
+Disadvantages:
 
-- 支持共享内存传输，多进程间话题通信可以更快。这对于fss_time中的/clock话题发布和订阅非常有利，有望提供fss_time coordinator的更高RTF推进速度。
+- It is not compatible with the DDS-based ROS 2 ecosystem. Zenoh is not yet widely used, and many ROS 2 packages do not support the Zenoh RMW implementation.
+- It does not solve the ROS 2 limitation that each node is a separate process with its own ROS context. With many processes, ROS 2 startup and runtime overhead can still saturate the CPU.
 
-缺点：
+### Solution 4: Start multiple nodes in one process (recommended for 1000+ nodes)
 
-- 不兼容DDS版本的ros2生态，zenoh目前还没有被广泛使用，很多ros2包不支持zenoh rmw。
+Like ROS 1 nodelets, ROS 2 can start multiple nodes in a single process and use a multithreaded executor. This avoids ROS 2 multi-process overhead. For example, the coordinator and all dynamics simulation nodes can run in one process.
 
-- 仍然未能解决ros2一个节点就是一个进程（分配一个ros context）的问题，进程多时，ros2启动和运行开销仍然会明显增加，容易打满cpu。
+Advantages:
 
-#### 解决方案4： 单进程启动多node（1000+节点首选）
+- Avoids ROS 2 multi-process overhead and significantly reduces startup and runtime costs. This is the most promising approach for simulations with more than 1000 nodes.
+- Nodes within one process can use zero-copy communication, potentially speeding up `/clock` publication and subscription and allowing a higher RTF from the `fss_time` coordinator.
 
-类似ros1的nodelet，ros2也支持在一个进程中启动多个node，并用多线程executor。这样可以避免ros2多进程开销。比如coordinator以及所有的动力学仿真节点可以在一个进程中启动，避免ros2多进程开销。优点：
+Disadvantages:
 
-- 避免ros2多进程开销，启动和运行开销明显降低。是最有可能实现1000+节点仿真的方案。
-
-- 进程内部可以使用零拷贝通信，/clock话题发布和订阅可以更快，有望提供fss_time coordinator的更高RTF推进速度。
-
-缺点：
-
-- 不灵活，难以把用户算法也放入一个进程中。用户算法通常需要在不同的进程中运行。
-
-- 多个node在同一个进程中运行时，ros2的多线程executor调度机制不能完全隔离不同node的callback，可能会导致一个node的原本单线程的callback现在被分配到多线程上运行，和单线程行为不完全一致，尤其是用了多个callback group的时候。不过注意callback group的设置一般问题不大。
+- Less flexible: user algorithms are difficult to place in the same process and normally need to run in separate processes.
+- When multiple nodes share a process, the ROS 2 multithreaded executor cannot completely isolate callbacks from different nodes. A callback that was originally single-threaded may run on multiple threads, especially when multiple callback groups are used. Callback-group configuration is usually sufficient to avoid problems, but behavior may not be identical to a single-threaded process.

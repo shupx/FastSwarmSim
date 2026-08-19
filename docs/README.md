@@ -1,5 +1,7 @@
 # FastSwarmSim
 
+Documentation: https://shupx.github.io/FastSwarmSim/
+
 FastSwarmSim (fss) is a lightweight ROS 2 simulator for PX4-compatible multi-rotor vehicles. It combines a streamlined PX4 runtime, MAVROS-compatible ROS interfaces, local LiDAR point-cloud rendering, RViz visualization, and a conservative lock-step simulation clock. The simulator is intended for multi-UAV algorithm development, repeatable simulation-time experiments, and large-scale swarm prototyping.
 
 **Performance:**
@@ -14,6 +16,13 @@ On a desktop-class computer with LiDAR simulation disabled, FastSwarmSim can run
 | `fss_sensing` | Local LiDAR point-cloud simulator. It renders the visible cloud from a vehicle pose against a static PCD map through the bundled `marsim_render` library. |
 | `fss_time` | ZeroMQ-based conservative lock-step time coordinator, `/clock` publisher, simulation-speed controls, and C++ helpers/executors for time-synchronized ROS 2 nodes. **NOT only for FastSwarmSim, but for all types of ROS nodes**  |
 | `fss_time_interfaces` | ROS 2 message and service definitions used by `fss_time`, including simulation clock control interfaces. |
+
+## Supported Platforms
+
+| Operating system | ROS 2 distribution |
+| --- | --- |
+| Ubuntu 22.04 | ROS 2 Humble |
+| Ubuntu 24.04 | ROS 2 Jazzy |
 
 The standard PX4 simulation uses a trimmed PX4 v1.13.3 control stack with MAVROS Lite. For algorithm tests that do not require PX4 control or vehicle dynamics, the perfect-drone launch provides immediate MAVROS-compatible command tracking.
 
@@ -97,3 +106,7 @@ Run the test suite with:
 colcon test
 colcon test-result --verbose
 ```
+
+## Contributors
+
+- Peixuan Shu

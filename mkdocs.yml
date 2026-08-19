@@ -5,12 +5,18 @@ repo_url: https://github.com/shupx/FastSwarmSim
 
 theme:
   name: material
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.sections
 
 plugins:
   - search
 
 nav:
   - Overview: README.md
+  - Changelog: CHANGELOG.md
   - Packages:
       - Bringup: src/fss_bringup/README.md
       - PX4 Simulation: src/fss_px4_sim/README.md

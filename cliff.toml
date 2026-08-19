@@ -1,0 +1,34 @@
+# git-cliff configuration for FastSwarmSim
+
+[changelog]
+header = "# Changelog\n\nAll notable changes to FastSwarmSim are documented here."
+body = """
+{% if version %}## {{ version }}{% else %}## Unreleased{% endif %}
+{% for group, commits in commits | group_by(attribute=\"group\") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | upper_first }} ([`{{ commit.id | truncate(length=7, end=\"\") }}`](https://github.com/shupx/FastSwarmSim/commit/{{ commit.id }}))
+{%- endfor %}
+{% endfor %}
+"""
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+commit_preprocessors = [
+  { pattern = "\\s在当前仓库.*", replace = "" },
+]
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^test", group = "Tests" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^chore", group = "Miscellaneous" },
+  { message = "^ci", group = "CI" },
+  { body = "Revert", group = "Reverts" },
+]
+filter_commits = false
+sort_commits = "oldest"
