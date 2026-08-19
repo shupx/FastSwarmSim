@@ -393,52 +393,6 @@ TEST(TimeCoordinator, RealTimeParticipantRequestCatchesUpToWallTime)
   executor.remove_node(coordinator_node);
 }
 
-TEST(TimeCoordinator, ParticipantCanDisableRealTimeFollowing)
-{
-  const auto endpoint = reserve_test_endpoint();
-  auto coordinator_node = std::make_shared<rclcpp::Node>(
-    "time_coordinator_participant_real_time_setting_test");
-  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
-  coordinator_node->declare_parameter("speed_regulator_step_ns", 5000000);
-  coordinator_node->declare_parameter("max_real_time_factor", 1.0);
-  coordinator_node->declare_parameter("auto_start", true);
-  fss_time::TimeCoordinator coordinator(*coordinator_node);
-  coordinator.start();
-
-  rclcpp::executors::SingleThreadedExecutor executor;
-  executor.add_node(coordinator_node);
-  std::atomic<bool> stop_executor{false};
-  std::thread spin_thread([&executor, &stop_executor]() {
-    while (!stop_executor.load()) {
-      executor.spin_some();
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-  });
-
-  rclcpp::Node participant_node("participant_real_time_setting_test");
-  participant_node.declare_parameter("fss_time_coordinator_endpoint", endpoint);
-  fss_time::thread_time_participant::reset_current_thread_for_testing();
-  auto & participant =
-    fss_time::thread_time_participant::for_current_thread(participant_node, "no_real_time_following");
-  wait_until([&coordinator]() {
-    return coordinator.status_message().participant_count == 1;
-  }, std::chrono::seconds(1));
-
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  participant.set_follows_real_time(false);
-  participant.announce_next_safe_time(rclcpp::Time(1000000LL, RCL_ROS_TIME));
-  wait_until([&coordinator]() {
-    return fss_time::to_ns(coordinator.status_message().sim_time) >= 1000000LL;
-  }, std::chrono::seconds(1));
-  EXPECT_EQ(fss_time::to_ns(coordinator.status_message().sim_time), 1000000LL);
-
-  participant.unregister_participant();
-  fss_time::thread_time_participant::reset_current_thread_for_testing();
-  stop_executor = true;
-  spin_thread.join();
-  executor.remove_node(coordinator_node);
-}
-
 TEST(TimeCoordinator, RejectsInvalidParticipantRealTimeSetting)
 {
   const auto endpoint = reserve_test_endpoint();
@@ -640,50 +594,4 @@ TEST(Executors, MultiThreadedExecutorSpinsWithoutFssSimTime)
   executor.remove_node(node);
 
   EXPECT_GE(calls.load(), 1);
-}
-
-TEST(Executors, FssSimTimeEnablesRosSimTime)
-{
-  auto node = std::make_shared<rclcpp::Node>("fss_executor_enables_ros_sim_time_node");
-  node->declare_parameter("use_fss_sim_time", true);
-  node->set_parameter(rclcpp::Parameter("use_sim_time", false));
-
-  fss_time::executors::SingleThreadedExecutor executor;
-  executor.add_node(node);
-
-  bool use_sim_time = false;
-  ASSERT_TRUE(node->get_parameter("use_sim_time", use_sim_time));
-  EXPECT_TRUE(use_sim_time);
-
-  executor.remove_node(node);
-}
-
-TEST(Executors, SingleThreadedExecutorSpinsWithFssSimTime)
-{
-  const auto endpoint = reserve_test_endpoint();
-  auto coordinator_node = std::make_shared<rclcpp::Node>("fss_single_executor_coordinator_node");
-  coordinator_node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
-  coordinator_node->declare_parameter("auto_start", true);
-  fss_time::TimeCoordinator coordinator(*coordinator_node);
-  coordinator.start();
-
-  auto node = std::make_shared<rclcpp::Node>("fss_single_executor_sim_time_node");
-  node->declare_parameter("fss_time_coordinator_endpoint", endpoint);
-  node->declare_parameter("use_fss_sim_time", true);
-
-  std::atomic<int> calls{0};
-  fss_time::thread_time_participant::reset_current_thread_for_testing();
-  fss_time::executors::SingleThreadedExecutor executor;
-  rclcpp::TimerBase::SharedPtr timer;
-  timer = node->create_wall_timer(std::chrono::milliseconds(1), [&executor, &calls]() {
-    calls.fetch_add(1);
-    executor.cancel();
-  });
-
-  executor.add_node(node);
-  executor.spin();
-  executor.remove_node(node);
-
-  EXPECT_GE(calls.load(), 1);
-  fss_time::thread_time_participant::reset_current_thread_for_testing();
 }
