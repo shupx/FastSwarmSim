@@ -93,35 +93,39 @@ Since fss_time time coordinator supports cascade clock synchronization across mu
 
 Simulating 100+ drones is possible, but it requires slight modification as the default ROS2 FastRTPS transport has a limit of 100 participants. Solutions:
 
-- Set the `mutation_tries` parameter of the FastRTPS transport to a value larger than the number of nodes, e.g., 10000. Create `large_scale_configuration.xml` according to [ros2 tutorials](https://docs.ros.org/en/humble/Tutorials/Advanced/Discovery-Server/Discovery-Server.html#large-number-of-participants):
+#### Solution 1: tune FastRTPS participant limits
 
-  ```xml
-  <?xml version="1.0" encoding="UTF-8"?>
-  <dds xmlns="http://www.eprosima.com">
-    <profiles>
-      <participant profile_name="participant_profile" is_default_profile="true">
-        <rtps>
-          <builtin>
-            <mutation_tries>10000</mutation_tries>
-          </builtin>
-        </rtps>
-      </participant>
-    </profiles>
-  </dds>
-  ```
+Set the `mutation_tries` parameter of the FastRTPS transport to a value larger than the number of nodes, e.g., 10000. Create `large_scale_configuration.xml` according to the [ROS 2 tutorial](https://docs.ros.org/en/humble/Tutorials/Advanced/Discovery-Server/Discovery-Server.html#large-number-of-participants):
 
-  Then enable the profile before starting any ROS 2 nodes:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<dds xmlns="http://www.eprosima.com">
+  <profiles>
+    <participant profile_name="participant_profile" is_default_profile="true">
+      <rtps>
+        <builtin>
+          <mutation_tries>10000</mutation_tries>
+        </builtin>
+      </rtps>
+    </participant>
+  </profiles>
+</dds>
+```
 
-  ```bash
-  export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
-  export FASTRTPS_DEFAULT_PROFILES_FILE=/path/to/large_scale_configuration.xml # old ROS2 humble
-  export FASTDDS_DEFAULT_PROFILES_FILE=/path/to/large_scale_configuration.xml
-  ros2 daemon stop # latest ROS2 version
-  ```
+Then enable the profile before starting any ROS 2 nodes:
 
-- Use the `rmw_cyclonedds_cpp` transport instead of the default `rmw_fastrtps_cpp`. CycloneDDS has no participant limit, and launches much more faster:
+```bash
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+export FASTRTPS_DEFAULT_PROFILES_FILE=/path/to/large_scale_configuration.xml  # old ROS 2 Humble
+export FASTDDS_DEFAULT_PROFILES_FILE=/path/to/large_scale_configuration.xml
+ros2 daemon stop  # latest ROS 2 version
+```
 
-  ```bash
-  export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-  ros2 daemon stop
-  ```
+#### Solution 2: use CycloneDDS
+
+Use the `rmw_cyclonedds_cpp` transport instead of the default `rmw_fastrtps_cpp`. CycloneDDS has no participant limit and launches faster:
+
+```bash
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+ros2 daemon stop
+```
