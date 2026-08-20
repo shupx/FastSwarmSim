@@ -38,18 +38,28 @@ class KeyboardControl(Node):
     def _publish(self):
         with self.lock:
             self.altitude += self.vz * 0.05
-            msg = PositionTarget()
-            msg.header.stamp = self.get_clock().now().to_msg()
-            msg.header.frame_id = "map"
-            msg.coordinate_frame = PositionTarget.FRAME_LOCAL_NED
-            msg.velocity.x, msg.velocity.y = self.vx, self.vy
-            msg.position.z = self.altitude
-            msg.yaw_rate = self.yaw_rate
-            msg.type_mask = (PositionTarget.IGNORE_PX | PositionTarget.IGNORE_PY |
-                             PositionTarget.IGNORE_VZ | PositionTarget.IGNORE_AFX |
-                             PositionTarget.IGNORE_AFY | PositionTarget.IGNORE_AFZ |
-                             PositionTarget.IGNORE_YAW)
+            msg = self._build_setpoint()
         self.setpoint_pub.publish(msg)
+
+    def _build_setpoint(self):
+        """Build a MAVROS local setpoint in the ROS ENU convention.
+
+        MAVROS Lite converts this ROS-side representation to MAVLink LOCAL_NED.
+        The mask is the exact ROS 1 controller mask. It selects x/y velocity,
+        z position, yaw rate, and an explicit zero z velocity.
+        """
+        msg = PositionTarget()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "map"
+        msg.coordinate_frame = PositionTarget.FRAME_LOCAL_NED
+        msg.velocity.x, msg.velocity.y = self.vx, self.vy
+        msg.position.z = self.altitude
+        msg.yaw_rate = self.yaw_rate
+        msg.type_mask = (PositionTarget.IGNORE_PX | PositionTarget.IGNORE_PY |
+                         PositionTarget.IGNORE_AFX |
+                         PositionTarget.IGNORE_AFY | PositionTarget.IGNORE_AFZ |
+                         PositionTarget.IGNORE_YAW)
+        return msg
 
     def arm(self, value=True):
         if not self.arm_client.wait_for_service(timeout_sec=0.2):

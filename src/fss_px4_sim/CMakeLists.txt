@@ -172,11 +172,13 @@ ament_export_dependencies(
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_pytest REQUIRED)
   ament_add_gtest(test_mavlink_udp_bridge test/test_mavlink_udp_bridge.cpp)
   if(TARGET test_mavlink_udp_bridge)
     target_link_libraries(test_mavlink_udp_bridge fss_px4_core)
     ament_target_dependencies(test_mavlink_udp_bridge rclcpp)
   endif()
+  ament_add_pytest_test(test_keyboard_control_ros2 test/test_keyboard_control_ros2.py)
 endif()
 
 ament_package()

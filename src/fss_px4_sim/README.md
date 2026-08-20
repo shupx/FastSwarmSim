@@ -40,6 +40,9 @@ In conclusion, the conventional PX4 SITL process + MAVROS process + drone dynami
 
 ```bash
 ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/mavros
+
+# For the first vehicle in a multi-drone launch, use its vehicle namespace.
+ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/uav1/mavros
 ```
 
 | Key | Action |
@@ -56,9 +59,12 @@ ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/mavros
 
 The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. On every normal exit it publishes a neutral setpoint and waits up to one second for a disarm request before restoring the terminal. It publishes `mavros_msgs/msg/PositionTarget` to `setpoint_raw/local`, subscribes to `mavros_msgs/msg/State` on `state`, and uses the MAVROS-compatible `mavros_msgs/srv/CommandBool` and `SetMode` services. Set `--speed`, `--yaw-speed`, or `--initial-altitude` to change defaults. Always verify the vehicle is in a safe simulation state before arming.
 
-The terminal shown below was captured from an actual ROS 2 Humble node launch (without a PX4 vehicle connected):
+The keyboard controller is intended for an interactive terminal. The following
+is a verified ROS 2 node terminal capture; it demonstrates node startup and the
+keyboard status display, but is not a substitute for checking the simulated
+vehicle state before arming:
 
-![Keyboard control terminal](../../misc/fss_keyboard_control_terminal.png)
+![Keyboard control terminal](../../docs/misc/fss_keyboard_control_terminal.png)
 
 ## What it does not simulate:
 
