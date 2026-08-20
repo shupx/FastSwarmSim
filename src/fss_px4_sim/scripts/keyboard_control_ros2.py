@@ -5,6 +5,7 @@ import argparse
 import select
 import sys
 import termios
+import time
 import tty
 from threading import Lock
 
@@ -22,6 +23,7 @@ SETPOINT_TOPIC = "mavros/setpoint_raw/local"
 STATE_TOPIC = "mavros/state"
 ARMING_SERVICE = "mavros/cmd/arming"
 MODE_SERVICE = "mavros/set_mode"
+KEY_RELEASE_TIMEOUT = 0.6
 
 
 class KeyboardControl(Node):
@@ -34,6 +36,7 @@ class KeyboardControl(Node):
         self.armed = False
         self.mode = "UNKNOWN"
         self.lock = Lock()
+        self.last_motion_key_time = 0.0
         self.setpoint_topic = SETPOINT_TOPIC
         self.state_topic = STATE_TOPIC
         self.arming_service = ARMING_SERVICE
@@ -49,6 +52,13 @@ class KeyboardControl(Node):
 
     def _publish(self):
         with self.lock:
+            # A normal terminal delivers key presses and keyboard-repeat
+            # events, but not key-release events.  Stop automatically when
+            # repeat events cease so a released motion key cannot latch.
+            if (self.last_motion_key_time and
+                    time.monotonic() - self.last_motion_key_time > KEY_RELEASE_TIMEOUT):
+                self.vx = self.vy = self.vz = self.yaw_rate = 0.0
+                self.last_motion_key_time = 0.0
             self.altitude += self.vz * 0.05
             msg = self._build_setpoint()
         self.setpoint_pub.publish(msg)
@@ -101,10 +111,14 @@ class KeyboardControl(Node):
             elif key == "z": self.vz, self.yaw_rate = 0.0, self.yaw_speed
             elif key == "c": self.vz, self.yaw_rate = 0.0, -self.yaw_speed
             elif key in (" ", "r"): self.vx = self.vy = self.vz = self.yaw_rate = 0.0
+            else: return
+            if key in "wasdqe zc".replace(" ", ""):
+                self.last_motion_key_time = time.monotonic()
 
     def stop(self):
         with self.lock:
             self.vx = self.vy = self.vz = self.yaw_rate = 0.0
+            self.last_motion_key_time = 0.0
 
     def safe_shutdown(self):
         """Send a neutral setpoint and request disarm before destroying the node."""

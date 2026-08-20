@@ -47,9 +47,9 @@ ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/uav1
 
 | Key | Action |
 | --- | --- |
-| `W/A/S/D` | forward/left/back/right velocity |
-| `Q/E` | increase/decrease altitude setpoint |
-| `Z/C` | yaw left/right |
+| `W/A/S/D` | move while held; automatically stop after release |
+| `Q/E` | change altitude while held; automatically stop after release |
+| `Z/C` | yaw while held; automatically stop after release |
 | `Space` or `R` | zero all velocities (hold position) |
 | `+` / `-` | adjust translation speed by 0.1 m/s |
 | `T` | arm via `/mavros/cmd/arming` |
@@ -57,7 +57,7 @@ ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/uav1
 | `X` | stop and disarm |
 | `Ctrl-C` | stop, request disarm, and restore terminal |
 
-The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. The controller uses relative MAVROS names: `mavros/setpoint_raw/local`, `mavros/state`, `mavros/cmd/arming`, and `mavros/set_mode`. Therefore, the single-vehicle command resolves them to `/mavros/...` without any extra namespace argument. With `--ros-args -r __ns:=/uav1`, the same names resolve to `/uav1/mavros/...`, matching the multi-vehicle ROS 1-style namespace layout. On every normal exit it publishes a neutral setpoint and waits up to one second for a disarm request before restoring the terminal. Set `--speed`, `--yaw-speed`, or `--initial-altitude` to change control defaults. Always verify the vehicle is in a safe simulation state before arming.
+The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. Motion keys are treated as held keys: the terminal's keyboard-repeat events keep the motion alive, and the controller sends a zero-velocity setpoint after 0.6 seconds without a repeat event. This is the safe terminal equivalent of stop-on-release because standard terminal input does not expose raw key-release events. The controller uses relative MAVROS names: `mavros/setpoint_raw/local`, `mavros/state`, `mavros/cmd/arming`, and `mavros/set_mode`. Therefore, the single-vehicle command resolves them to `/mavros/...` without any extra namespace argument. With `--ros-args -r __ns:=/uav1`, the same names resolve to `/uav1/mavros/...`, matching the multi-vehicle ROS 1-style namespace layout. On every normal exit it publishes a neutral setpoint and waits up to one second for a disarm request before restoring the terminal. Set `--speed`, `--yaw-speed`, or `--initial-altitude` to change control defaults. Always verify the vehicle is in a safe simulation state before arming.
 
 The keyboard controller is intended for an interactive terminal. The following
 terminal reference shows the single-vehicle command, the resolved relative
