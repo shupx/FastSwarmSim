@@ -52,9 +52,9 @@ ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/mavros
 | `T` | arm via `/mavros/cmd/arming` |
 | `O` | request `OFFBOARD` via `/mavros/set_mode` after arming |
 | `X` | stop and disarm |
-| `Ctrl-C` | exit and restore terminal |
+| `Ctrl-C` | stop, request disarm, and restore terminal |
 
-The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. It publishes `mavros_msgs/msg/PositionTarget` to `setpoint_raw/local`, subscribes to `mavros_msgs/msg/State` on `state`, and uses the MAVROS-compatible `mavros_msgs/srv/CommandBool` and `SetMode` services. Set `--speed`, `--yaw-speed`, or `--initial-altitude` to change defaults. Always verify the vehicle is in a safe simulation state before arming.
+The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. On every normal exit it publishes a neutral setpoint and waits up to one second for a disarm request before restoring the terminal. It publishes `mavros_msgs/msg/PositionTarget` to `setpoint_raw/local`, subscribes to `mavros_msgs/msg/State` on `state`, and uses the MAVROS-compatible `mavros_msgs/srv/CommandBool` and `SetMode` services. Set `--speed`, `--yaw-speed`, or `--initial-altitude` to change defaults. Always verify the vehicle is in a safe simulation state before arming.
 
 The terminal shown below was captured from an actual ROS 2 Humble node launch (without a PX4 vehicle connected):
 

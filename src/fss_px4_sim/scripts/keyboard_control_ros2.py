@@ -13,6 +13,7 @@ from mavros_msgs.msg import PositionTarget, State
 from mavros_msgs.srv import CommandBool, SetMode
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
+from rclpy.signals import SignalHandlerOptions
 
 
 class KeyboardControl(Node):
@@ -83,6 +84,25 @@ class KeyboardControl(Node):
         with self.lock:
             self.vx = self.vy = self.vz = self.yaw_rate = 0.0
 
+    def safe_shutdown(self):
+        """Send a neutral setpoint and request disarm before destroying the node."""
+        self.stop()
+        if not rclpy.ok():
+            return
+        self._publish()
+        if not self.arm_client.wait_for_service(timeout_sec=0.2):
+            return
+        request = CommandBool.Request()
+        request.value = False
+        future = self.arm_client.call_async(request)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=1.0)
+        if future.done() and future.exception() is None:
+            response = future.result()
+            if not response.success:
+                self.get_logger().warning("disarm request was rejected")
+        else:
+            self.get_logger().warning("disarm request did not complete before shutdown")
+
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="WASD/QE/ZC keyboard control for fss_px4_sim MAVROS Lite")
@@ -94,7 +114,8 @@ def parse_args(argv=None):
 
 def main():
     args, ros_args = parse_args()
-    rclpy.init(args=ros_args)
+    # Keep the context alive through Ctrl-C so finally can publish and disarm safely.
+    rclpy.init(args=ros_args, signal_handler_options=SignalHandlerOptions.NO)
     node = None
     old = None
     try:
@@ -123,7 +144,7 @@ def main():
         pass
     finally:
         if node:
-            node.stop()
+            node.safe_shutdown()
         if old: termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old)
         if node:
             node.destroy_node()
