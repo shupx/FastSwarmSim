@@ -11,6 +11,7 @@ from threading import Lock
 import rclpy
 from mavros_msgs.msg import PositionTarget, State
 from mavros_msgs.srv import CommandBool, SetMode
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 
 
@@ -94,9 +95,11 @@ def parse_args(argv=None):
 def main():
     args, ros_args = parse_args()
     rclpy.init(args=ros_args)
-    node = KeyboardControl(args)
-    old = termios.tcgetattr(sys.stdin) if sys.stdin.isatty() else None
+    node = None
+    old = None
     try:
+        node = KeyboardControl(args)
+        old = termios.tcgetattr(sys.stdin) if sys.stdin.isatty() else None
         if old:
             tty.setcbreak(sys.stdin.fileno())
             print("fss_px4_sim keyboard control | w/a/s/d move, q/e altitude, z/c yaw | +/- speed | t arm, o OFFBOARD | space stop, x disarm, Ctrl-C exit", flush=True)
@@ -116,12 +119,14 @@ def main():
         else:
             node.get_logger().warning("stdin is not a tty; publishing neutral setpoints only")
             rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        node.stop()
+        if node:
+            node.stop()
         if old: termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old)
-        node.destroy_node()
+        if node:
+            node.destroy_node()
         if rclpy.ok(): rclpy.shutdown()
 
 
