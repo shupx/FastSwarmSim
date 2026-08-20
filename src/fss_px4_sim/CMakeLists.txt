@@ -27,6 +27,11 @@ find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
+install(PROGRAMS scripts/keyboard_control_ros2.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME keyboard_control_ros2
+)
+
 set(PX4_CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/px4_core)
 
 add_library(fss_mavros_lite SHARED

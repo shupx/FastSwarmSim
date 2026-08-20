@@ -12,6 +12,8 @@
   <depend>fss_time</depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>python3</exec_depend>
+  <exec_depend>rclpy</exec_depend>
   <depend>mavros_msgs</depend>
   <depend>mavros</depend>
   <depend>nav_msgs</depend>

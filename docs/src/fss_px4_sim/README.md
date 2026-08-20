@@ -17,6 +17,9 @@ ros2 launch fss_px4_sim perfect_mavros_drone_multi.launch.py num_drones:=5
 ros2 launch fss_px4_sim drone_visualizer.launch.py
 ros2 launch fss_px4_sim drone_visualizer.launch.py num_drones:=5
 
+# Terminal keyboard control (start PX4/MAVROS Lite first)
+ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/mavros
+
 ```
 
 ## What it contains:
@@ -30,6 +33,32 @@ ros2 launch fss_px4_sim drone_visualizer.launch.py num_drones:=5
 4. (Optional) A drone visualizer node process receives MAVROS topics and publishes the drone's URDF, history trajectory, and name markers for visualization in RViz2. 
 
 In conclusion, the conventional PX4 SITL process + MAVROS process + drone dynamics process is simplified to a single PX4 simulator process, which is more efficient. A step of simulation (10ms) only costs about 0.1ms in real time, so the simulation can run at most 100x real time speed on a normal laptop.
+
+## Terminal keyboard control
+
+`keyboard_control_ros2` is a standard-terminal `rclpy` node; it does not use ROS 1 or PyQt5. Run it in a separate terminal after starting a simulator with MAVROS Lite:
+
+```bash
+ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/mavros
+```
+
+| Key | Action |
+| --- | --- |
+| `W/A/S/D` | forward/left/back/right velocity |
+| `Q/E` | increase/decrease altitude setpoint |
+| `Z/C` | yaw left/right |
+| `Space` or `R` | zero all velocities (hold position) |
+| `+` / `-` | adjust translation speed by 0.1 m/s |
+| `T` | arm via `/mavros/cmd/arming` |
+| `O` | request `OFFBOARD` via `/mavros/set_mode` after arming |
+| `X` | stop and disarm |
+| `Ctrl-C` | exit and restore terminal |
+
+The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. It publishes `mavros_msgs/msg/PositionTarget` to `setpoint_raw/local`, subscribes to `mavros_msgs/msg/State` on `state`, and uses the MAVROS-compatible `mavros_msgs/srv/CommandBool` and `SetMode` services. Set `--speed`, `--yaw-speed`, or `--initial-altitude` to change defaults. Always verify the vehicle is in a safe simulation state before arming.
+
+The terminal shown below was captured from an actual ROS 2 Humble node launch (without a PX4 vehicle connected):
+
+![Keyboard control terminal](../../misc/fss_keyboard_control_terminal.png)
 
 ## What it does not simulate:
 
