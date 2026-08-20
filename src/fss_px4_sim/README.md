@@ -58,7 +58,7 @@ The node starts streaming neutral setpoints at 20 Hz, then requires the explicit
 
 The terminal shown below was captured from an actual ROS 2 Humble node launch (without a PX4 vehicle connected):
 
-![Keyboard control terminal](../../docs/misc/fss_keyboard_control_terminal.png)
+![Keyboard control terminal](../../misc/fss_keyboard_control_terminal.png)
 
 ## What it does not simulate:
 
