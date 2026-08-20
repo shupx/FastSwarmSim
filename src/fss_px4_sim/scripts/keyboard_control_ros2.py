@@ -16,6 +16,31 @@ from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
 
 
+DEFAULT_SETPOINT_TOPIC = "/mavros/setpoint_raw/local"
+DEFAULT_STATE_TOPIC = "/mavros/state"
+DEFAULT_ARMING_SERVICE = "/mavros/cmd/arming"
+DEFAULT_MODE_SERVICE = "/mavros/set_mode"
+
+
+def mavros_interfaces(namespace):
+    """Return MAVROS interface names, using absolute single-vehicle defaults."""
+    if namespace == "/mavros":
+        return (
+            DEFAULT_SETPOINT_TOPIC,
+            DEFAULT_STATE_TOPIC,
+            DEFAULT_ARMING_SERVICE,
+            DEFAULT_MODE_SERVICE,
+        )
+
+    namespace = "/" + namespace.strip("/")
+    return (
+        f"{namespace}/setpoint_raw/local",
+        f"{namespace}/state",
+        f"{namespace}/cmd/arming",
+        f"{namespace}/set_mode",
+    )
+
+
 class KeyboardControl(Node):
     def __init__(self, args):
         super().__init__("keyboard_control_ros2")
@@ -26,10 +51,12 @@ class KeyboardControl(Node):
         self.armed = False
         self.mode = "UNKNOWN"
         self.lock = Lock()
-        self.setpoint_pub = self.create_publisher(PositionTarget, "setpoint_raw/local", 10)
-        self.state_sub = self.create_subscription(State, "state", self._state_cb, 10)
-        self.arm_client = self.create_client(CommandBool, "cmd/arming")
-        self.mode_client = self.create_client(SetMode, "set_mode")
+        (self.setpoint_topic, self.state_topic,
+         self.arming_service, self.mode_service) = mavros_interfaces(args.mavros_namespace)
+        self.setpoint_pub = self.create_publisher(PositionTarget, self.setpoint_topic, 10)
+        self.state_sub = self.create_subscription(State, self.state_topic, self._state_cb, 10)
+        self.arm_client = self.create_client(CommandBool, self.arming_service)
+        self.mode_client = self.create_client(SetMode, self.mode_service)
         self.timer = self.create_timer(0.05, self._publish)
 
     def _state_cb(self, msg):
@@ -63,7 +90,7 @@ class KeyboardControl(Node):
 
     def arm(self, value=True):
         if not self.arm_client.wait_for_service(timeout_sec=0.2):
-            self.get_logger().warning("/mavros/cmd/arming is unavailable")
+            self.get_logger().warning(f"{self.arming_service} is unavailable")
             return
         request = CommandBool.Request(); request.value = value
         self.arm_client.call_async(request)
@@ -73,7 +100,7 @@ class KeyboardControl(Node):
             self.get_logger().warning("refusing OFFBOARD request while the vehicle is disarmed; arm first with t")
             return
         if not self.mode_client.wait_for_service(timeout_sec=0.2):
-            self.get_logger().warning("/mavros/set_mode is unavailable")
+            self.get_logger().warning(f"{self.mode_service} is unavailable")
             return
         request = SetMode.Request(); request.custom_mode = "OFFBOARD"
         self.mode_client.call_async(request)
@@ -119,6 +146,11 @@ def parse_args(argv=None):
     parser.add_argument("--speed", type=float, default=1.0, help="translation speed in m/s (default: 1.0)")
     parser.add_argument("--yaw-speed", type=float, default=1.57, help="yaw speed in rad/s (default: 1.57)")
     parser.add_argument("--initial-altitude", type=float, default=1.0, help="initial z setpoint in metres")
+    parser.add_argument(
+        "--mavros-namespace",
+        default="/mavros",
+        help="MAVROS namespace for a selected vehicle (default: /mavros)",
+    )
     return parser.parse_known_args(argv)
 
 

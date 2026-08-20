@@ -18,7 +18,7 @@ ros2 launch fss_px4_sim drone_visualizer.launch.py
 ros2 launch fss_px4_sim drone_visualizer.launch.py num_drones:=5
 
 # Terminal keyboard control (start PX4/MAVROS Lite first)
-ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/mavros
+ros2 run fss_px4_sim keyboard_control_ros2
 
 ```
 
@@ -39,10 +39,10 @@ In conclusion, the conventional PX4 SITL process + MAVROS process + drone dynami
 `keyboard_control_ros2` is a standard-terminal `rclpy` node; it does not use ROS 1 or PyQt5. Run it in a separate terminal after starting a simulator with MAVROS Lite:
 
 ```bash
-ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/mavros
+ros2 run fss_px4_sim keyboard_control_ros2
 
-# For the first vehicle in a multi-drone launch, use its vehicle namespace.
-ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/uav1/mavros
+# Optional: control the first vehicle in a multi-drone launch.
+ros2 run fss_px4_sim keyboard_control_ros2 --mavros-namespace /uav1/mavros
 ```
 
 | Key | Action |
@@ -57,14 +57,14 @@ ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/uav1/mavros
 | `X` | stop and disarm |
 | `Ctrl-C` | stop, request disarm, and restore terminal |
 
-The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. On every normal exit it publishes a neutral setpoint and waits up to one second for a disarm request before restoring the terminal. It publishes `mavros_msgs/msg/PositionTarget` to `setpoint_raw/local`, subscribes to `mavros_msgs/msg/State` on `state`, and uses the MAVROS-compatible `mavros_msgs/srv/CommandBool` and `SetMode` services. Set `--speed`, `--yaw-speed`, or `--initial-altitude` to change defaults. Always verify the vehicle is in a safe simulation state before arming.
+The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. By default it publishes `mavros_msgs/msg/PositionTarget` to `/mavros/setpoint_raw/local`, subscribes to `mavros_msgs/msg/State` on `/mavros/state`, and calls `/mavros/cmd/arming` and `/mavros/set_mode`. On every normal exit it publishes a neutral setpoint and waits up to one second for a disarm request before restoring the terminal. Set `--speed`, `--yaw-speed`, `--initial-altitude`, or the optional `--mavros-namespace` to change defaults. Always verify the vehicle is in a safe simulation state before arming.
 
 The keyboard controller is intended for an interactive terminal. The following
 is a verified ROS 2 node terminal capture; it demonstrates node startup and the
 keyboard status display, but is not a substitute for checking the simulated
 vehicle state before arming:
 
-![Keyboard control terminal](../../misc/fss_keyboard_control_terminal.png)
+![Keyboard control terminal](https://shupx.github.io/FastSwarmSim/misc/fss_keyboard_control_terminal.png)
 
 ## What it does not simulate:
 
