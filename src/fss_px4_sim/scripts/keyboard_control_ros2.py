@@ -16,29 +16,12 @@ from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
 
 
-DEFAULT_SETPOINT_TOPIC = "/mavros/setpoint_raw/local"
-DEFAULT_STATE_TOPIC = "/mavros/state"
-DEFAULT_ARMING_SERVICE = "/mavros/cmd/arming"
-DEFAULT_MODE_SERVICE = "/mavros/set_mode"
-
-
-def mavros_interfaces(namespace):
-    """Return MAVROS interface names, using absolute single-vehicle defaults."""
-    if namespace == "/mavros":
-        return (
-            DEFAULT_SETPOINT_TOPIC,
-            DEFAULT_STATE_TOPIC,
-            DEFAULT_ARMING_SERVICE,
-            DEFAULT_MODE_SERVICE,
-        )
-
-    namespace = "/" + namespace.strip("/")
-    return (
-        f"{namespace}/setpoint_raw/local",
-        f"{namespace}/state",
-        f"{namespace}/cmd/arming",
-        f"{namespace}/set_mode",
-    )
+# Relative names preserve the ROS 1-style namespace layout:
+# single vehicle -> /mavros/..., multi-vehicle /uav1 -> /uav1/mavros/...
+SETPOINT_TOPIC = "mavros/setpoint_raw/local"
+STATE_TOPIC = "mavros/state"
+ARMING_SERVICE = "mavros/cmd/arming"
+MODE_SERVICE = "mavros/set_mode"
 
 
 class KeyboardControl(Node):
@@ -51,12 +34,14 @@ class KeyboardControl(Node):
         self.armed = False
         self.mode = "UNKNOWN"
         self.lock = Lock()
-        (self.setpoint_topic, self.state_topic,
-         self.arming_service, self.mode_service) = mavros_interfaces(args.mavros_namespace)
-        self.setpoint_pub = self.create_publisher(PositionTarget, self.setpoint_topic, 10)
-        self.state_sub = self.create_subscription(State, self.state_topic, self._state_cb, 10)
-        self.arm_client = self.create_client(CommandBool, self.arming_service)
-        self.mode_client = self.create_client(SetMode, self.mode_service)
+        self.setpoint_topic = SETPOINT_TOPIC
+        self.state_topic = STATE_TOPIC
+        self.arming_service = ARMING_SERVICE
+        self.mode_service = MODE_SERVICE
+        self.setpoint_pub = self.create_publisher(PositionTarget, SETPOINT_TOPIC, 10)
+        self.state_sub = self.create_subscription(State, STATE_TOPIC, self._state_cb, 10)
+        self.arm_client = self.create_client(CommandBool, ARMING_SERVICE)
+        self.mode_client = self.create_client(SetMode, MODE_SERVICE)
         self.timer = self.create_timer(0.05, self._publish)
 
     def _state_cb(self, msg):
@@ -146,11 +131,7 @@ def parse_args(argv=None):
     parser.add_argument("--speed", type=float, default=1.0, help="translation speed in m/s (default: 1.0)")
     parser.add_argument("--yaw-speed", type=float, default=1.57, help="yaw speed in rad/s (default: 1.57)")
     parser.add_argument("--initial-altitude", type=float, default=1.0, help="initial z setpoint in metres")
-    parser.add_argument(
-        "--mavros-namespace",
-        default="/mavros",
-        help="MAVROS namespace for a selected vehicle (default: /mavros)",
-    )
+
     return parser.parse_known_args(argv)
 
 

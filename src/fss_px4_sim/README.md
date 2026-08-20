@@ -42,7 +42,7 @@ In conclusion, the conventional PX4 SITL process + MAVROS process + drone dynami
 ros2 run fss_px4_sim keyboard_control_ros2
 
 # Optional: control the first vehicle in a multi-drone launch.
-ros2 run fss_px4_sim keyboard_control_ros2 --mavros-namespace /uav1/mavros
+ros2 run fss_px4_sim keyboard_control_ros2 --ros-args -r __ns:=/uav1
 ```
 
 | Key | Action |
@@ -57,12 +57,12 @@ ros2 run fss_px4_sim keyboard_control_ros2 --mavros-namespace /uav1/mavros
 | `X` | stop and disarm |
 | `Ctrl-C` | stop, request disarm, and restore terminal |
 
-The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. By default it publishes `mavros_msgs/msg/PositionTarget` to `/mavros/setpoint_raw/local`, subscribes to `mavros_msgs/msg/State` on `/mavros/state`, and calls `/mavros/cmd/arming` and `/mavros/set_mode`. On every normal exit it publishes a neutral setpoint and waits up to one second for a disarm request before restoring the terminal. Set `--speed`, `--yaw-speed`, `--initial-altitude`, or the optional `--mavros-namespace` to change defaults. Always verify the vehicle is in a safe simulation state before arming.
+The node starts streaming neutral setpoints at 20 Hz, then requires the explicit safe sequence `T`, wait for `armed=True`, then `O`; it refuses an OFFBOARD request while state reports disarmed. The controller uses relative MAVROS names: `mavros/setpoint_raw/local`, `mavros/state`, `mavros/cmd/arming`, and `mavros/set_mode`. Therefore, the single-vehicle command resolves them to `/mavros/...` without any extra namespace argument. With `--ros-args -r __ns:=/uav1`, the same names resolve to `/uav1/mavros/...`, matching the multi-vehicle ROS 1-style namespace layout. On every normal exit it publishes a neutral setpoint and waits up to one second for a disarm request before restoring the terminal. Set `--speed`, `--yaw-speed`, or `--initial-altitude` to change control defaults. Always verify the vehicle is in a safe simulation state before arming.
 
 The keyboard controller is intended for an interactive terminal. The following
-is a verified ROS 2 node terminal capture; it demonstrates node startup and the
-keyboard status display, but is not a substitute for checking the simulated
-vehicle state before arming:
+terminal reference shows the single-vehicle command, the resolved relative
+MAVROS interfaces, and the ROS 2 namespace command for `/uav1`. Always verify
+the simulated vehicle state before arming:
 
 ![Keyboard control terminal](https://shupx.github.io/FastSwarmSim/misc/fss_keyboard_control_terminal.png)
 
