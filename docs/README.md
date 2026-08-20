@@ -1,8 +1,12 @@
 # FastSwarmSim
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shupx/FastSwarmSim)
+
 Documentation: https://shupx.github.io/FastSwarmSim/
 
 FastSwarmSim (fss) is a lightweight ROS 2 simulator for PX4-compatible multi-rotor vehicles. It combines a streamlined PX4 runtime, MAVROS-compatible ROS interfaces, local LiDAR point-cloud rendering, RViz visualization, and a conservative lock-step simulation clock. The simulator is intended for multi-UAV algorithm development, repeatable simulation-time experiments, and large-scale swarm prototyping.
+
+![Multi-drone PX4 simulation in RViz](misc/px4_rotor_sim_multi.png)
 
 **Performance:**
 On a desktop-class computer with LiDAR simulation disabled, FastSwarmSim can run a single vehicle at up to 100x real time, five vehicles at 50x, ten vehicles at 30x, and one hundred vehicles at 4x. This performance comes from the trimmed PX4 core, lightweight MAVROS modules, and efficient lock-step simulation-time system.
@@ -74,8 +78,6 @@ ros2 launch fss_px4_sim px4_rotor_sim_single.launch.py
 ros2 launch fss_px4_sim px4_rotor_sim_multi.launch.py num_drones:=5
 ros2 launch fss_px4_sim perfect_mavros_drone_swarm.launch.py num_drones:=5
 ```
-
-![Multi-drone PX4 simulation in RViz](misc/px4_rotor_sim_multi.png)
 
 ### [Local LiDAR point cloud](src/fss_sensing/README.md)
 
