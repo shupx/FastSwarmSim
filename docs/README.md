@@ -109,4 +109,4 @@ colcon test-result --verbose
 
 ## Contributors
 
-- Peixuan Shu
+- Peixuan Shu (Beihang University, China, shupeixuan@qq.com)
