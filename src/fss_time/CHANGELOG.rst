@@ -2,8 +2,8 @@
 Changelog for package fss_time
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.2 (2026-09-18)
+------------------
 * docs: add platform support and release changelog automation
 * Contributors: Peixuan Shu
 

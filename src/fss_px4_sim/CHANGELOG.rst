@@ -2,8 +2,8 @@
 Changelog for package fss_px4_sim
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.2 (2026-09-18)
+------------------
 * fix(fss-px4-sim): stop motion after key repeat ends
 * docs(fss-px4-sim): fix troubleshooting code blocks
 * fix(fss-px4-sim): restore ROS namespace-based MAVROS names
