@@ -2,6 +2,10 @@
 
 All notable changes to FastSwarmSim are documented here.
 
+## 0.1.2
+
+The first version released to the ROS build farm, and may be able to installed from the ROS apt source. See [rosdistro issue #54047](https://github.com/ros/rosdistro/pull/54047).
+
 ## v0.1.1
 
 ### Miscellaneous
