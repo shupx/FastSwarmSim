@@ -2,6 +2,9 @@
 Changelog for package fss_time
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.1.3 (2026-09-30)
 ------------------
 * refactor: update ZeroMQ socket options to keep compatible with the old cppzmq 4.4.1
