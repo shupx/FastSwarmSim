@@ -1,10 +1,11 @@
-# FastSwarmSim
+# FastSwarmSim [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shupx/FastSwarmSim) 
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shupx/FastSwarmSim)
-
-Documentation: https://shupx.github.io/FastSwarmSim/
 
 FastSwarmSim (fss) is a lightweight ROS 2 simulator for PX4-compatible multi-rotor vehicles. It combines a streamlined PX4 runtime, MAVROS-compatible ROS interfaces, local LiDAR point-cloud rendering, RViz visualization, and a conservative lock-step simulation clock. The simulator is intended for multi-UAV algorithm development, repeatable simulation-time experiments, and large-scale swarm prototyping.
+
+Documentation: [https://shupx.github.io/FastSwarmSim](https://shupx.github.io/FastSwarmSim)
+
+Source code: [https://github.com/shupx/FastSwarmSim.git](https://github.com/shupx/FastSwarmSim)
 
 ![Multi-drone PX4 simulation in RViz](misc/px4_rotor_sim_multi.png)
 
@@ -16,23 +17,36 @@ On a desktop-class computer with LiDAR simulation disabled, FastSwarmSim can run
 | Package | Purpose |
 | --- | --- |
 | `fss_bringup` | Integrated launch files for complete single- and multi-drone PX4/LiDAR/RViz simulations. |
-| `fss_px4_sim` | PX4-based quadrotor simulation runtime, MAVROS Lite bridge, ideal quadrotor dynamics, MAVROS-compatible perfect-drone baseline, and RViz vehicle visualization. |
+| `fss_px4_sim` | Trimmed PX4 1.13.3-based quadrotor simulation runtime, MAVROS Lite bridge, ideal quadrotor dynamics, MAVROS-compatible perfect-drone baseline, and RViz vehicle visualization. |
 | `fss_sensing` | Local LiDAR point-cloud simulator. It renders the visible cloud from a vehicle pose against a static PCD map through the bundled `marsim_render` library. |
 | `fss_time` | ZeroMQ-based conservative lock-step time coordinator, `/clock` publisher, simulation-speed controls, and C++ helpers/executors for time-synchronized ROS 2 nodes. **NOT only for FastSwarmSim, but for all types of ROS nodes**  |
 | `fss_time_interfaces` | ROS 2 message and service definitions used by `fss_time`, including simulation clock control interfaces. |
 
-## Supported Platforms
-
-| Operating system | ROS 2 distribution |
-| --- | --- |
-| Ubuntu 22.04 | ROS 2 Humble |
-| Ubuntu 24.04 | ROS 2 Jazzy |
-
-The standard PX4 simulation uses a trimmed PX4 v1.13.3 control stack with MAVROS Lite. For algorithm tests that do not require PX4 control or vehicle dynamics, the perfect-drone launch provides immediate MAVROS-compatible command tracking.
-
 ## Installation
 
-The project is developed for Ubuntu 22.04 with ROS 2 Humble. Ubuntu 24.04 with ROS 2 Jazzy follows the same process, although package names can differ by ROS distribution.
+### Binary from ROS apt source
+
+To install FastSwarmSim from the ROS apt source, follow these steps:
+
+```bash
+sudo apt update
+# fss-bringup is the main package that includes all other packages as dependencies
+sudo apt install ros-$ROS_DISTRO-fss-bringup
+
+# ros-$ROS_DISTRO-fss-px4-sim ros-$ROS_DISTRO-fss-sensing ros-$ROS_DISTRO-fss-time ros-$ROS_DISTRO-fss-time-interfaces
+```
+
+Status of fastswarmsim in the [ROS2 build farm](https://build.ros2.org/job/Hdev__fastswarmsim__ubuntu_jammy_amd64/):
+
+| Operating system | ROS 2 distribution | ROS2 build farm status |
+| --- | --- | --- |
+| Ubuntu 22.04 | ROS 2 Humble | [![Build Status](https://build.ros2.org/job/Hdev__fastswarmsim__ubuntu_jammy_amd64/badge/icon?subject=ROS2+humble)](https://build.ros2.org/job/Hdev__fastswarmsim__ubuntu_jammy_amd64/)
+| Ubuntu 24.04 | ROS 2 Jazzy | TODO |
+| Ubuntu 26.04 | ROS 2 Lyrical | TODO |
+| Ubuntu  | ROS 2 Rolling | TODO |
+
+
+### Build from source
 
 Install ROS 2, `colcon`, and `rosdep` by following the [ROS 2 installation guide](https://gitee.com/shu-peixuan/install_ros2). The guide also includes solutions for common network issues.
 
