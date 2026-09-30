@@ -43,6 +43,9 @@ ament_target_dependencies(local_pointcloud_sim_node
   sensor_msgs
 )
 target_link_libraries(local_pointcloud_sim_node marsim_render ${PCL_LIBRARIES})
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+  target_link_libraries(local_pointcloud_sim_node stdc++fs)
+endif()
 
 install(TARGETS local_pointcloud_sim_node
   DESTINATION lib/${PROJECT_NAME}
