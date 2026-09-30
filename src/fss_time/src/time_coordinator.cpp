@@ -250,20 +250,25 @@ void TimeCoordinator::start()
   }
 
   // bind the ROUTER socket for receiving requests from participants
-  impl_->socket.set(zmq::sockopt::linger, 0);
-  impl_->socket.set(zmq::sockopt::rcvhwm, 100000);
-  impl_->socket.set(zmq::sockopt::rcvtimeo, 0);
+  const int linger = 0;
+  const int high_water_mark = 100000;
+  const int receive_timeout = 0;
+  impl_->socket.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+  impl_->socket.setsockopt(ZMQ_RCVHWM, &high_water_mark, sizeof(high_water_mark));
+  impl_->socket.setsockopt(ZMQ_RCVTIMEO, &receive_timeout, sizeof(receive_timeout));
   impl_->socket.bind(endpoint_);
 
   // The granted-time PUB channel is optional for non-cascaded coordinators.
   if (!pub_endpoint_.empty()) {
-    impl_->pub_socket.set(zmq::sockopt::linger, 0);
-    impl_->pub_socket.set(zmq::sockopt::sndhwm, 100000);
+    impl_->pub_socket.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+    impl_->pub_socket.setsockopt(ZMQ_SNDHWM, &high_water_mark, sizeof(high_water_mark));
     impl_->pub_socket.bind(pub_endpoint_);
     // A TCP port of zero requests an ephemeral port. Advertise the port selected by bind().
     if (parse_tcp_endpoint(pub_endpoint_)) {
-      if (const auto bound_pub = parse_tcp_endpoint(
-          impl_->pub_socket.get(zmq::sockopt::last_endpoint))) {
+      std::array<char, 256> bound_endpoint{};
+      std::size_t endpoint_size = bound_endpoint.size();
+      impl_->pub_socket.getsockopt(ZMQ_LAST_ENDPOINT, bound_endpoint.data(), &endpoint_size);
+      if (const auto bound_pub = parse_tcp_endpoint(bound_endpoint.data())) {
         pub_endpoint_ = replace_tcp_endpoint_port(pub_endpoint_, bound_pub->port);
       }
     }
@@ -302,8 +307,8 @@ void TimeCoordinator::start()
       parent_pub_endpoint_ =
         replace_tcp_endpoint_wildcard_host(parent_pub_endpoint_, parent_endpoint_);
     }
-    impl_->parent_sub_socket.set(zmq::sockopt::linger, 0);
-    impl_->parent_sub_socket.set(zmq::sockopt::subscribe, "");
+    impl_->parent_sub_socket.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+    impl_->parent_sub_socket.setsockopt(ZMQ_SUBSCRIBE, "", 0);
     impl_->parent_sub_socket.connect(parent_pub_endpoint_);
   }
 
@@ -482,7 +487,9 @@ void TimeCoordinator::receive_router_message()
     return;
   }
 
-  const auto reply_text = handle_message(identity_frame.to_string(), message_frame.to_string());
+  const auto reply_text = handle_message(
+    std::string(static_cast<const char *>(identity_frame.data()), identity_frame.size()),
+    std::string(static_cast<const char *>(message_frame.data()), message_frame.size()));
   if (!reply_text.empty()) {
     // send() may take 2us, which is heavy for a time coordinator that is expected to run at 1kHz and with multiple participants. 
     zmq::message_t identity(identity_frame.data(), identity_frame.size());
@@ -500,7 +507,8 @@ void TimeCoordinator::receive_parent_grant()
     return;
   }
 
-  std::istringstream input(grant_frame.to_string());
+  std::istringstream input(
+    std::string(static_cast<const char *>(grant_frame.data()), grant_frame.size()));
   std::string command;
   int64_t granted_time_ns = 0;
   input >> command >> granted_time_ns;

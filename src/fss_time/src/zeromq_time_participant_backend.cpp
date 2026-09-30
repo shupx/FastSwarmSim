@@ -134,10 +134,13 @@ void ZeroMqTimeParticipantBackend::start_locked()
     return;
   }
 
-  impl_->socket.set(zmq::sockopt::linger, 0);
-  impl_->socket.set(zmq::sockopt::sndtimeo, 100);
-  impl_->socket.set(zmq::sockopt::rcvtimeo, 100);
-  impl_->socket.set(zmq::sockopt::routing_id, options_.participant_id);
+  const int linger = 0;
+  const int timeout = 100;
+  impl_->socket.setsockopt(ZMQ_LINGER, &linger, sizeof(linger));
+  impl_->socket.setsockopt(ZMQ_SNDTIMEO, &timeout, sizeof(timeout));
+  impl_->socket.setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+  impl_->socket.setsockopt(
+    ZMQ_IDENTITY, options_.participant_id.data(), options_.participant_id.size());
   impl_->socket.connect(options_.coordinator_endpoint);
   connected_ = true;
 }
@@ -198,7 +201,7 @@ std::string ZeroMqTimeParticipantBackend::request_coordinator_locked(
       zmq::message_t reply;
       const auto received = impl_->socket.recv(reply, zmq::recv_flags::none);
       if (received) {
-        return reply.to_string();
+        return std::string(static_cast<const char *>(reply.data()), reply.size());
       }
     } catch (const zmq::error_t &) {
     }
