@@ -1,5 +1,6 @@
-# FastSwarmSim [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shupx/FastSwarmSim) 
+# FastSwarmSim 
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shupx/FastSwarmSim) 
 
 FastSwarmSim (fss) is a lightweight ROS 2 simulator for PX4-compatible multi-rotor vehicles. It combines a streamlined PX4 runtime, MAVROS-compatible ROS interfaces, local LiDAR point-cloud rendering, RViz visualization, and a conservative lock-step simulation clock. The simulator is intended for multi-UAV algorithm development, repeatable simulation-time experiments, and large-scale swarm prototyping.
 
