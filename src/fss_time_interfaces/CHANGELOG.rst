@@ -2,6 +2,9 @@
 Changelog for package fss_time_interfaces
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.1.2 (2026-09-18)
 ------------------
 

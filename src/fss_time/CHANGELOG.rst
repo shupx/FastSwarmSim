@@ -2,6 +2,12 @@
 Changelog for package fss_time
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* refactor: update ZeroMQ socket options to keep compatible with the old cppzmq 4.4.1
+* fix: add pkg-config as a build dependency in package.xml
+* Contributors: Peixuan Shu
+
 0.1.2 (2026-09-18)
 ------------------
 * docs: add platform support and release changelog automation
