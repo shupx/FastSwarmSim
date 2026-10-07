@@ -139,13 +139,25 @@ MultiThreadedExecutor::run([[maybe_unused]] size_t this_thread_number)
 
   while (rclcpp::ok(this->context_) && spinning.load()) {
     // While get_next_executable(any_exec, next_exec_timeout_) with next_exec_timeout_=-1 by default blocks for ROS work, this worker does not constrain sim-time progress as thread_time_participant announces infinite safe time.
-    fss_time_tools::announce_next_safe_time_infinite(participant);
+    // Shutdown/cancel may wake the wait set after the coordinator has exited.
+    if (!rclcpp::ok(this->context_) || !spinning.load()) {
+      return;
+    }
+    try {
+      fss_time_tools::announce_next_safe_time_infinite(participant);
+    } catch (const std::runtime_error &) {
+      // Preserve transport errors during normal operation, but allow shutdown.
+      if (!rclcpp::ok(this->context_) || !spinning.load()) {
+        return;
+      }
+      throw;
+    }
 
     // std::cout << "thread " << this_thread_number << " announce_next_safe_time_infinite" << std::endl;
 
     rclcpp::AnyExecutable any_exec;
     bool got_work = false;
-    while (rclcpp::ok(this->context_) && !got_work)
+    while (rclcpp::ok(this->context_) && spinning.load() && !got_work)
     {
       std::lock_guard wait_lock{wait_mutex_};
       if (!rclcpp::ok(this->context_) || !spinning.load()) {
@@ -160,7 +172,19 @@ MultiThreadedExecutor::run([[maybe_unused]] size_t this_thread_number)
     }
 
     // Before executing any_executable callbacks, pin this thread_time_participant to the coordinator's current sim time, so that the sim time does not advance while callbacks are running. 
-    fss_time_tools::announce_current_time(participant);
+    // Shutdown/cancel may wake the wait set after the coordinator has exited.
+    if (!rclcpp::ok(this->context_) || !spinning.load()) {
+      return;
+    }
+    try {
+      fss_time_tools::announce_current_time(participant);
+    } catch (const std::runtime_error &) {
+      // Preserve transport errors during normal operation, but allow shutdown.
+      if (!rclcpp::ok(this->context_) || !spinning.load()) {
+        return;
+      }
+      throw;
+    }
 
     // std::cout << "thread " << this_thread_number << " announce_current_time: " << participant.get_last_safe_time().nanoseconds() << " ns" << std::endl;
 

@@ -44,14 +44,38 @@ SingleThreadedExecutor::spin()
   while (rclcpp::ok(this->context_) && spinning.load()) {
     rclcpp::AnyExecutable any_executable;
     // While get_next_executable(any_executable) blocks for ROS work, this executor thread does not constrain sim-time progress as thread_time_participant announces infinite safe time.
-    fss_time_tools::announce_next_safe_time_infinite(participant);
+    // Shutdown/cancel may wake the wait set after the coordinator has exited.
+    if (!rclcpp::ok(this->context_) || !spinning.load()) {
+      return;
+    }
+    try {
+      fss_time_tools::announce_next_safe_time_infinite(participant);
+    } catch (const std::runtime_error &) {
+      // Preserve transport errors during normal operation, but allow shutdown.
+      if (!rclcpp::ok(this->context_) || !spinning.load()) {
+        return;
+      }
+      throw;
+    }
     
-    while (rclcpp::ok(this->context_) && !get_next_executable(any_executable)) {
+    while (rclcpp::ok(this->context_) && spinning.load() && !get_next_executable(any_executable)) {
       // get_next_executable(x, -1) blocks until the next timer triggering walltime. If sim time is paused, this will return with false (no work ready). So a while loop is needed to keep waiting for work in sim time paused state.
     }
 
     // Before executing any_executable callbacks, pin this thread_time_participant to the coordinator's current sim time, so that the sim time does not advance while callbacks are running. 
-    fss_time_tools::announce_current_time(participant);
+    // Shutdown/cancel may wake the wait set after the coordinator has exited.
+    if (!rclcpp::ok(this->context_) || !spinning.load()) {
+      return;
+    }
+    try {
+      fss_time_tools::announce_current_time(participant);
+    } catch (const std::runtime_error &) {
+      // Preserve transport errors during normal operation, but allow shutdown.
+      if (!rclcpp::ok(this->context_) || !spinning.load()) {
+        return;
+      }
+      throw;
+    }
 
     /* Execute the available callbacks */
     while (rclcpp::ok(this->context_) && spinning.load()) {
