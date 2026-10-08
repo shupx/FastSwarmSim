@@ -1,5 +1,9 @@
 # FastSwarmSim 
 
+[![ROS 2 Humble Build](https://github.com/shupx/FastSwarmSim/actions/workflows/ros2-humble.yml/badge.svg?branch=main)](https://github.com/shupx/FastSwarmSim/actions/workflows/ros2-humble.yml)
+[![ROS 2 Jazzy Build](https://github.com/shupx/FastSwarmSim/actions/workflows/ros2-jazzy.yml/badge.svg?branch=main)](https://github.com/shupx/FastSwarmSim/actions/workflows/ros2-jazzy.yml)
+[![ROS 2 Lyrical Build](https://github.com/shupx/FastSwarmSim/actions/workflows/ros2-lyrical.yml/badge.svg?branch=main)](https://github.com/shupx/FastSwarmSim/actions/workflows/ros2-lyrical.yml)
+[![ROS 2 Rolling Build](https://github.com/shupx/FastSwarmSim/actions/workflows/ros2-rolling.yml/badge.svg?branch=main)](https://github.com/shupx/FastSwarmSim/actions/workflows/ros2-rolling.yml)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shupx/FastSwarmSim) 
 
 FastSwarmSim (fss) is a lightweight ROS 2 simulator for PX4-compatible multi-rotor vehicles. It combines a streamlined PX4 runtime, MAVROS-compatible ROS interfaces, local LiDAR point-cloud rendering, RViz visualization, and a conservative lock-step simulation clock. The simulator is intended for multi-UAV algorithm development, repeatable simulation-time experiments, and large-scale swarm prototyping.

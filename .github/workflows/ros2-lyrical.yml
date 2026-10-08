@@ -1,0 +1,25 @@
+name: ROS 2 Lyrical Build
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up ROS 2 Lyrical
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: lyrical
+
+      - name: Build with ROS 2 Lyrical
+        uses: ros-tooling/action-ros-ci@v0.4
+        with:
+          target-ros2-distro: lyrical
+          skip-tests: "true"
