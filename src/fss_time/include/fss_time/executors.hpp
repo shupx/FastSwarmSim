@@ -13,6 +13,7 @@
 #include "rclcpp/executor.hpp"
 #include "rclcpp/macros.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp/version.h"
 
 namespace fss_time
 {
@@ -55,7 +56,11 @@ public:
   /**
    * @brief Override rclcpp::Executor::add_node to set the time node for fss_time support.
    */
+#if RCLCPP_VERSION_GTE(32, 0, 0)
+  void add_node(const std::shared_ptr<rclcpp::Node> & node_ptr, bool notify = true) override
+#else
   void add_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify = true) override
+#endif
   {
     set_time_node(node_ptr);
     rclcpp::Executor::add_node(node_ptr, notify);
@@ -64,7 +69,11 @@ public:
   /**
    * @brief Override rclcpp::Executor::remove_node to reset the time node for fss_time support.
    */
+#if RCLCPP_VERSION_GTE(32, 0, 0)
+  void remove_node(const std::shared_ptr<rclcpp::Node> & node_ptr, bool notify = true) override
+#else
   void remove_node(std::shared_ptr<rclcpp::Node> node_ptr, bool notify = true) override
+#endif
   {
     rclcpp::Executor::remove_node(node_ptr, notify);
     if (time_node_ == node_ptr) {
