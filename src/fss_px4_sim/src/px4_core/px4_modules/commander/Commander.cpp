@@ -356,7 +356,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 					// arming_res = arm(arm_disarm_reason, cmd.from_external || !forced);
 
 					/* accept all arm/disarm request. Modified by Peixuan Shu */
-					arming_res == TRANSITION_CHANGED;
+					arming_res = TRANSITION_CHANGED;
 					_armed.armed = true;
 					_armed.ready_to_arm = true;
 					_status.arming_state = vehicle_status_s::ARMING_STATE_ARMED;
@@ -366,7 +366,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 					// arming_res = disarm(arm_disarm_reason, forced);
 
 					/* accept all arm/disarm request. Modified by Peixuan Shu */
-					arming_res == TRANSITION_CHANGED;
+					arming_res = TRANSITION_CHANGED;
 					_armed.armed = false;
 					_armed.ready_to_arm = true;
 					_status.arming_state = vehicle_status_s::ARMING_STATE_STANDBY;
