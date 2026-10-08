@@ -32,15 +32,16 @@ target_include_directories(local_pointcloud_sim_node PRIVATE
   include
   ${EIGEN3_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
+  ${pcl_conversions_INCLUDE_DIRS}
 )
-ament_target_dependencies(local_pointcloud_sim_node
-  ament_index_cpp
-  fss_time
-  geometry_msgs
-  nav_msgs
-  pcl_conversions
-  rclcpp
-  sensor_msgs
+target_link_libraries(local_pointcloud_sim_node
+  ${ament_index_cpp_TARGETS}
+  fss_time::fss_time
+  ${geometry_msgs_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${pcl_conversions_TARGETS}
+  ${rclcpp_TARGETS}
+  ${sensor_msgs_TARGETS}
 )
 target_link_libraries(local_pointcloud_sim_node marsim_render ${PCL_LIBRARIES})
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)

@@ -30,6 +30,8 @@ jobs:
           source /opt/ros/lyrical/setup.bash
           /usr/bin/python3 -c "import ament_package; import rosidl_adapter"
           echo "PYTHONPATH=$PYTHONPATH" >> "$GITHUB_ENV"
+          echo "AMENT_PREFIX_PATH=$AMENT_PREFIX_PATH" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH" >> "$GITHUB_ENV"
 
       - name: Build with ROS 2 Lyrical
         uses: ros-tooling/action-ros-ci@v0.4
