@@ -32,7 +32,7 @@ void trigger_guard_condition_compat(GuardConditionT & guard_condition)
 /** @brief Compatibility shim: Humble stores interrupt_guard_condition_ as an object, while Rolling/newer rclcpp stores it as a shared_ptr.
 */
 template<typename GuardConditionT>
-void trigger_guard_condition_compat(const std::shared_ptr<GuardConditionT> & guard_condition)
+void trigger_guard_condition_compat(std::shared_ptr<GuardConditionT> & guard_condition)
 {
   guard_condition->trigger();
 }

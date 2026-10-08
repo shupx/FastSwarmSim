@@ -13,13 +13,27 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Configure ROS apt source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/configure-ros-apt-source.sh ros2-apt-source
+
       - name: Set up ROS 2 Lyrical
         uses: ros-tooling/setup-ros@v0.7
         with:
           required-ros-distributions: lyrical
+
+      - name: Use the system Python and ROS environment
+        shell: bash
+        run: |
+          echo "/usr/bin" >> "$GITHUB_PATH"
+          source /opt/ros/lyrical/setup.bash
+          /usr/bin/python3 -c "import ament_package; import rosidl_adapter"
+          echo "PYTHONPATH=$PYTHONPATH" >> "$GITHUB_ENV"
 
       - name: Build with ROS 2 Lyrical
         uses: ros-tooling/action-ros-ci@v0.4
         with:
           target-ros2-distro: lyrical
           skip-tests: "true"
+          extra-cmake-args: -DPython3_EXECUTABLE=/usr/bin/python3
