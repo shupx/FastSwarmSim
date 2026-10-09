@@ -18,6 +18,7 @@
   <depend>yaml-cpp</depend>
   <depend>nav_msgs</depend>
   <depend>libpcl-all-dev</depend>
+  <build_depend>libjsoncpp-dev</build_depend>
   <depend>pcl_conversions</depend>
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>

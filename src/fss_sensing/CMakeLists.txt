@@ -16,6 +16,8 @@ find_package(Eigen3 REQUIRED)
 find_package(fss_time REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+# VTK 9.5 (through PCL on Ubuntu 26.04) references this imported target.
+find_package(jsoncpp REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(rclcpp REQUIRED)
