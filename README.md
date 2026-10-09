@@ -45,7 +45,7 @@ Status of fastswarmsim in the [ROS2 build farm](https://build.ros2.org/job/Hdev_
 
 | Operating system | ROS 2 distribution | ROS2 build farm status |
 | --- | --- | --- |
-| Ubuntu 22.04 | ROS 2 Humble | [![Build Status](https://build.ros2.org/job/Hdev__fastswarmsim__ubuntu_jammy_amd64/badge/icon?subject=ROS2+humble)](https://build.ros2.org/job/Hdev__fastswarmsim__ubuntu_jammy_amd64/)
+| Ubuntu 22.04 | ROS 2 Humble | [![Build Status](https://build.ros2.org/buildStatus/icon?job=Hdev__fastswarmsim__ubuntu_jammy_amd64&subject=ROS2+humble)](https://build.ros2.org/job/Hdev__fastswarmsim__ubuntu_jammy_amd64/)
 | Ubuntu 24.04 | ROS 2 Jazzy | TODO |
 | Ubuntu 26.04 | ROS 2 Lyrical | TODO |
 | Ubuntu  | ROS 2 Rolling | TODO |
