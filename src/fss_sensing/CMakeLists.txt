@@ -37,7 +37,7 @@ target_include_directories(local_pointcloud_sim_node PRIVATE
   ${pcl_conversions_INCLUDE_DIRS}
 )
 target_link_libraries(local_pointcloud_sim_node
-  ${ament_index_cpp_TARGETS}
+  ament_index_cpp::ament_index_cpp
   fss_time::fss_time
   ${geometry_msgs_TARGETS}
   ${nav_msgs_TARGETS}
