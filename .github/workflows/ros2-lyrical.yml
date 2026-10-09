@@ -2,44 +2,32 @@ name: ROS 2 Lyrical Build
 
 on:
   push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    runs-on: ubuntu-26.04
+  lyrical_build:
+    runs-on: ubuntu-latest
+    container:
+      image: rostooling/setup-ros-docker:ubuntu-resolute-ros-lyrical-ros-base-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Configure ROS apt source
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash .github/scripts/configure-ros-apt-source.sh ros2-apt-source
-
-      - name: Set up ROS 2 Lyrical
-        uses: ros-tooling/setup-ros@v0.7
-        with:
-          required-ros-distributions: lyrical
-
-      - name: Use the system Python and ROS environment
-        shell: bash
-        run: |
-          echo "/usr/bin" >> "$GITHUB_PATH"
-          source /opt/ros/lyrical/setup.bash
-          /usr/bin/python3 -c "import ament_package; import rosidl_adapter"
-          echo "PYTHONPATH=$PYTHONPATH" >> "$GITHUB_ENV"
-          echo "AMENT_PREFIX_PATH=$AMENT_PREFIX_PATH" >> "$GITHUB_ENV"
-          echo "CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH" >> "$GITHUB_ENV"
-
-      - name: Build with ROS 2 Lyrical
+      - name: Build ROS 2 workspace
         uses: ros-tooling/action-ros-ci@v0.4
-        env:
-          FSS_ROS_UNDERLAY: /opt/ros/lyrical
         with:
+          package-name: >-
+            fss_bringup
+            fss_px4_sim
+            fss_sensing
+            fss_time
+            fss_time_interfaces
           target-ros2-distro: lyrical
           skip-tests: "true"
-          extra-cmake-args: >-
-            -DPython3_EXECUTABLE=/usr/bin/python3
-            -DCMAKE_PROJECT_INCLUDE_BEFORE=${{ github.workspace }}/.github/cmake/ros-underlay.cmake

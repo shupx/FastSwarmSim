@@ -2,38 +2,32 @@ name: ROS 2 Humble Build
 
 on:
   push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    runs-on: ubuntu-22.04
+  humble_build:
+    runs-on: ubuntu-latest
+    container:
+      image: rostooling/setup-ros-docker:ubuntu-jammy-ros-humble-ros-base-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Configure ROS apt source
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash .github/scripts/configure-ros-apt-source.sh ros2-apt-source
-
-      - name: Set up ROS 2 Humble
-        uses: ros-tooling/setup-ros@v0.7
+      - name: Build ROS 2 workspace
+        uses: ros-tooling/action-ros-ci@v0.3
         with:
-          required-ros-distributions: humble
-
-      - name: Use the system Python and ROS environment
-        shell: bash
-        run: |
-          echo "/usr/bin" >> "$GITHUB_PATH"
-          source /opt/ros/humble/setup.bash
-          /usr/bin/python3 -c "import ament_package; import rosidl_adapter"
-          echo "PYTHONPATH=$PYTHONPATH" >> "$GITHUB_ENV"
-
-      - name: Build with ROS 2 Humble
-        uses: ros-tooling/action-ros-ci@v0.4
-        with:
+          package-name: >-
+            fss_bringup
+            fss_px4_sim
+            fss_sensing
+            fss_time
+            fss_time_interfaces
           target-ros2-distro: humble
           skip-tests: "true"
-          extra-cmake-args: -DPython3_EXECUTABLE=/usr/bin/python3
