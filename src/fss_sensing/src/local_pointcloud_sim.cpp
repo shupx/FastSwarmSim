@@ -10,7 +10,11 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 
+#if __has_include("ament_index_cpp/get_package_share_path.hpp")
+#include "ament_index_cpp/get_package_share_path.hpp"
+#else
 #include "ament_index_cpp/get_package_share_directory.hpp"
+#endif
 #include "fss_sensing/local_pointcloud_sim_config.hpp"
 #include "fss_time/executors.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -24,6 +28,18 @@ namespace fss_sensing
 
 using Vec3f = Eigen::Matrix<float, 3, 1>;
 
+namespace
+{
+std::filesystem::path sensing_share_path()
+{
+#if __has_include("ament_index_cpp/get_package_share_path.hpp")
+  return ament_index_cpp::get_package_share_path("fss_sensing");
+#else
+  return ament_index_cpp::get_package_share_directory("fss_sensing");
+#endif
+}
+}  // namespace
+
 class LocalPointCloudSimulator : public rclcpp::Node
 {
 public:
@@ -31,8 +47,7 @@ public:
   : Node("local_pointcloud_sim")
   {
     const auto default_config_path =
-      ament_index_cpp::get_package_share_directory("fss_sensing") +
-      "/config/local_pointcloud_sim.yaml";
+      (sensing_share_path() / "config" / "local_pointcloud_sim.yaml").string();
     auto config_path = declare_parameter<std::string>("config_path", default_config_path);
     if (config_path.empty()) {
       config_path = default_config_path;
@@ -40,8 +55,7 @@ public:
     config_ = LocalPointCloudSimConfig(config_path);
 
     RCLCPP_INFO(get_logger(), "Loading local point cloud config: %s", config_path.c_str());
-    const auto resource_root = std::filesystem::path(
-      ament_index_cpp::get_package_share_directory("fss_sensing")) /
+    const auto resource_root = sensing_share_path() /
       "third_party" / "marsim_render";
     marsim::ResourcePaths resources{
       resource_root / "pcd",
