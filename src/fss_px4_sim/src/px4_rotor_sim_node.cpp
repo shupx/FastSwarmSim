@@ -22,6 +22,10 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <chrono>
+#include <mutex>
+#include <stdexcept>
+#include "geometry_msgs/msg/wrench_stamped.hpp"
 
 #include "fss_time/fss_time.hpp"
 #include "fss_px4_sim/mavros_lite/core.hpp"
@@ -52,7 +56,34 @@ public:
     const auto init_yaw = parameter("init_yaw_deg", 0.0);
 
     dynamics_ = std::make_shared<Dynamics>();
-    dynamics_->setSimStep(0.01);
+    const double integration_step = parameter("dynamics_step", 0.001);
+    const double mass = parameter("vehicle_mass", dynamics_->getMass());
+    force_timeout_ = parameter("external_force_timeout", 0.3);
+    if (!std::isfinite(integration_step) || integration_step <= 0.0 ||
+        !std::isfinite(mass) || mass <= 0.0 ||
+        !std::isfinite(force_timeout_) || force_timeout_ <= 0.0) {
+      throw std::invalid_argument("dynamics_step, vehicle_mass and external_force_timeout must be finite and positive");
+    }
+    dynamics_->setSimStep(integration_step);
+    dynamics_->setMass(mass);
+    force_sub_ = create_subscription<geometry_msgs::msg::WrenchStamped>(
+      "fss_px4_sim/external_wrench", rclcpp::QoS(1),
+      [this](geometry_msgs::msg::WrenchStamped::ConstSharedPtr msg) {
+        const auto & torque = msg->wrench.torque;
+        if (torque.x != 0.0 || torque.y != 0.0 || torque.z != 0.0) {
+          RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+            "external_wrench torque ignored: dynamics simulate angular velocity only");
+        }
+        const Eigen::Vector3d force(msg->wrench.force.x, msg->wrench.force.y, msg->wrench.force.z);
+        if (msg->header.frame_id != "map" || !force.allFinite()) {
+          RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+            "external_wrench force ignored: expected finite world ENU force with frame_id=map");
+          return;
+        }
+        std::lock_guard<std::mutex> lock(force_mutex_);
+        external_force_ = force;
+        force_received_ = std::chrono::steady_clock::now();
+      });
     dynamics_->setPos(init_x, init_y, init_z);
     dynamics_->setRPY(init_roll * M_PI / 180.0, init_pitch * M_PI / 180.0,
       init_yaw * M_PI / 180.0);
@@ -110,6 +141,12 @@ private:
         last_time = current_time;
       }
       px4_sitl_->Run(static_cast<uint64_t>(stamp.nanoseconds() / 1000));
+      {
+        std::lock_guard<std::mutex> lock(force_mutex_);
+        const double age = std::chrono::duration<double>(
+          std::chrono::steady_clock::now() - force_received_).count();
+        dynamics_->setExternalForce(age < force_timeout_ ? external_force_ : Eigen::Vector3d::Zero());
+      }
       dynamics_->step(last_time, current_time);
       last_time = current_time;
 
@@ -129,6 +166,11 @@ private:
   }
 
   std::shared_ptr<Dynamics> dynamics_;
+  rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr force_sub_;
+  std::mutex force_mutex_;
+  Eigen::Vector3d external_force_ = Eigen::Vector3d::Zero();
+  std::chrono::steady_clock::time_point force_received_{};
+  double force_timeout_{0.3};
   std::shared_ptr<PX4SITL> px4_sitl_;
   std::shared_ptr<fss_px4_sim::mavros_lite::MavrosLite> mavros_lite_;
   std::atomic_bool running_{true};

@@ -129,3 +129,29 @@ Use the `rmw_cyclonedds_cpp` transport instead of the default `rmw_fastrtps_cpp`
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 ros2 daemon stop
 ```
+
+
+## External force input
+
+The PX4 rotor simulator subscribes to relative topic `fss_px4_sim/external_wrench`
+(`geometry_msgs/msg/WrenchStamped`). For a node in namespace `/uav1`, publish to
+`/uav1/fss_px4_sim/external_wrench`; without a namespace, use
+`/fss_px4_sim/external_wrench`.
+
+Set `header.frame_id` to `map`. Force is expressed in world ENU coordinates in
+newtons and is added to translational dynamics before division by vehicle mass.
+It is independent of vehicle attitude and does not replace the MAVROS acceleration
+setpoint. Nonfinite forces or other frame IDs are ignored with a warning. Torque
+is currently unsupported because this model integrates commanded angular velocity;
+nonzero torque produces a throttled warning and is ignored, while valid force is
+still applied.
+
+`external_force_timeout` defaults to 0.3 seconds of steady wall time after receipt;
+a stale input contributes zero force. `vehicle_mass` defaults to 1.0 kg and
+`dynamics_step` to 0.001 seconds. All three parameters must be finite and positive.
+These parameters apply to the PX4 rotor simulator, not the perfect vehicle model.
+
+```bash
+ros2 topic pub -r 100 /uav1/fss_px4_sim/external_wrench geometry_msgs/msg/WrenchStamped \
+  '{header: {frame_id: map}, wrench: {force: {x: 1.0, y: 0.0, z: 0.0}}}'
+```

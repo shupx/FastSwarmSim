@@ -55,6 +55,8 @@ class Dynamics
     void setInput(const Dynamics::Input &input);
     void setSimStep(const double& dt);
     void setMass(const double& m);
+    // World ENU force in newtons, held constant throughout an integration step.
+    void setExternalForce(const Eigen::Vector3d& force) { external_force_ = force; }
     void setGravityAcc(const double& g);
 
     Dynamics::State getState();
@@ -75,6 +77,7 @@ class Dynamics
     double mass_;
     double g_;
     double thrust_;
+    Eigen::Vector3d external_force_ = Eigen::Vector3d::Zero();
     Eigen::Vector3d omega_;
     Eigen::Vector3d acc_;
     Eigen::Quaterniond q_;

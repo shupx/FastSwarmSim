@@ -64,8 +64,7 @@ void Dynamics::differentialEquation(const StateVector& x, StateVector& dxdt, dou
 
   /* Differential Equations */
   dot_state.pos = cur_state.vel;
-  dot_state.vel = -Eigen::Vector3d(0, 0, g_) + thrust_ * R.col(2) / mass_;
-        //@TODO:  + external_force_ / mass_ - resistance * vnorm / mass_;
+  dot_state.vel = -Eigen::Vector3d(0, 0, g_) + (thrust_ * R.col(2) + external_force_) / mass_;
   dot_state.R = R * omega_vee;
 
   acc_ = dot_state.vel;

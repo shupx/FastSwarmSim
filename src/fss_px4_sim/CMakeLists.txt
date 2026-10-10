@@ -185,6 +185,11 @@ ament_export_dependencies(
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
+  ament_add_gtest(test_external_force test/test_external_force.cpp)
+  if(TARGET test_external_force)
+    target_link_libraries(test_external_force fss_px4_core)
+  endif()
+
   ament_add_gtest(test_mavlink_udp_bridge test/test_mavlink_udp_bridge.cpp)
   if(TARGET test_mavlink_udp_bridge)
     target_link_libraries(test_mavlink_udp_bridge fss_px4_core)
